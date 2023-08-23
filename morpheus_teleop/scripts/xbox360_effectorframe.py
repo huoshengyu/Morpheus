@@ -1,12 +1,16 @@
 #! /usr/bin/env python3
 
 import rospy
+import tf2_ros
 import geometry_msgs.msg   
 import sensor_msgs.msg 
 import control_msgs.msg
 from threading import Lock
 from copy import deepcopy
 from collections import deque
+from scipy.spatial.transform import Rotation as R
+from scipy.linalg import inv
+from scipy import pi
 
 from robotiq_2f_gripper_control.msg import Robotiq2FGripper_robot_output
 
@@ -41,18 +45,49 @@ class TeleopTwistJoy():
             for i in range(len(axes)):
                 if abs(axes[i]) < 0.15:
                     axes[i] = 0
+                if abs(axes[i]) > 1:
+                    axes[i] = axes[i] / abs(axes[i])
 
             linear_scale = 0.05
             angular_scale = 0.05
 
-            print(axes)
+            scaled_axes = [axes[1] * linear_scale, 
+                            axes[0] * linear_scale, 
+                            ((1 - (axes[5] + 1) / 2) - (1 - (axes[2] + 1) / 2)) * linear_scale, 
+                            -axes[3] * angular_scale, 
+                            axes[4] * angular_scale,
+                            (buttons[2] - buttons[3]) * angular_scale]
 
-            self.linear_x_buffer.append(axes[1] * linear_scale)
-            self.linear_y_buffer.append(axes[0] * linear_scale)
-            self.linear_z_buffer.append(((1 - (axes[5] + 1) / 2) - (1 - (axes[2] + 1) / 2)) * linear_scale)
-            self.angular_x_buffer.append(-axes[3] * angular_scale)
-            self.angular_y_buffer.append(axes[4] * angular_scale)
-            self.angular_z_buffer.append((buttons[2] - buttons[3]) * angular_scale)
+            for i in range(len(scaled_axes)):
+                if abs(scaled_axes[i]) > 0.5:
+                    scaled_axes[i] = 0.5 * scaled_axes[i] / abs(scaled_axes[i])
+
+            try:
+                # Reorder controls to work properly with the rotation matrix (and be more intuitive)
+                temp = scaled_axes[2]
+                scaled_axes[2] = scaled_axes[0]
+                scaled_axes[0] = temp
+
+                # Lookup the transform from source_frame to target_frame
+                transform = tf_buffer.lookup_transform("base_link", "tcp_link", rospy.Time(0), rospy.Duration(1.0))
+                
+                effector_rotation = [transform.transform.rotation.x, -transform.transform.rotation.y, transform.transform.rotation.z, transform.transform.rotation.w]
+
+                r = R.from_quat(effector_rotation)
+                r = r.inv()
+                #print(r.as_matrix())
+
+                scaled_axes[:3] = list(r.apply(scaled_axes[:3]))
+                
+            except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
+                rospy.logwarn("Transform lookup failed!")
+
+            self.linear_x_buffer.append(scaled_axes[0])
+            self.linear_y_buffer.append(scaled_axes[1])
+            self.linear_z_buffer.append(scaled_axes[2])
+            self.angular_x_buffer.append(scaled_axes[3])
+            self.angular_y_buffer.append(scaled_axes[4])
+            self.angular_z_buffer.append(scaled_axes[5])
 
             twist = geometry_msgs.msg.Twist()
             twist.linear.x = sum(self.linear_x_buffer) / len(self.linear_x_buffer)
@@ -85,6 +120,9 @@ class TeleopTwistJoy():
 
 if __name__ == '__main__':
     rospy.init_node('xbox360_twist')
+
+    tf_buffer = tf2_ros.Buffer()
+    tf_listener = tf2_ros.TransformListener(tf_buffer)
 
     teleop_twist_joy = TeleopTwistJoy()
 

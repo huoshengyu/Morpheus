@@ -7,6 +7,8 @@ WORKDIR /root/catkin_ws
 # # Install python dependencies
 # RUN pip3 install \ 
 #     package1 \
+RUN pip3 install \
+      scipy
 
 # # Install ROS dependencies
 # RUN apt-get update && apt-get install --no-install-recommends -y \
