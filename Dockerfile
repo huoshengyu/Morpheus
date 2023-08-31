@@ -1,4 +1,4 @@
-FROM thbarkouki/homestri-ur:minimal-v1.0.0
+FROM thbarkouki/homestri-ur:minimal-v1.0.1
 
 SHELL ["/bin/bash", "-c"]
 
@@ -8,7 +8,8 @@ WORKDIR /root/catkin_ws
 # RUN pip3 install \ 
 #     package1 \
 RUN pip3 install \
-      scipy
+      scipy \
+      pybullet
 
 # # Install ROS dependencies
 # RUN apt-get update && apt-get install --no-install-recommends -y \
