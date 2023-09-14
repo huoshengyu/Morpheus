@@ -45,3 +45,11 @@ RUN source /root/catkin_ws/devel/setup.bash
 RUN apt update
 RUN cd /root/catkin_ws/src/ros_pybullet_interface/
 #RUN bash install.sh # Might need to run catkin build -s -j1 to avoid crash
+
+# ros_pybullet_interface citenote for BibTeX
+# @article{Mower2022,
+#   author = {Mower, Christopher E. and Stouraitis, Theodoros and Moura, João and Rauch, Christian and Yan, Lei and Behabadi, Nazanin Zamani and Gienger, Michael and Vercauteren, Tom and Bergeles, Christos and Vijayakumar, Sethu},
+#   title = {ROS-PyBullet Interface: A Framework for Reliable Contact Simulation and Human-Robot Interaction},
+#   journal = {[to appear] Proceedings of the Conference on Robot Learning},
+#   year = {2022},
+# }
