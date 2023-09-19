@@ -42,9 +42,10 @@ RUN source /opt/ros/noetic/setup.bash \
 # Installation for ros_pybullet_interface
 RUN git clone -b main https://github.com/ros-pybullet/ros_pybullet_interface.git /root/catkin_ws/src/ros_pybullet_interface
 RUN source /root/catkin_ws/devel/setup.bash
-RUN apt update
-RUN cd /root/catkin_ws/src/ros_pybullet_interface/
-#RUN bash install.sh # Might need to run catkin build -s -j1 to avoid crash
+RUN sudo apt update
+RUN cd /root/catkin_ws/src/morpheus_teleop/
+RUN bash install.sh 
+# Might need to run catkin build -s -j1 to avoid crash
 
 # ros_pybullet_interface citenote for BibTeX
 # @article{Mower2022,
