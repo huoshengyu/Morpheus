@@ -38,10 +38,11 @@ git clone https://github.com/ros-pybullet/trac_ik.git
 # Install dependancies
 # Update
 sudo apt update
+sudo apt-get update
 
 # Install SDL (required by ros-keyboard)
 # https://www.libsdl.org
-sudo apt install libsdl2-dev libsdl2-2.0-0
+sudo apt-get install libsdl2-dev libsdl2-2.0-0
 
 # Update rosdep and install deps
 rosdep update --include-eol-distros
