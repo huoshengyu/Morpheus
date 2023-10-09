@@ -1,0 +1,37 @@
+<launch>
+
+    <!-- simulated robot arguments -->
+    <arg name="paused" default="false" />
+    <arg name="gazebo_gui" default="true" />
+    <arg name="use_rviz" default="true" />
+    <arg name="urdf_path" default="/root/catkin_ws/src/morpheus/morpheus_teleop/config/test_robot.urdf" />
+
+    <!-- launch gazebo -->
+    <include file="$(find homestri_a_bot_moveit_config)/launch/gazebo.launch">
+        <arg name="paused" value="$(arg paused)" />
+        <arg name="gazebo_gui" value="$(arg gazebo_gui)" />
+        <arg name="urdf_path" value="$(arg urdf_path)" />
+    </include>
+
+    <!-- launch moveit -->
+    <include file="$(find homestri_a_bot_moveit_config)/launch/move_group.launch">
+        <arg name="allow_trajectory_execution" value="true" />
+        <arg name="moveit_controller_manager" value="gazebo" />
+        <arg name="fake_execution_type" value="interpolate" />
+        <arg name="info" value="true" />
+        <arg name="debug" value="false" />
+        <arg name="pipeline" value="ompl" />
+        <arg name="load_robot_description" value="true" />
+    </include>
+
+    <!-- launch rviz -->
+    <group if="$(arg use_rviz)">
+        <arg name="my_rviz" value="-d $(find homestri_bringup)/rviz/a_bot_gazebo.rviz" />
+        <node name="rviz" pkg="rviz" type="rviz" respawn="false" args="$(arg my_rviz)"
+            output="screen" />
+    </group>
+
+    <!-- launch collision publisher -->
+    <node name="collision" pkg="morpheus_teleop" type="collision_publisher.py" output="screen" />
+
+</launch>

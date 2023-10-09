@@ -18,7 +18,7 @@ class Node:
 
     def __init__(self):
         # Init node
-        rospy.init_node('distance_node')
+        rospy.init_node('collision')
         rate = rospy.Rate(10)
 
         #self.a = rospy.Publisher('test', String, queue_size=10)
@@ -46,28 +46,34 @@ class Node:
         self.collision_request = collision_detection.CollisionRequest()
         # Set the collision request to return distances, not just collisions
         self.collision_request.distance = True
+        self.collision_request.contacts = True
+        self.collision_request.verbose = True
+        # Set the collision request to check on a specific link/group
+        self.collision_request.group_name = "gripper"
+        # Set collision request to check for multiple bodies so we can isolate the correct pair
+        self.collision_request.max_contacts = 20
+        self.collision_request.max_contacts_per_pair = 1
 
         # Load collision result so queries can be stored
         self.collision_result = collision_detection.CollisionResult()
     
-        # Set up distance publisher so the callback can forward values through it
-        self.distance_publisher = rospy.Publisher('/collision_distance', String, queue_size=10)
+        # Set up distance publishers so the callback can forward values through them
+        self.distance_publisher = rospy.Publisher('/collision/distance', String, queue_size=10)
+        self.contacts_publisher = rospy.Publisher('/collision/contacts', String, queue_size=10)
 
         # Set up scene subscriber to query scene for current robot state
         self.planning_scene_msg = rospy.wait_for_message('/move_group/monitored_planning_scene', PlanningSceneMsg, timeout=5)
-        self.scene_subscriber = rospy.Subscriber('/move_group/monitored_planning_scene', PlanningSceneMsg, self.distance_callback)
+        self.scene_subscriber = rospy.Subscriber('/move_group/monitored_planning_scene', PlanningSceneMsg, self.callback)
         self.distance = None
 
         #while not rospy.is_shutdown():
             #self.a.publish('help')
-            #self.update_distance(self.planning_scene)
+            #self.update(self.planning_scene)
             #self.publish_distance()
             #rate.sleep()
+        
 
-    def test_callback(self, string):
-        rospy.loginfo('oh')
-
-    def update_distance(self, planning_scene_msg):
+    def update(self, planning_scene_msg):
 
         try:
             # Update planning scene
@@ -79,13 +85,14 @@ class Node:
         except:
             rospy.logwarn("Collision lookup failed!")
 
-    def distance_callback(self, planning_scene):
-        self.distance = self.update_distance(planning_scene)
-        self.publish_distance()
+    def callback(self, planning_scene):
+        self.distance = self.update(planning_scene)
+        self.publish()
         
 
-    def publish_distance(self):
+    def publish(self):
         self.distance_publisher.publish(str(self.collision_result.distance))
+        self.contacts_publisher.publish(str(self.collision_result.contacts))
     
 
     def spin(self):
