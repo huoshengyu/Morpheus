@@ -14,8 +14,19 @@
         <arg name="urdf_path" value="$(arg urdf_path)" />
     </include>
 
+    <!-- launch second robot -->
+    <param name="robot_description2" command="xacro '$(arg urdf_path2)'" />
+    <group ns="test_scene">
+        <param name="tf_prefix" value="test_tf" />
+        <include file="$(find morpheus_teleop)/launch/launch_robot.launch" >
+            <arg name="init_pose" value="-x 0.5 -y 0 -z 0" />
+            <arg name="robot_name"  value="test_scene" />
+            <arg name="robot_description" value="/robot_description2"/>
+        </include>
+    </group>
+
     <!-- launch moveit -->
-    <include file="$(find homestri_a_bot_moveit_config)/launch/move_group.launch">
+    <include file="$(find morpheus_teleop)/launch/move_group.launch">
         <arg name="allow_trajectory_execution" value="true" />
         <arg name="moveit_controller_manager" value="gazebo" />
         <arg name="fake_execution_type" value="interpolate" />
@@ -35,14 +46,6 @@
     <!-- launch collision publisher -->
     <node name="collision" pkg="morpheus_teleop" type="collision_publisher.py" output="screen" />
 
-    <!-- launch second robot -->
-    <param name="robot_description2" command="xacro '$(arg urdf_path2)'" />
-    <group ns="test_scene">
-        <param name="tf_prefix" value="test_tf" />
-        <include file="$(find morpheus_teleop)/launch/launch_robot.launch" >
-            <arg name="init_pose" value="-x -1 -y 1 -z 0" />
-            <arg name="robot_name"  value="test_scene" />
-        </include>
-    </group>
+
 
 </launch>
