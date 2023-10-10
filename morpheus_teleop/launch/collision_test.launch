@@ -4,7 +4,8 @@
     <arg name="paused" default="false" />
     <arg name="gazebo_gui" default="true" />
     <arg name="use_rviz" default="true" />
-    <arg name="urdf_path" default="/root/catkin_ws/src/morpheus/morpheus_teleop/config/test_robot.urdf" />
+    <arg name="urdf_path" default="$(find morpheus_teleop)/config/test_robot.urdf" />
+    <arg name="urdf_path2" default="$(find morpheus_teleop)/config/test_obstacles.urdf" />
 
     <!-- launch gazebo -->
     <include file="$(find homestri_a_bot_moveit_config)/launch/gazebo.launch">
@@ -26,12 +27,22 @@
 
     <!-- launch rviz -->
     <group if="$(arg use_rviz)">
-        <arg name="my_rviz" value="-d $(find homestri_bringup)/rviz/a_bot_gazebo.rviz" />
+        <arg name="my_rviz" value="-d $(find morpheus_teleop)/rviz/a_bot_gazebo.rviz" />
         <node name="rviz" pkg="rviz" type="rviz" respawn="false" args="$(arg my_rviz)"
             output="screen" />
     </group>
 
     <!-- launch collision publisher -->
     <node name="collision" pkg="morpheus_teleop" type="collision_publisher.py" output="screen" />
+
+    <!-- launch second robot -->
+    <param name="robot_description2" command="xacro '$(arg urdf_path2)'" />
+    <group ns="test_scene">
+        <param name="tf_prefix" value="test_tf" />
+        <include file="$(find morpheus_teleop)/launch/launch_robot.launch" >
+            <arg name="init_pose" value="-x -1 -y 1 -z 0" />
+            <arg name="robot_name"  value="test_scene" />
+        </include>
+    </group>
 
 </launch>
