@@ -1,0 +1,6 @@
+<launch>
+
+    <node name="collision_server" pkg="morpheus_collision" type="morpheus_collision" output="screen">
+    </node>
+
+</launch>
