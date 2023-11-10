@@ -1,39 +1,44 @@
+#!/usr/bin/env python3
+
+import sys
 import rospy
 import moveit_commander
-from moveit_msgs.srv import GetStateValidityRequest, GetStateValidity
-from moveit_msgs.msg import RobotState
-from sensor_msgs.msg import JointState
 
 class Node:
 
     def __init__(self):
 
-        # Init Node
+        # Init node and commander
+        moveit_commander.roscpp_initialize(sys.argv)
         rospy.init_node("collision_checker", anonymous=True)
 
-        # Init joint state subscriber
-        
+        # Init RobotCommmander, PlanningSceneInterface, MoveGroupCommander
+        self.robot = moveit_commander.RobotCommander()
+        self.scene = moveit_commander.PlanningSceneInterface()
+        self.move_group = moveit_commander.MoveGroupCommander("arm")
 
-        # Init planning scene interface
-        moveit_commander.rosccp_initialize(sys.argv)
-        robot = moveit_commander.RobotCommander()
-        scene = moveit_commander.PlanningSceneInterface()
-        group_name = '/move_group'
-        move_group = movit_commander.MoveGroupCommander(group_name)
+        # We can get the name of the reference frame for this robot:
+        planning_frame = self.move_group.get_planning_frame()
+        print("============ Planning frame: %s" % planning_frame)
 
-        scene = 
+        # We can also print the name of the end-effector link for this group:
+        eef_link = self.move_group.get_end_effector_link()
+        print("============ End effector link: %s" % eef_link)
 
-        # Set up distance publisher
-        self.pub = rospy.Publisher(distance_topic, Distance, queue_size=10)
-    
-    def getCollisionDistance(self, group_name=self.group_name, constraints=None)
+        # We can get a list of all the groups in the robot:
+        group_names = self.robot.get_group_names()
+        print("============ Available Planning Groups:", self.robot.get_group_names())
 
+        # Sometimes for debugging it is useful to print the entire state of the
+        # robot:
+        print("============ Printing robot state")
+        print(self.robot.get_current_state())
+        print("")
 
-    def spin(self):
-        rospy.spin()
+        print(self.scene.get_known_object_names())
 
 def main():
-    Node().spin()
+    Node()
 
 if __name__=='__main__':
     main()

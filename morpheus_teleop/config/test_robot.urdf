@@ -1125,7 +1125,7 @@
         <limit effort="100.0" lower="0" upper="0.81" velocity="2.0" />
         <mimic joint="finger_joint" multiplier="1" offset="0" />
     </joint>
-    <link name="world" />
+    <!--- <link name="world" /> -->
     <gazebo>
         <plugin filename="libgazebo_ros_control.so" name="ros_control" />
     </gazebo>
@@ -1179,5 +1179,41 @@
             <mechanicalReduction>1</mechanicalReduction>
         </actuator>
     </transmission>
+    
+    <link name="test_link">
+        <contact>
+            <lateral_friction value="1.0"/>
+            <rolling_friction value="0.0"/>
+            <contact_cfm value="0.0"/>
+            <contact_erp value="1.0"/>
+        </contact>
+        <inertial>
+            <origin rpy="0 0 0" xyz="0.0 0.0 0.03"/>
+            <mass value="2"/>
+            <inertia ixx="1.5" ixy="0" ixz="0" iyy="2" iyz="0" izz="2"/>
+        </inertial>
+        <visual>
+            <origin rpy="1.57079632679 0 0" xyz="0 0 0"/>
+            <geometry>
+                <mesh filename="package://morpheus_teleop/meshes/components/visual/teapot.obj" scale=".05 .05 .05"/>
+            </geometry>
+            <material name="grey">
+                <color rgba="0.3 0.3 0.3 1" />
+            </material>
+        </visual>
+        <collision>
+            <origin rpy="1.57079632679 0 0" xyz="0 0 0" />
+            <geometry>
+                <mesh filename="package://morpheus_teleop/meshes/components/collision/teapot.obj" scale=".05 .05 .05"/>
+            </geometry>
+        </collision>
+    </link>
+
+    <link name="world" />
+        <joint name="world_joint" type="fixed">
+            <parent link="world" />
+            <child link ="test_link" />
+            <origin xyz="0.0 0.0 0.5" rpy="0.0 0.0 0.0" />
+        </joint>
 </robot>
 

@@ -38,9 +38,14 @@
   -->
 
   <arg name="load_robot_description" default="false" />
+  <!-- robot file paths -->
+  <arg name="xacro_path" default="$(find morpheus_teleop)/urdf/scenes/test_scene.xacro"/>
+  <arg name="srdf_path" default="$(find morpheus_teleop)/config/test_scene.srdf"/>
   <!-- load URDF, SRDF and joint_limits configuration -->
   <include file="$(dirname)/planning_context.launch">
     <arg name="load_robot_description" value="$(arg load_robot_description)" />
+    <arg name="xacro_path" value="$(arg xacro_path)"/>
+    <arg name="srdf_path" value="$(arg srdf_path)"/>
   </include>
 
   <!-- Planning Pipelines -->

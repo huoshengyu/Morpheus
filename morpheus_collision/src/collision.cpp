@@ -1,6 +1,7 @@
 #include <ros/ros.h>
 #include <std_msgs/String.h>
 #include <std_msgs/Float64.h>
+#include <geometry_msgs/Point.h>
 #include <visualization_msgs/Marker.h>
 #include <moveit/moveit_cpp/moveit_cpp.h>
 #include <moveit/planning_scene_monitor/planning_scene_monitor.h>
@@ -9,6 +10,7 @@
 #include <moveit/collision_detection/collision_tools.h>
 #include <moveit/robot_model_loader/robot_model_loader.h>
 #include <moveit/robot_model/robot_model.h>
+#include <moveit_visual_tools/moveit_visual_tools.h>
 
 static const std::string ROBOT_DESCRIPTION =
     "robot_description";  // name of the robot description (a param name, so it can be changed externally)
@@ -29,6 +31,7 @@ class CollisionNode
 
         ros::Publisher* g_marker_array_publisher = nullptr;
         visualization_msgs::MarkerArray g_collision_points;
+        // moveit_visual_tools::MoveItVisualToolsPtr visual_tools_;
 
         CollisionNode(int argc, char** argv)
         {
@@ -51,6 +54,9 @@ class CollisionNode
 
             // Retrieve preexisting PlanningSceneMonitor, if possible
             g_planning_scene_monitor = std::make_shared<planning_scene_monitor::PlanningSceneMonitor>(ROBOT_DESCRIPTION);
+
+            // Set update callback
+            // g_planning_scene_monitor->addUpdateCallback(planningSceneMonitorCallback);
 
             // Ensure the PlanningSceneMonitor is ready
             if (g_planning_scene_monitor->requestPlanningSceneState("/get_planning_scene"))
@@ -92,23 +98,32 @@ class CollisionNode
             // Start the PlanningSceneMonitor
             g_planning_scene_monitor->startSceneMonitor("/move_group/monitored_planning_scene"); // Get scene updates from topic
             // g_planning_scene_monitor->startWorldGeometryMonitor();
-            // g_planning_scene_monitor->startStateMonitor();
+            g_planning_scene_monitor->startStateMonitor("/joint_states");
 
             // Prepare collision result and request objects
             g_c_req.contacts = true;
             g_c_req.distance = true;
             g_c_req.max_contacts = 20;
             g_c_req.max_contacts_per_pair = 1;
-            // Update the collision result
-            // planning_scene->checkCollision(g_c_req, g_c_res);
+            
+            /*
+            // Edit the allowed collision matrix to focus only on robot-obstacle collisions
+            collision_detection::AllowedCollisionMatrix allowed_collision_matrix = 
+                g_planning_scene_monitor->getPlanningScene().getAllowedCollisionMatrix();
+            allowed_collision_matrix.setEntry(true); // Allow all collisions
+            allowed_collision_matrix.setEntry("teapot", false); // Register collisions involving teapot
+            */
 
-            // Create publishers
+            // Create collision publishers
             g_distance_publisher = nh.advertise<std_msgs::Float64>("distance", 10);
             g_contacts_publisher = nh.advertise<std_msgs::String>("contacts", 10);
             
-            // Create a marker array publisher for publishing contact points
+            // Create a marker array publisher for publishing shapes to Rviz
             g_marker_array_publisher =
-                new ros::Publisher(nh.advertise<visualization_msgs::MarkerArray>("interactive_robot_marray", 100));
+                new ros::Publisher(nh.advertise<visualization_msgs::MarkerArray>("visualization_marker_array", 100));
+            
+            // Instantiate visual tools for visualizing markers in Rviz
+            // visual_tools_ = std::make_shared<moveit_visual_tools::MoveItVisualTools>(node_, "world", "/moveit_visual_tools");
 
             // Add callback which dictates behavior after each scene update
             // planning_scene_monitor->addUpdateCallback
@@ -127,6 +142,7 @@ class CollisionNode
             {
                 update();
                 publish();
+                visualize(g_c_res.contacts);
                 // Get all contact vectors which correspond to robot<->obstacle pairs
                 //for (int i : contact_map)
                 //{
@@ -141,10 +157,19 @@ class CollisionNode
 
         void update()
         {
-            // Update the planning scene monitor, in case new collision objects have been added (may be slow)
-            g_planning_scene_monitor->requestPlanningSceneState("/get_planning_scene");
+            // Update the planning scene monitor, in case new collision objects have been added
+            // g_planning_scene_monitor->requestPlanningSceneState("/get_planning_scene");
             // Update the collision result, based on the collision request
+            g_c_res.clear();
             g_planning_scene_monitor->getPlanningScene()->checkCollision(g_c_req, g_c_res);
+
+            /*
+            ros::Time update_time = g_planning_scene_monitor->getLastUpdateTime(); // Get last update time
+            std::stringstream update_time_ss; // Instantiate stringstream for concatenation
+            update_time_ss << update_time.sec << "." << update_time.nsec; // Concatenate seconds.nanoseconds
+            std::string update_time_str = update_time_ss.str(); // Convert to std::string
+            ROS_INFO(update_time_str.c_str()); // Convert to const char*
+            */
         }
 
         void publish()
@@ -195,23 +220,84 @@ class CollisionNode
             return result;
         }
 
-        void visualizeContacts(collision_detection::CollisionResult::ContactMap contact_map)
+        void visualize(collision_detection::CollisionResult::ContactMap contact_map)
         {
+            // Set a color for the visualization markers
+            std_msgs::ColorRGBA color;
+            color.r = 1.0;
+            color.g = 0.0;
+            color.b = 0.0;
+            color.a = 0.5;
+
+            // Instantiate marker array for holding the markers to be visualized
+            visualization_msgs::MarkerArray markers;
+            // The function below works for any contact map, but can only create sphere markers
+            /* 
+            collision_detection::getCollisionMarkersFromContacts(markers, "world", contact_map, color,
+                                                                ros::Duration(),  // remain until deleted
+                                                                0.01);            // radius
+            */
+
+            // Iterate over key-value pairs of contact_map
+            std::map<std::string, unsigned> ns_counts;
+
             for (const auto& key_value : contact_map)
             {
-                // Set a color for the visualization markers
-                std_msgs::ColorRGBA color;
-                color.r = 1.0;
-                color.g = 0.0;
-                color.b = 0.0;
-                color.a = 0.5;
-
-                // Get the contact points and display them as markers
-                visualization_msgs::MarkerArray markers;
-                collision_detection::getCollisionMarkersFromContacts(markers, "teapot", contact_map, color,
-                                                                    ros::Duration(),  // remain until deleted
-                                                                    0.01);            // radius
+                // Separate keys from values for readability
+                const std::pair<std::string, std::string>& key = key_value.first;
+                const std::vector<collision_detection::Contact>& value = key_value.second;
+                const collision_detection::Contact contact = value[0]; // Get the nearest contact only
+                
+                // Enforce condition: Only visualize distances from the named object
+                if (key.first == "teapot" or key.second == "teapot")
+                {
+                    std::vector<Eigen::Vector3d> vec;
+                    Eigen::Vector3d p0 = contact.pos; // p0 is the position reported by the Contact
+                    Eigen::Vector3d p1; // p1 is p0 + depth * normal
+                    double d = contact.depth; // get depth value for readibility
+                    Eigen::Vector3d n = contact.normal; // get normal vector for readability
+                    for (int i = 0; i < p0.size(); i++) // p1 is p0 + depth * normal
+                    {
+                        p1[i] = p0[i] + d * n[i];
+                    }
+                    vec.push_back(p0);
+                    vec.push_back(p1);
+                    
+                    std::vector<geometry_msgs::Point> points; // Put points in the array type accepted by Marker
+                    for (int i = 0; i < vec.size(); i++)
+                    {
+                        geometry_msgs::Point point;
+                        point.x = vec[i][0];
+                        point.y = vec[i][1];
+                        point.z = vec[i][2];
+                        points.push_back(point);
+                    }
+                    
+                    std::string ns_name = contact.body_name_1 + "=" + contact.body_name_2; // String name
+                    if (ns_counts.find(ns_name) == ns_counts.end())
+                        ns_counts[ns_name] = 0;
+                    else
+                        ns_counts[ns_name]++;
+                    visualization_msgs::Marker mk; // Instantiate marker
+                    mk.header.stamp = ros::Time::now(); // Timestamp
+                    mk.header.frame_id = "world"; // Reference frame id
+                    mk.ns = ns_name; // String name
+                    mk.id = ns_counts[ns_name]; // Unique number id
+                    mk.type = visualization_msgs::Marker::ARROW; // Arrow marker shape
+                    mk.action = visualization_msgs::Marker::ADD; // Add shape to Rviz
+                    mk.points = points; // Start and end points of arrow
+                    mk.scale.x = 0.025; // Arrow shaft diameter
+                    mk.scale.y = 0.05; // Arrow head diameter
+                    mk.scale.z = 0.05; // Arrow head length
+                    mk.color = color; // Color specified above
+                    mk.lifetime = ros::Duration(); // Remain until deleted
+                    markers.markers.push_back(mk); // Add to MarkerArray markers
+                    
+                }
+                
             }
+
+            publishMarkers(markers);
         }
 
         void publishMarkers(visualization_msgs::MarkerArray& markers)
@@ -235,10 +321,9 @@ class CollisionNode
         
     private:
         // Define a callback to update to be called when the PlanningSceneMonitor receives an update
-        void planningSceneMonitorCallback(const moveit_msgs::PlanningScene::ConstPtr& planning_scene, planning_scene_monitor::PlanningSceneMonitorPtr& planning_scene_monitor)
+        static void planningSceneMonitorCallback(const moveit_msgs::PlanningScene::ConstPtr& planning_scene, planning_scene_monitor::PlanningSceneMonitorPtr& planning_scene_monitor)
         {
-            // Check collisions
-            // planning_scene->checkCollision(g_c_req, g_c_res);
+            ROS_INFO("Updating...");
         }
 
 
