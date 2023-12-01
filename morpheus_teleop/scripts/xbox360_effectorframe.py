@@ -1,5 +1,6 @@
 #! /usr/bin/env python3
 
+import numpy as np
 import rospy
 import tf2_ros
 import geometry_msgs.msg   
@@ -51,43 +52,56 @@ class TeleopTwistJoy():
             linear_scale = 0.05
             angular_scale = 0.05
 
-            scaled_axes = [axes[1] * linear_scale, 
-                            axes[0] * linear_scale, 
+            # Left stick: x = -axes[0], y = axes[1]
+            # Right stick: x = -axes[3], y = axes[4]
+            # Triggers: LT = axes[2], RT = axes[5]
+            # Dpad: L/R = -axes[6], U/D = axes[7]
+            # Buttons: [A, B, X, Y, LB, RB, Share, Menu, Xbox, Lstick, Rstick]
+            scaled_axes = [-axes[0] * linear_scale, 
+                            axes[1] * linear_scale, 
                             ((1 - (axes[5] + 1) / 2) - (1 - (axes[2] + 1) / 2)) * linear_scale, 
-                            -axes[3] * angular_scale, 
-                            axes[4] * angular_scale,
-                            (buttons[2] - buttons[3]) * angular_scale]
+                           -axes[3] * angular_scale, 
+                           -axes[4] * angular_scale, 
+                            (buttons[5] - buttons[4]) * angular_scale]
+                            
+
+            rotated_axes = scaled_axes # Instantiate in larger scope
 
             for i in range(len(scaled_axes)):
                 if abs(scaled_axes[i]) > 0.5:
                     scaled_axes[i] = 0.5 * scaled_axes[i] / abs(scaled_axes[i])
 
             try:
-                # Reorder controls to work properly with the rotation matrix (and be more intuitive)
-                temp = scaled_axes[2]
-                scaled_axes[2] = scaled_axes[0]
-                scaled_axes[0] = temp
-
                 # Lookup the transform from source_frame to target_frame
                 transform = tf_buffer.lookup_transform("base_link", "tcp_link", rospy.Time(0), rospy.Duration(1.0))
                 
                 effector_rotation = [transform.transform.rotation.x, -transform.transform.rotation.y, transform.transform.rotation.z, transform.transform.rotation.w]
 
                 r = R.from_quat(effector_rotation)
-                r = r.inv()
                 #print(r.as_matrix())
 
-                scaled_axes[:3] = list(r.apply(scaled_axes[:3]))
+                # Apply the rotation matrix
+                rotated_axes = np.concatenate((r.apply(scaled_axes[:3]), r.apply(scaled_axes[3:])))
+
+                # Rearrange the axes to make the controls more intuitive
+                r_control_linear = R.from_matrix([[ 0, -1,  0],
+                                                  [ 1,  0,  0],
+                                                  [ 0,  0,  1]])
+                r_control_angular = R.from_matrix([[-1,  0,  0],
+                                                   [ 0, -1,  0],
+                                                   [ 0,  0, -1]])
+
+                rotated_axes = np.concatenate((r_control_linear.apply(scaled_axes[:3]), r_control_angular.apply(scaled_axes[3:])))
                 
             except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
                 rospy.logwarn("Transform lookup failed!")
 
-            self.linear_x_buffer.append(scaled_axes[0])
-            self.linear_y_buffer.append(scaled_axes[1])
-            self.linear_z_buffer.append(scaled_axes[2])
-            self.angular_x_buffer.append(scaled_axes[3])
-            self.angular_y_buffer.append(scaled_axes[4])
-            self.angular_z_buffer.append(scaled_axes[5])
+            self.linear_x_buffer.append(rotated_axes[0])
+            self.linear_y_buffer.append(rotated_axes[1])
+            self.linear_z_buffer.append(rotated_axes[2])
+            self.angular_x_buffer.append(rotated_axes[3])
+            self.angular_y_buffer.append(rotated_axes[4])
+            self.angular_z_buffer.append(rotated_axes[5])
 
             twist = geometry_msgs.msg.Twist()
             twist.linear.x = sum(self.linear_x_buffer) / len(self.linear_x_buffer)
