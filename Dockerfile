@@ -13,15 +13,16 @@ RUN apt-get update && apt-get install git -y
 RUN pip3 install \
       scipy \
       pybullet \
-      urdf_parser_py
-
-# Install ROS packages
-# RUN
+      urdf_parser_py \
+      pybind11
 
 # # Install ROS dependencies
 # RUN apt-get update && apt-get install --no-install-recommends -y \
 #     package2 \
 #     && rm -rf /var/lib/apt/lists/*
+RUN apt-get install ros-noetic-teleop-twist-keyboard --no-install-recommends -y \
+#     && moveit_visual_tools \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY ./ ./src/morpheus
 
@@ -36,15 +37,15 @@ RUN source /opt/ros/noetic/setup.bash \
     && rm -rf /var/lib/apt/lists/*
 
 # Build the ROS workspace
-RUN source /opt/ros/noetic/setup.bash \
-    && catkin build -s
+# RUN source /opt/ros/noetic/setup.bash
+RUN catkin build -s
 
 # Installation for ros_pybullet_interface
-RUN git clone -b main https://github.com/ros-pybullet/ros_pybullet_interface.git /root/catkin_ws/src/ros_pybullet_interface
-RUN source /root/catkin_ws/devel/setup.bash
-RUN sudo apt update
-RUN cd /root/catkin_ws/src/morpheus_teleop/
-RUN bash install.sh 
+# RUN git clone -b main https://github.com/ros-pybullet/ros_pybullet_interface.git /root/catkin_ws/src/ros_pybullet_interface
+# RUN source /root/catkin_ws/devel/setup.bash
+# RUN sudo apt update
+# RUN cd /root/catkin_ws/src/morpheus_teleop/
+# RUN bash install.sh 
 # Might need to run catkin build -s -j1 to avoid crash
 
 # ros_pybullet_interface citenote for BibTeX
