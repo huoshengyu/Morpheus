@@ -52,7 +52,7 @@ class TeleopTwistJoy():
             self.linear_z_buffer.append(((1 - (axes[5] + 1) / 2) - (1 - (axes[2] + 1) / 2)) * linear_scale)
             self.angular_x_buffer.append(-axes[3] * angular_scale)
             self.angular_y_buffer.append(axes[4] * angular_scale)
-            self.angular_z_buffer.append((buttons[2] - buttons[3]) * angular_scale)
+            self.angular_z_buffer.append((buttons[4] - buttons[5]) * angular_scale)
 
             twist = geometry_msgs.msg.Twist()
             twist.linear.x = sum(self.linear_x_buffer) / len(self.linear_x_buffer)

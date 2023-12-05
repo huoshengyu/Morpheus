@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install git -y
 # RUN pip3 install \ 
 #     package1 \
 RUN pip3 install \
+      numpy \
       scipy \
       pybullet \
       urdf_parser_py \
