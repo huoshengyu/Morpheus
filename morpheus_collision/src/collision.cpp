@@ -15,6 +15,39 @@
 static const std::string ROBOT_DESCRIPTION =
     "robot_description";  // name of the robot description (a param name, so it can be changed externally)
 
+static const std::list<std::string> A_BOT_LINK_LIST
+{
+    "shoulder_link",
+    "upper_arm_link",
+    "forearm_link",
+    "wrist_1_link",
+    "wrist_2_link",
+    "wrist_3_link",
+    "tcp_link",
+    "tcp_collision_link",
+    "d415_mount_link",
+    "camera_link",
+    "coupler",
+    "cable_protector",
+    "gripper_body",
+    "left_outer_knuckle",
+    "left_outer_finger",
+    "left_inner_finger",
+    "left_inner_finger_pad",
+    "left_inner_knuckle",
+    "right_outer_knuckle",
+    "right_outer_finger",
+    "right_inner_finger",
+    "right_inner_finger_pad",
+    "right_inner_knuckle"
+};
+
+static const std::list<std::string> OBSTACLE_LIST
+{
+    "teapot",
+    "cylinder"
+};
+
 namespace collision
 {
 
@@ -26,6 +59,7 @@ class CollisionNode
         std::shared_ptr<planning_scene_monitor::PlanningSceneMonitor> g_planning_scene_monitor;
         ros::Publisher g_distance_publisher;
         ros::Publisher g_contacts_publisher;
+        ros::Publisher g_nearest_publisher;
         collision_detection::CollisionResult g_c_res;
         collision_detection::CollisionRequest g_c_req;
 
@@ -97,7 +131,7 @@ class CollisionNode
             
             // Start the PlanningSceneMonitor
             g_planning_scene_monitor->startSceneMonitor("/move_group/monitored_planning_scene"); // Get scene updates from topic
-            // g_planning_scene_monitor->startWorldGeometryMonitor();
+            g_planning_scene_monitor->startWorldGeometryMonitor();
             g_planning_scene_monitor->startStateMonitor("/joint_states");
 
             // Prepare collision result and request objects
@@ -115,8 +149,10 @@ class CollisionNode
             */
 
             // Create collision publishers
-            g_distance_publisher = nh.advertise<std_msgs::Float64>("distance", 10);
-            g_contacts_publisher = nh.advertise<std_msgs::String>("contacts", 10);
+            g_distance_publisher = nh.advertise<std_msgs::Float64>("collision/distance", 10);
+            g_contacts_publisher = nh.advertise<std_msgs::String>("collision/contacts", 10);
+            g_nearest_publisher = nh.advertise<std_msgs::String>("collision/nearest", 10);
+
             
             // Create a marker array publisher for publishing shapes to Rviz
             g_marker_array_publisher =
@@ -183,6 +219,11 @@ class CollisionNode
             std_msgs::String contacts_msg;
             contacts_msg.data = contactMapToString(g_c_res.contacts);
             g_contacts_publisher.publish(contacts_msg);
+
+            // Publish vector to nearest collision
+            collision_detection::Contact nearest_contact = getNearestContact(g_c_res.contacts);
+            geometry_msgs::Point nearest_msg = contactToPoint(nearest_contact);
+            g_nearest_publisher.publish(nearest_msg);
         }
 
         std::string contactMapToString(collision_detection::CollisionResult::ContactMap contact_map)
@@ -218,6 +259,46 @@ class CollisionNode
             std::string result = key_value_list_str.str();
 
             return result;
+        }
+
+        collision_detection::Contact getNearestContact(collision_detection::CollisionResult::ContactMap contact_map)
+        {
+            // Instantiate loop variables
+            double nearest_distance = std::numeric_limits<double>::infinity();
+            collision_detection::Contact nearest_contact;
+            bool assigned = false;
+
+            // Loop over the key-value pairs of contact map
+            for (const auto& key_value : contact_map) 
+            {
+                // Separate keys from values for readability
+                const std::pair<std::string, std::string>& key = key_value.first;
+                const std::vector<collision_detection::Contact>& value = key_value.second;
+
+                // Enforce condition
+                if (key.first == "teapot" or key.second == "teapot")
+                {
+                    const collision_detection::Contact contact = value[0]; // Get the nearest contact only
+                    double distance = contact.depth;
+                    if (distance < nearest_distance)
+                    {
+                        nearest_contact = contact;
+                        assigned = true;
+                    }
+                }
+            }
+            assert(assigned); // Make sure nearest contact was assigned a value
+            return nearest_contact;
+        }
+
+        geometry_msgs::Point contactToPoint(collision_detection::Contact contact)
+        {
+            Eigen::Vector3d vector = contact.normal * contact.depth;
+            geometry_msgs::Point point;
+            point.x = vector[0];
+            point.y = vector[1];
+            point.z = vector[2];
+            return point;
         }
 
         void visualize(collision_detection::CollisionResult::ContactMap contact_map)
@@ -286,9 +367,9 @@ class CollisionNode
                     mk.type = visualization_msgs::Marker::ARROW; // Arrow marker shape
                     mk.action = visualization_msgs::Marker::ADD; // Add shape to Rviz
                     mk.points = points; // Start and end points of arrow
-                    mk.scale.x = 0.025; // Arrow shaft diameter
-                    mk.scale.y = 0.05; // Arrow head diameter
-                    mk.scale.z = 0.05; // Arrow head length
+                    mk.scale.x = 0.01; // Arrow shaft diameter
+                    mk.scale.y = 0.02; // Arrow head diameter
+                    mk.scale.z = 0.02; // Arrow head length
                     mk.color = color; // Color specified above
                     mk.lifetime = ros::Duration(); // Remain until deleted
                     markers.markers.push_back(mk); // Add to MarkerArray markers
@@ -308,7 +389,7 @@ class CollisionNode
                 for (auto& marker : g_collision_points.markers)
                 marker.action = visualization_msgs::Marker::DELETE;
 
-                g_marker_array_publisher->publish(g_collision_points);
+                //g_marker_array_publisher->publish(g_collision_points);
             }
 
             // move new markers into g_collision_points
