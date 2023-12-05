@@ -1,0 +1,753 @@
+#include <ros/ros.h>
+#include <std_msgs/String.h>
+#include <std_msgs/Float64.h>
+#include <geometry_msgs/Point.h>
+#include <visualization_msgs/Marker.h>
+#include <moveit/moveit_cpp/moveit_cpp.h>
+#include <moveit/moveit_cpp/planning_component.h>
+#include <moveit/move_group_interface/move_group_interface.h>
+#include <moveit/planning_scene_interface/planning_scene_interface.h>
+#include <moveit/planning_scene_monitor/planning_scene_monitor.h>
+#include <moveit/collision_detection_bullet/collision_env_bullet.h>
+#include <moveit/collision_detection_bullet/collision_detector_allocator_bullet.h>
+#include <moveit/collision_detection/collision_tools.h>
+#include <moveit/robot_model_loader/robot_model_loader.h>
+#include <moveit/robot_model/robot_model.h>
+#include <moveit_visual_tools/moveit_visual_tools.h>
+
+static const std::string ROBOT_DESCRIPTION =
+    "robot_description";  // name of the robot description (a param name, so it can be changed externally)
+
+namespace trajectory
+{
+
+};
+
+class TrajectoryNode
+{
+    public:
+        std::shared_ptr<planning_scene_monitor::PlanningSceneMonitor> g_planning_scene_monitor;
+        ros::Publisher g_distance_publisher;
+        ros::Publisher g_contacts_publisher;
+        collision_detection::CollisionResult g_c_res;
+        collision_detection::CollisionRequest g_c_req;
+
+        ros::Publisher* g_marker_array_publisher = nullptr;
+        ros::Publisher g_trajectory_publisher;
+        visualization_msgs::MarkerArray g_trajectory_points;
+        // moveit_visual_tools::MoveItVisualToolsPtr visual_tools_;
+
+        // std::shared_ptr<moveit_cpp::PlanningComponent> g_planning_components;
+        // std::shared_ptr<moveit_cpp::PlanningComponent::PlanRequestParameters> g_plan_request_parameters;
+        std::shared_ptr<moveit::planning_interface::MoveGroupInterface> g_move_group_interface;
+        moveit::planning_interface::PlanningSceneInterface g_planning_scene_interface;
+        moveit::planning_interface::MoveGroupInterface::Plan g_plan;
+        std::shared_ptr<robot_trajectory::RobotTrajectory> g_trajectory;
+        Eigen::Affine3d g_nearest;
+        geometry_msgs::PoseStamped g_target;
+
+        TrajectoryNode(int argc, char** argv)
+        {
+            // Initialize ROS node
+            ros::NodeHandle nh;
+            ros::AsyncSpinner spinner(0);
+            spinner.start();
+
+            // Joints to plan for, from srdf file
+            static const std::string PLANNING_GROUP = "arm";
+
+            // Prep moveit_cpp_ptr to allow planning
+            // Prep options for moveit_cpp_ptr
+            /*
+            moveit_cpp::MoveItCpp::Options options(nh);
+
+            moveit_cpp::MoveItCpp::PlanningSceneMonitorOptions psm_options;
+            psm_options.name = "trajectory_monitor";
+            psm_options.robot_description = ROBOT_DESCRIPTION;
+            psm_options.joint_state_topic = "/joint_states";
+            psm_options.attached_collision_object_topic = "/attached_collision_object";
+            psm_options.monitored_planning_scene_topic = "/planning_scene";
+            psm_options.publish_planning_scene_topic = "/move_group/monitored_planning_scene";
+            options.planning_scene_monitor_options = psm_options;
+
+            moveit_cpp::MoveItCpp::PlanningPipelineOptions ppl_options;
+            ppl_options.pipeline_names.push_back("ompl");
+            ppl_options.parent_namespace = "/move_group";
+            options.planning_pipeline_options = ppl_options;
+            */
+            // auto moveit_cpp_ptr = std::make_shared<moveit_cpp::MoveItCpp>(options, nh);
+            // moveit_cpp_ptr->getPlanningSceneMonitorNonConst()->providePlanningSceneService();
+            
+            // Create a RobotModelLoader to load the robot's URDF and SRDF
+            robot_model_loader::RobotModelLoader robot_model_loader("robot_description");
+            robot_model::RobotModelPtr robot_model = robot_model_loader.getModel();
+
+            // Create a PlanningScene object and set the robot model
+            // planning_scene::PlanningScenePtr planning_scene(new planning_scene::PlanningScene(robot_model));
+
+            // Create a PlanningSceneMonitor around the PlanningScene
+            // planning_scene_monitor::PlanningSceneMonitorPtr planning_scene_monitor(
+            //     new planning_scene_monitor::PlanningSceneMonitor("robot_description"));
+
+            // Retrieve preexisting PlanningSceneMonitor, if possible
+            g_planning_scene_monitor = std::make_shared<planning_scene_monitor::PlanningSceneMonitor>(ROBOT_DESCRIPTION);
+            // g_planning_scene_monitor = moveit_cpp_ptr->getPlanningSceneMonitorNonConst();
+            // Instantiate planning components so a trajectory can be generated for comparison
+            // g_planning_components = std::make_shared<moveit_cpp::PlanningComponent>(PLANNING_GROUP, nh);
+            
+            // Instantiate a move group interface so a trajectory can be generated
+            g_move_group_interface = std::make_shared<moveit::planning_interface::MoveGroupInterface>(PLANNING_GROUP);
+            
+            const moveit::core::JointModelGroup* joint_model_group =
+                g_move_group_interface->getCurrentState()->getJointModelGroup(PLANNING_GROUP);
+
+            // Set plan request parameters to select planning pipeline etc
+            /*
+            g_plan_request_parameters->max_acceleration_scaling_factor = 0.1;
+            g_plan_request_parameters->max_velocity_scaling_factor = 0.1;
+            g_plan_request_parameters->planner_id = "MotionPlanning";
+            g_plan_request_parameters->planning_attempts = 10;
+            g_plan_request_parameters->planning_pipeline = "MotionPlanning";
+            g_plan_request_parameters->planning_time = 5;
+            */
+
+            // Set update callback
+            // g_planning_scene_monitor->addUpdateCallback(planningSceneMonitorCallback);
+
+            // Ensure the PlanningSceneMonitor is ready
+            if (g_planning_scene_monitor->requestPlanningSceneState("/get_planning_scene"))
+            {
+                ROS_INFO("Planning Scene Monitor is active and ready.");
+            }
+            else
+            {
+                ROS_ERROR("Failed to set up Planning Scene Monitor.");
+            }
+
+            // Request the PlanningScene itself and change collision detection engine to Bullet
+            // planning_scene::PlanningScenePtr planning_scene;
+            // Get read/write pointer to planning_scene
+            try
+            {   
+                // Change the PlanningScene's collision detector to Bullet
+                // Bullet supports distance vectors, as well as distances to multiple obstacles
+                g_planning_scene_monitor->getPlanningScene()->setActiveCollisionDetector(collision_detection::CollisionDetectorAllocatorBullet::create(), 
+                                                    true /* exclusive */);
+                
+                if (strcmp((g_planning_scene_monitor->getPlanningScene()->getActiveCollisionDetectorName()).c_str(), "Bullet") == 0)
+                {
+                    ROS_INFO("Planning Scene is active and ready.");
+                }    
+                else
+                {
+                    ROS_INFO("Collision detector incorrect");
+                    // ROS_INFO(g_planning_scene_monitor->getPlanningScene()->getActiveCollisionDetectorName());
+                    std::string collision_detector_name = g_planning_scene_monitor->getPlanningScene()->getActiveCollisionDetectorName();
+                    throw collision_detector_name;
+                }
+            }
+            catch (std::string collision_detector_name)
+            {
+                ROS_ERROR("Failed to retrieve PlanningScene.");
+            }
+            
+            // Start the PlanningSceneMonitor
+            g_planning_scene_monitor->startSceneMonitor("/move_group/monitored_planning_scene"); // Get scene updates from topic
+            // g_planning_scene_monitor->startWorldGeometryMonitor();
+            g_planning_scene_monitor->startStateMonitor("/joint_states");
+
+            // Prepare collision result and request objects
+            g_c_req.contacts = true;
+            g_c_req.distance = true;
+            g_c_req.max_contacts = 20;
+            g_c_req.max_contacts_per_pair = 1;
+            
+            /*
+            // Edit the allowed collision matrix to focus only on robot-obstacle collisions
+            collision_detection::AllowedCollisionMatrix allowed_collision_matrix = 
+                g_planning_scene_monitor->getPlanningScene().getAllowedCollisionMatrix();
+            allowed_collision_matrix.setEntry(true); // Allow all collisions
+            allowed_collision_matrix.setEntry("teapot", false); // Register collisions involving teapot
+            */
+
+            // Create collision publishers
+            g_distance_publisher = nh.advertise<std_msgs::Float64>("distance", 10);
+            g_contacts_publisher = nh.advertise<std_msgs::String>("contacts", 10);
+
+            // Create trajectory publisher
+            g_trajectory_publisher = nh.advertise<std_msgs::String>("trajectory", 10);
+            
+            
+            // Create a marker array publisher for publishing shapes to Rviz
+            g_marker_array_publisher =
+                new ros::Publisher(nh.advertise<visualization_msgs::MarkerArray>("visualization_marker_array", 100));
+            
+            // Generate a target pose for trajectory planning
+            geometry_msgs::PoseStamped g_target;
+            g_target.header.stamp = ros::Time::now();
+            g_target.header.frame_id = "world";
+            g_target.pose.position.x = 0.2;
+            g_target.pose.position.y = 0.0;
+            g_target.pose.position.z = 0.8;
+
+            // Get the current robot state once, so that it does not vary between objects
+            robot_state::RobotStatePtr robot_state = g_move_group_interface->getCurrentState();
+            g_move_group_interface->setPlanningTime(60);
+            // g_move_group_interface->setPoseTarget(g_target, "tcp_link");
+            g_move_group_interface->setPositionTarget(0.2, 0.2, 0.8, "tcp_link");
+            g_move_group_interface->setStartState(*robot_state);
+            bool success = (g_move_group_interface->plan(g_plan) == moveit::core::MoveItErrorCode::SUCCESS);
+            g_trajectory = std::make_shared<robot_trajectory::RobotTrajectory>(robot_model, joint_model_group);
+            g_trajectory->setRobotTrajectoryMsg(*robot_state, g_plan.start_state_, g_plan.trajectory_);
+            //planning_interface::MotionPlanResponse plan = getPlan(g_target);
+
+
+            // Instantiate visual tools for visualizing markers in Rviz
+            // visual_tools_ = std::make_shared<moveit_visual_tools::MoveItVisualTools>(node_, "world", "/moveit_visual_tools");
+
+            // Add callback which dictates behavior after each scene update
+            // planning_scene_monitor->addUpdateCallback
+            
+            // Get a list of all links in the robot so we can check them for collisions
+
+            spin();
+            // ros::shutdown();
+        }
+
+        void spin()
+        {
+            // Loop collision requests and publish at specified rate
+            ros::Rate loop_rate(10);
+            while (ros::ok())
+            {
+                // updateCollision();
+                // publishCollision();
+                // visualizeCollision(g_c_res.contacts);
+
+                // updateNearest();
+                // auto plan = g_planning_components->getLastMotionPlanResponse();
+                auto waypoints = getWaypoints(*g_trajectory);
+                auto transform_deque = getTransforms(waypoints);
+                
+                auto current_state = g_planning_scene_monitor->getPlanningScene()->getCurrentState();
+                current_state.updateLinkTransforms();
+                Eigen::Affine3d tcp_transform = current_state.getGlobalLinkTransform("tcp_link");
+                std::pair<Eigen::Affine3d, double> pair = getNearestTransform(transform_deque, tcp_transform);
+                Eigen::Affine3d g_nearest = pair.first;
+                double distance = pair.second;
+                publishTrajectory(transform_deque);
+                visualizeTrajectory(transform_deque);
+
+                // Update the nearest plan point
+
+
+                // Get all contact vectors which correspond to robot<->obstacle pairs
+                //for (int i : contact_map)
+                //{
+
+                //}
+                loop_rate.sleep();
+            }
+
+            // Spin the ROS node
+            ros::spin();
+        }
+
+        void updateCollision()
+        {
+            // Update the planning scene monitor, in case new collision objects have been added
+            // g_planning_scene_monitor->requestPlanningSceneState("/get_planning_scene");
+            // Update the collision result, based on the collision request
+            g_c_res.clear();
+            g_planning_scene_monitor->getPlanningScene()->checkCollision(g_c_req, g_c_res);
+
+            /*
+            ros::Time update_time = g_planning_scene_monitor->getLastUpdateTime(); // Get last update time
+            std::stringstream update_time_ss; // Instantiate stringstream for concatenation
+            update_time_ss << update_time.sec << "." << update_time.nsec; // Concatenate seconds.nanoseconds
+            std::string update_time_str = update_time_ss.str(); // Convert to std::string
+            ROS_INFO(update_time_str.c_str()); // Convert to const char*
+            */
+        }
+
+        void publishCollision()
+        {
+            // Publish minimum distance
+            std_msgs::Float64 distance_msg;
+            distance_msg.data = g_c_res.distance;
+            g_distance_publisher.publish(distance_msg);
+
+            // Publish contact map
+            std_msgs::String contacts_msg;
+            contacts_msg.data = contactMapToString(g_c_res.contacts);
+            g_contacts_publisher.publish(contacts_msg);
+        }
+
+        std::string contactMapToString(collision_detection::CollisionResult::ContactMap contact_map)
+        {
+            // Convert the key list to a string
+            std::stringstream key_value_list_str;
+            // Iterate over key-value pairs of contact_map
+            for (const auto& key_value : contact_map) 
+            {
+                // Separate keys from values for readability
+                const std::pair<std::string, std::string>& key = key_value.first;
+                const std::vector<collision_detection::Contact>& value = key_value.second;
+
+                // Enforce condition
+                if ((key.first == "teapot" and key.second == "tcp_link") or (key.second == "teapot" and key.first == "tcp_link"))
+                {
+                    // First add the keys, each of which is a pair of link names, for links in contact
+                    key_value_list_str << "Contact: (" << key.first << ", " << key.second << "), Vector: [";
+                    // Optionally add the depth, normal, and position associated of the Contact object, i.e. a distance vector
+                    // for (const collision_detection::Contact& contact : value) 
+                    // {
+                    //     key_value_list_str << "{depth: " << contact.depth << ", normal: " << contact.normal << ", pos: " << contact.pos << "}, ";
+                    // }
+                    // Just publish the first (smallest) depth so we can see the pairwise nearest distances
+                    const collision_detection::Contact& contact = value[0];
+                    key_value_list_str << contact.depth;
+                    // End entry
+                    key_value_list_str << "]" << '\\';
+                }
+            }
+
+            // Convert result to string type
+            std::string result = key_value_list_str.str();
+
+            return result;
+        }
+
+        void visualizeCollision(collision_detection::CollisionResult::ContactMap contact_map)
+        {
+            // Set a color for the visualization markers
+            std_msgs::ColorRGBA color;
+            color.r = 0.0;
+            color.g = 0.0;
+            color.b = 1.0;
+            color.a = 0.5;
+
+            // Instantiate marker array for holding the markers to be visualized
+            visualization_msgs::MarkerArray markers;
+            // The function below works for any contact map, but can only create sphere markers
+            /* 
+            collision_detection::getCollisionMarkersFromContacts(markers, "world", contact_map, color,
+                                                                ros::Duration(),  // remain until deleted
+                                                                0.01);            // radius
+            */
+
+            // Iterate over key-value pairs of contact_map
+            std::map<std::string, unsigned> ns_counts;
+
+            for (const auto& key_value : contact_map)
+            {
+                // Separate keys from values for readability
+                const std::pair<std::string, std::string>& key = key_value.first;
+                const std::vector<collision_detection::Contact>& value = key_value.second;
+                const collision_detection::Contact contact = value[0]; // Get the nearest contact only
+                
+                // Enforce condition: Only visualize distances from the named object
+                if ((key.first == "teapot" and key.second == "tcp_collision_link") or (key.second == "teapot" and key.first == "tcp_collision_link"))
+                {
+                    std::vector<Eigen::Vector3d> vec;
+                    Eigen::Vector3d p0 = contact.pos; // p0 is the position reported by the Contact
+                    Eigen::Vector3d p1; // p1 is p0 + depth * normal
+                    double d = contact.depth; // get depth value for readibility
+                    Eigen::Vector3d n = contact.normal; // get normal vector for readability
+                    for (int i = 0; i < p0.size(); i++) // p1 is p0 + depth * normal
+                    {
+                        p1[i] = p0[i] + d * n[i];
+                    }
+                    vec.push_back(p0);
+                    vec.push_back(p1);
+                    
+                    std::vector<geometry_msgs::Point> points; // Put points in the array type accepted by Marker
+                    for (int i = 0; i < vec.size(); i++)
+                    {
+                        geometry_msgs::Point point;
+                        point.x = vec[i][0];
+                        point.y = vec[i][1];
+                        point.z = vec[i][2];
+                        points.push_back(point);
+                    }
+                    
+                    std::string ns_name = contact.body_name_1 + "=" + contact.body_name_2; // String name
+                    if (ns_counts.find(ns_name) == ns_counts.end())
+                        ns_counts[ns_name] = 0;
+                    else
+                        ns_counts[ns_name]++;
+                    visualization_msgs::Marker mk; // Instantiate marker
+                    mk.header.stamp = ros::Time::now(); // Timestamp
+                    mk.header.frame_id = "world"; // Reference frame id
+                    mk.ns = ns_name; // String name
+                    mk.id = ns_counts[ns_name]; // Unique number id
+                    mk.type = visualization_msgs::Marker::ARROW; // Arrow marker shape
+                    mk.action = visualization_msgs::Marker::ADD; // Add shape to Rviz
+                    mk.points = points; // Start and end points of arrow
+                    mk.scale.x = 0.015; // Arrow shaft diameter
+                    mk.scale.y = 0.03; // Arrow head diameter
+                    mk.scale.z = 0.03; // Arrow head length
+                    mk.color = color; // Color specified above
+                    mk.lifetime = ros::Duration(); // Remain until deleted
+                    markers.markers.push_back(mk); // Add to MarkerArray markers
+                    
+                }
+                
+            }
+
+            publishMarkers(markers);
+        }
+
+        void publishMarkers(visualization_msgs::MarkerArray& markers)
+        {
+            // delete old markers
+            if (!g_trajectory_points.markers.empty())
+            {
+                for (auto& marker : g_trajectory_points.markers)
+                marker.action = visualization_msgs::Marker::DELETE;
+
+                g_marker_array_publisher->publish(g_trajectory_points);
+            }
+
+            // move new markers into g_trajectory_points
+            std::swap(g_trajectory_points.markers, markers.markers);
+
+            // draw new markers (if there are any)
+            if (!g_trajectory_points.markers.empty())
+                g_marker_array_publisher->publish(g_trajectory_points);
+        }
+
+        // Generate target poses for planning
+        geometry_msgs::PoseStamped getPose(double x=0, double y=0, double z=0, 
+                                double w=0, double rx=0, double ry=0, double rz=0)
+        {
+            geometry_msgs::PoseStamped pose;
+            pose.header.frame_id = "world";
+            pose.pose.position.x = x;
+            pose.pose.position.y = y;
+            pose.pose.position.z = z;
+            pose.pose.orientation.w = w;
+            pose.pose.orientation.x = rx;
+            pose.pose.orientation.y = ry;
+            pose.pose.orientation.z = rz;
+
+            return pose;
+        }
+
+        // Plan trajectories for comparison
+        /*
+        planning_interface::MotionPlanResponse getPlan(geometry_msgs::PoseStamped target_pose)
+        {
+            // Use current state as starting pose
+            g_planning_components->setStartStateToCurrentState();
+
+            // Set tcp_link (middle of gripper) to target the target pose
+            g_planning_components->setGoal(target_pose, "tcp_link");
+
+            // Generate plan
+            auto plan = g_planning_components->plan(*g_plan_request_parameters); // plan is a planning_interface::MotionPlanResponse
+
+            return plan;
+        }
+        */
+
+        // Get waypoints from plan
+        std::deque<moveit::core::RobotState> getWaypoints(planning_interface::MotionPlanResponse plan) // returns a std::deque< robot_state::RobotStatePtr >
+        {
+            std::deque<moveit::core::RobotState> waypoints;
+            for (int i = 0; i < plan.trajectory_->getWayPointCount(); i++)
+            {
+                waypoints.push_back(plan.trajectory_->getWayPoint(i));
+            }
+            return waypoints;
+        }
+
+        // Get waypoints from trajectory
+        std::deque<moveit::core::RobotState> getWaypoints(robot_trajectory::RobotTrajectory trajectory) // returns a std::deque< robot_state::RobotStatePtr >
+        {   
+            std::deque<moveit::core::RobotState> waypoints;
+            for (int i = 0; i < trajectory.getWayPointCount(); i++)
+            {
+                waypoints.push_back(trajectory.getWayPoint(i));
+            }
+            return waypoints;
+        }
+
+        // Get global transforms of target link from plan
+        std::deque<Eigen::Affine3d> getTransforms(std::deque<moveit::core::RobotState> waypoints, std::string link = "tcp_link")
+        {
+            std::deque<Eigen::Affine3d> transform_deque;
+            for (auto robot_state : waypoints) // robot_state::RobotStatePtr
+            {
+                Eigen::Affine3d transform;
+                bool success = false;
+                while (!success)
+                {
+                    try
+                    {
+                        transform = robot_state.getGlobalLinkTransform(link); // moveit::core::RobotState
+                        success = true;
+                    }
+                    catch (...)
+                    {
+                        continue;
+                    }
+                }
+                transform_deque.push_back(transform);
+            }
+            return transform_deque;
+        }
+
+        // Get global transforms of target link from plan
+        std::deque<Eigen::Affine3d> getTransforms(planning_interface::MotionPlanResponse plan, std::string link = "tcp_link")
+        {
+            auto waypoints = getWaypoints(plan); // std::deque< robot_state::RobotStatePtr >
+
+            std::deque<Eigen::Affine3d> transform_deque;
+            for (auto robot_state : waypoints) // robot_state::RobotStatePtr
+            {
+                Eigen::Affine3d transform = robot_state.getGlobalLinkTransform(link); // moveit::core::RobotState
+                transform_deque.push_back(transform);
+            }
+            return transform_deque;
+        }
+
+        // Calculate transform on trajectory transform_deque nearest to a transform P
+        // Return a pair of the transform and its translational distance from P
+        std::pair<Eigen::Affine3d, double> getNearestTransform(std::deque<Eigen::Affine3d> transform_deque, Eigen::Affine3d P)
+        {
+            // Instantiate loop variables
+            double min_distance = std::numeric_limits<double>::infinity();
+            Eigen::Vector3d translation;
+            double interpolation_param;
+            Eigen::Affine3d A;
+            Eigen::Affine3d B;
+            // Loop over transform_deque to find where the trajectory is nearest to P
+            for (int i = 1; i < transform_deque.size(); i++)
+            {
+                // Use loop to walk through the deque, trying every consecutive segment AB
+                Eigen::Affine3d A_loop = transform_deque[i-1];
+                Eigen::Affine3d B_loop = transform_deque[i];
+
+                // Find where this segment AB is nearest to P
+                std::pair<Eigen::Vector3d, double> pair = getNearestTranslation(A, B, P);
+                double this_distance = pair.first.norm();
+                // If closest segment yet, replace best
+                if (this_distance < min_distance)
+                {
+                    min_distance = this_distance;
+                    translation = pair.first;
+                    interpolation_param = pair.second;
+                    A = A_loop;
+                    B = B_loop;
+                }
+            }
+
+            // Include rotations when calcuating the full interpolated transform
+            Eigen::Quaternion<double> Ar(A.linear());
+            Eigen::Quaternion<double> Br(B.linear());
+            Eigen::Quaternion<double> Pr(P.linear());
+            Eigen::Affine3d nearest;
+            // Interpolate the rotation component
+            nearest.linear() = Ar.slerp(interpolation_param, Br).toRotationMatrix();
+            // Add back the translation component
+            nearest.translation() = translation;
+            
+            // Find distance between P and nearest
+            // double distance = (nearest.translation() - Pt).norm();
+
+            // Package result into pair
+            std::pair<Eigen::Affine3d, double> out;
+            out.first = nearest;
+            out.second = min_distance;
+            return out;
+        }
+
+        std::pair<Eigen::Vector3d, double> getNearestTranslation(Eigen::Affine3d A, Eigen::Affine3d B, Eigen::Affine3d P)
+        {
+            // Use translations for calculating nearest point
+            Eigen::Vector3d At = A.translation();
+            Eigen::Vector3d Bt = B.translation();
+            Eigen::Vector3d Pt = P.translation();
+            // Calculate relative translations
+            Eigen::Vector3d ABt = Bt - At;
+            Eigen::Vector3d APt = Pt - At;
+            double interpolation_param = APt.dot(ABt) / ABt.squaredNorm();
+            // Clamp interpolation to the bounds of the line segment
+            if (interpolation_param < 0)
+            {
+                interpolation_param = 0;
+            }
+            else if (interpolation_param > 1)
+            {
+                interpolation_param = 1;
+            }
+
+            Eigen::Vector3d translation = Pt - (interpolation_param * ABt + At);
+            std::pair<Eigen::Vector3d, double> out;
+            out.first = translation;
+            out.second = interpolation_param;
+            return out;
+        }
+
+        void updateNearest()
+        {
+            //auto plan = g_planning_components->getLastMotionPlanResponse();
+            auto waypoints = getWaypoints(*g_trajectory);
+            auto transform_deque = getTransforms(waypoints);
+            auto current_state = g_planning_scene_monitor->getPlanningScene()->getCurrentState();
+            current_state.updateLinkTransforms();
+            Eigen::Affine3d tcp_transform = current_state.getGlobalLinkTransform("tcp_link");
+            std::pair<Eigen::Affine3d, double> pair = getNearestTransform(transform_deque, tcp_transform);
+            Eigen::Affine3d g_nearest = pair.first;
+            double distance = pair.second;
+        }
+
+        void publishTrajectory(std::deque<Eigen::Affine3d> transform_deque)
+        {
+            // Convert transform deque to string
+            std::stringstream ss;
+            for (Eigen::Affine3d transform : transform_deque)
+            {
+                Eigen::Vector3d translation = transform.translation();
+                ss << '[';
+                ss << translation[0] << ", ";
+                ss << translation[1] << ", ";
+                ss << translation[2];
+                ss << ']';
+            }
+            std_msgs::String trajectory_msg;
+            trajectory_msg.data = ss.str();
+
+            // Publish
+            g_trajectory_publisher.publish(trajectory_msg);
+        }
+
+        void visualizeTrajectory(std::deque<Eigen::Affine3d> transform_deque)
+        {
+            //// Visualize the Trajectory itself /////
+
+            // Set a color for the visualization markers
+            std_msgs::ColorRGBA color;
+            color.r = 0.0;
+            color.g = 1.0;
+            color.b = 0.0;
+            color.a = 0.5;
+
+            // Instantiate marker array for holding the markers to be visualized
+            visualization_msgs::MarkerArray markers;
+            std::map<std::string, unsigned> ns_counts;
+
+            // Loop over transform_deque to find where the trajectory is nearest to P
+            for (int i = 1; i < transform_deque.size(); i++)
+            {
+                // Use loop to walk through the deque, trying every consecutive segment AB
+                Eigen::Affine3d transform_A = transform_deque[i-1];
+                Eigen::Vector3d translation_A = transform_A.translation();
+                geometry_msgs::Point point_A;
+                point_A.x = translation_A[0];
+                point_A.y = translation_A[1];
+                point_A.z = translation_A[2];
+                Eigen::Affine3d transform_B = transform_deque[i];
+                Eigen::Vector3d translation_B = transform_B.translation();
+                geometry_msgs::Point point_B;
+                point_B.x = translation_B[0];
+                point_B.y = translation_B[1];
+                point_B.z = translation_B[2];
+
+                // Create a marker for this segment AB
+                std::vector<geometry_msgs::Point> points; // Put points in the array type accepted by Marker
+                points.push_back(point_A);
+                points.push_back(point_B);
+                
+                std::stringstream ss;
+                ss << (i - 1) << "=" << i;
+                std::string ns_name = ss.str(); // String name
+                if (ns_counts.find(ns_name) == ns_counts.end())
+                    ns_counts[ns_name] = 0;
+                else
+                    ns_counts[ns_name]++;
+                visualization_msgs::Marker mk; // Instantiate marker
+                mk.header.stamp = ros::Time::now(); // Timestamp
+                mk.header.frame_id = "world"; // Reference frame id
+                mk.ns = ns_name; // String name
+                mk.id = ns_counts[ns_name]; // Unique number id
+                mk.type = visualization_msgs::Marker::ARROW; // Arrow marker shape
+                mk.action = visualization_msgs::Marker::ADD; // Add shape to Rviz
+                mk.points = points; // Start and end points of arrow
+                mk.scale.x = 0.005; // Arrow shaft diameter
+                mk.scale.y = 0.008; // Arrow head diameter
+                mk.scale.z = 0.008; // Arrow head length
+                mk.color = color; // Color specified above
+                mk.lifetime = ros::Duration(); // Remain until deleted
+                markers.markers.push_back(mk); // Add to MarkerArray markers
+            }
+
+            //// Visualize the tcp -> Trajectory transform
+            
+            // Set a different color for the tcp -> Trajectory transform
+            std_msgs::ColorRGBA tcp_color;
+            tcp_color.r = 0.0;
+            tcp_color.g = 0.0;
+            tcp_color.b = 1.0;
+            tcp_color.a = 0.5;
+
+            // Add a marker for the tcp -> Trajectory transform
+            auto current_state = g_planning_scene_monitor->getPlanningScene()->getCurrentState();
+            current_state.updateLinkTransforms();
+            Eigen::Vector3d tcp_translation = current_state.getGlobalLinkTransform("tcp_link").translation();
+            Eigen::Vector3d nearest_translation = g_nearest.translation();
+            geometry_msgs::Point tcp_point;
+            tcp_point.x = tcp_translation[0];
+            tcp_point.y = tcp_translation[1];
+            tcp_point.z = tcp_translation[2];
+            geometry_msgs::Point nearest_point;
+            nearest_point.x = nearest_translation[0];
+            nearest_point.y = nearest_translation[1];
+            nearest_point.z = nearest_translation[2];
+
+            std::vector<geometry_msgs::Point> points;
+            points.push_back(tcp_point);
+            points.push_back(nearest_point);
+
+            std::string ns_name = "tcp_marker"; // String name
+            if (ns_counts.find(ns_name) == ns_counts.end())
+                ns_counts[ns_name] = 0;
+            else
+                ns_counts[ns_name]++;
+            visualization_msgs::Marker mk; // Instantiate marker
+            mk.header.stamp = ros::Time::now(); // Timestamp
+            mk.header.frame_id = "world"; // Reference frame id
+            mk.ns = ns_name; // String name
+            mk.id = ns_counts[ns_name]; // Unique number id
+            mk.type = visualization_msgs::Marker::ARROW; // Arrow marker shape
+            mk.action = visualization_msgs::Marker::ADD; // Add shape to Rviz
+            mk.points = points; // Start and end points of arrow
+            mk.scale.x = 0.01; // Arrow shaft diameter
+            mk.scale.y = 0.015; // Arrow head diameter
+            mk.scale.z = 0.015; // Arrow head length
+            mk.color = tcp_color; // Color specified above
+            mk.lifetime = ros::Duration(); // Remain until deleted
+            markers.markers.push_back(mk); // Add to MarkerArray markers
+
+            //// Publish markers ////
+            g_marker_array_publisher->publish(markers);
+        }
+        
+    private:
+        // Define a callback to update to be called when the PlanningSceneMonitor receives an update
+        static void planningSceneMonitorCallback(const moveit_msgs::PlanningScene::ConstPtr& planning_scene, planning_scene_monitor::PlanningSceneMonitorPtr& planning_scene_monitor)
+        {
+            ROS_INFO("Updating...");
+        }
+
+
+};
+
+int main(int argc, char** argv)
+{
+    ros::init(argc, argv, "trajectory");
+    TrajectoryNode trajectory_node(argc, argv);
+    trajectory_node.spin();
+    return 0;
+}

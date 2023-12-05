@@ -1,0 +1,6 @@
+<launch>
+
+    <node name="trajectory_server" pkg="morpheus_trajectory" type="morpheus_trajectory" output="screen">
+    </node>
+
+</launch>
