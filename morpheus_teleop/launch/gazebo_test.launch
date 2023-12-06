@@ -6,7 +6,7 @@
     <arg name="use_rviz" default="true" />
     <arg name="urdf_path" default="$(find morpheus_teleop)/config/test_robot.urdf" />
     <arg name="xacro_path" default="$(find morpheus_teleop)/urdf/scenes/test_scene.xacro"/>
-    <arg name="srdf_path" default="$(find morpheus_teleop)/config/test_scene.srdf"/>
+    <arg name="srdf_path" default="$(find morpheus_teleop)/urdf/scenes/test_scene.xacro"/>
 
     <!-- launch gazebo -->
     <include file="$(find homestri_a_bot_moveit_config)/launch/gazebo.launch">

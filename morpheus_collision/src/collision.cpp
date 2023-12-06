@@ -1,3 +1,5 @@
+#include <algorithm>
+
 #include <ros/ros.h>
 #include <std_msgs/String.h>
 #include <std_msgs/Float64.h>
@@ -12,10 +14,12 @@
 #include <moveit/robot_model/robot_model.h>
 #include <moveit_visual_tools/moveit_visual_tools.h>
 
+// name of the robot description (a param name, so it can be changed externally)
 static const std::string ROBOT_DESCRIPTION =
-    "robot_description";  // name of the robot description (a param name, so it can be changed externally)
+    "robot_description";
 
-static const std::list<std::string> A_BOT_LINK_LIST
+// Set of names of links included in the robot for collision detection
+static const std::set<std::string> A_BOT_LINK_SET
 {
     "shoulder_link",
     "upper_arm_link",
@@ -42,7 +46,8 @@ static const std::list<std::string> A_BOT_LINK_LIST
     "right_inner_knuckle"
 };
 
-static const std::list<std::string> OBSTACLE_LIST
+// Set of names of links included in the obstacles for collision detection
+static const std::set<std::string> OBSTACLE_SET
 {
     "teapot",
     "cylinder"
@@ -226,6 +231,29 @@ class CollisionNode
             g_nearest_publisher.publish(nearest_msg);
         }
 
+        bool isRobotObstaclePair(std::pair<std::string, std::string> pair)
+        {
+            if 
+            (
+                (
+                    (A_BOT_LINK_SET.find(pair.first) != A_BOT_LINK_SET.end()) and
+                    (OBSTACLE_SET.find(pair.second) != OBSTACLE_SET.end())
+                )
+                or 
+                (
+                    (OBSTACLE_SET.find(pair.first) != OBSTACLE_SET.end()) and
+                    (A_BOT_LINK_SET.find(pair.second) != A_BOT_LINK_SET.end())
+                )
+            )
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
         std::string contactMapToString(collision_detection::CollisionResult::ContactMap contact_map)
         {
             // Convert the key list to a string
@@ -238,7 +266,7 @@ class CollisionNode
                 const std::vector<collision_detection::Contact>& value = key_value.second;
 
                 // Enforce condition
-                if (key.first == "teapot" or key.second == "teapot")
+                if (isRobotObstaclePair(key))
                 {
                     // First add the keys, each of which is a pair of link names, for links in contact
                     key_value_list_str << "Contact: (" << key.first << ", " << key.second << "), Vector: [";
@@ -276,7 +304,7 @@ class CollisionNode
                 const std::vector<collision_detection::Contact>& value = key_value.second;
 
                 // Enforce condition
-                if (key.first == "teapot" or key.second == "teapot")
+                if (isRobotObstaclePair(key))
                 {
                     const collision_detection::Contact contact = value[0]; // Get the nearest contact only
                     double distance = contact.depth;
@@ -329,8 +357,8 @@ class CollisionNode
                 const std::vector<collision_detection::Contact>& value = key_value.second;
                 const collision_detection::Contact contact = value[0]; // Get the nearest contact only
                 
-                // Enforce condition: Only visualize distances from the named object
-                if (key.first == "teapot" or key.second == "teapot")
+                // Enforce condition: Only visualize distances between robot and obstacle
+                if (isRobotObstaclePair(key))
                 {
                     std::vector<Eigen::Vector3d> vec;
                     Eigen::Vector3d p0 = contact.pos; // p0 is the position reported by the Contact
