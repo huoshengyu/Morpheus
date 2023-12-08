@@ -322,10 +322,26 @@ class CollisionNode
                     }
                 }
             }
+            nearest_contact = setContactDirection(nearest_contact);
+
             std::pair<bool, collision_detection::Contact> pair;
             pair.first = assigned;
             pair.second = nearest_contact;
             return pair;
+        }
+
+        // If contact points from Obstacle to Robot, flip it
+        collision_detection::Contact setContactDirection(collision_detection::Contact contact)
+        {
+            if ((OBSTACLE_SET.find(contact.body_name_1) != OBSTACLE_SET.end()) and
+                (A_BOT_LINK_SET.find(contact.body_name_2) != A_BOT_LINK_SET.end()))
+            {
+                std::swap(contact.body_name_1, contact.body_name_2);
+                std::swap(contact.body_type_1, contact.body_type_2);
+                contact.pos = contact.pos + (contact.normal * contact.depth);
+                contact.normal = contact.normal * (-1);
+            }
+            return contact;
         }
 
         geometry_msgs::Point contactToPoint(collision_detection::Contact contact)
@@ -364,7 +380,9 @@ class CollisionNode
                 // Separate keys from values for readability
                 const std::pair<std::string, std::string>& key = key_value.first;
                 const std::vector<collision_detection::Contact>& value = key_value.second;
-                const collision_detection::Contact contact = value[0]; // Get the nearest contact only
+                const collision_detection::Contact orig_contact = value[0]; // Get the nearest contact only
+
+                collision_detection::Contact contact = setContactDirection(orig_contact);
                 
                 // Enforce condition: Only visualize distances between robot and obstacle
                 if (isRobotObstaclePair(key))
