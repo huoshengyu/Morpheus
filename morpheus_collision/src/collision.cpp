@@ -226,9 +226,15 @@ class CollisionNode
             g_contacts_publisher.publish(contacts_msg);
 
             // Publish vector to nearest collision
-            collision_detection::Contact nearest_contact = getNearestContact(g_c_res.contacts);
-            geometry_msgs::Point nearest_msg = contactToPoint(nearest_contact);
-            g_nearest_publisher.publish(nearest_msg);
+            std::pair<bool, collision_detection::Contact> pair = getNearestContact(g_c_res.contacts);
+            bool success = pair.first;
+            collision_detection::Contact nearest_contact = pair.second;
+            if (success)
+            {
+                geometry_msgs::Point nearest_msg = contactToPoint(nearest_contact);
+                g_nearest_publisher.publish(nearest_msg);
+            }
+            
         }
 
         bool isRobotObstaclePair(std::pair<std::string, std::string> pair)
@@ -289,7 +295,7 @@ class CollisionNode
             return result;
         }
 
-        collision_detection::Contact getNearestContact(collision_detection::CollisionResult::ContactMap contact_map)
+        std::pair<bool, collision_detection::Contact> getNearestContact(collision_detection::CollisionResult::ContactMap contact_map)
         {
             // Instantiate loop variables
             double nearest_distance = std::numeric_limits<double>::infinity();
@@ -310,13 +316,16 @@ class CollisionNode
                     double distance = contact.depth;
                     if (distance < nearest_distance)
                     {
+                        nearest_distance = distance;
                         nearest_contact = contact;
                         assigned = true;
                     }
                 }
             }
-            assert(assigned); // Make sure nearest contact was assigned a value
-            return nearest_contact;
+            std::pair<bool, collision_detection::Contact> pair;
+            pair.first = assigned;
+            pair.second = nearest_contact;
+            return pair;
         }
 
         geometry_msgs::Point contactToPoint(collision_detection::Contact contact)

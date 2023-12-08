@@ -4,9 +4,9 @@
     <arg name="paused" default="false" />
     <arg name="gazebo_gui" default="true" />
     <arg name="use_rviz" default="true" />
-    <arg name="urdf_path" default="$(find morpheus_teleop)/config/test_robot.urdf" />
+    <arg name="urdf_path" default="$(find morpheus_teleop)/urdf/scenes/test_scene.xacro" />
     <arg name="xacro_path" default="$(find morpheus_teleop)/urdf/scenes/test_scene.xacro"/>
-    <arg name="srdf_path" default="$(find morpheus_teleop)/urdf/scenes/test_scene.xacro"/>
+    <arg name="srdf_path" default="$(find morpheus_teleop)/config/test_scene.srdf"/>
 
     <!-- launch gazebo -->
     <include file="$(find homestri_a_bot_moveit_config)/launch/gazebo.launch">
