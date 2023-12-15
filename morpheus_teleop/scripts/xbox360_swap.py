@@ -34,6 +34,9 @@ class TeleopTwistJoy():
         self.angular_y_buffer = deque(maxlen=self.twist_filter_size)
         self.angular_z_buffer = deque(maxlen=self.twist_filter_size)
 
+        self.use_effector_frame = False
+        self.already_swapped = False
+
     def publish(self):
         self.joy_msg_mutex.acquire()
         msg = deepcopy(self.joy_msg)
@@ -64,37 +67,57 @@ class TeleopTwistJoy():
                            -axes[4] * angular_scale, 
                             (buttons[5] - buttons[4]) * angular_scale]
 
+            # Check if control frame needs to be swapped
+            # buttons[8] = xbox button
+            if (buttons[8]==1) and (not self.already_swapped):
+                self.already_swapped = True
+                self.use_effector_frame = not self.use_effector_frame
+            elif (buttons[8]==0):
+                self.already_swapped = False
+
             # Enforce a safety limit on speed
             for i in range(len(scaled_axes)):
                 if abs(scaled_axes[i]) > 0.5:
                     scaled_axes[i] = 0.5 * scaled_axes[i] / abs(scaled_axes[i])
 
-            for i in range(len(axes)):
-                if abs(axes[i]) < 0.15:
-                    axes[i] = 0
+            rotated_axes = scaled_axes # Instantiate in larger scope
 
             try:
-            # Rearrange the axes to make the controls more intuitive
-                r_control_linear = R.from_matrix([[ 0, -1,  0],
-                                                  [ 1,  0,  0],
-                                                  [ 0,  0,  1]])
-                r_control_angular = R.from_matrix([[-1,  0,  0],
-                                                   [ 0, -1,  0],
-                                                   [ 0,  0, -1]])
+                if self.use_effector_frame:
+                    # Lookup the transform from source_frame to target_frame
+                    transform = tf_buffer.lookup_transform("base_link", "tcp_link", rospy.Time(0), rospy.Duration(1.0))
+                    
+                    effector_rotation = [transform.transform.rotation.x, -transform.transform.rotation.y, transform.transform.rotation.z, transform.transform.rotation.w]
 
-                rotated_axes = np.concatenate((r_control_linear.apply(scaled_axes[:3]), r_control_angular.apply(scaled_axes[3:])))
+                    r = R.from_quat(effector_rotation)
+                    #print(r.as_matrix())
+
+                    # Rearrange the axes to make the controls more intuitive
+                    r_control_linear = R.from_matrix([[ 0,  1,  0],
+                                                      [ 0,  0, -1],
+                                                      [ 1,  0,  0]])
+                    r_control_angular = R.from_matrix([[ 0,  0,  1],
+                                                       [ 0, -1,  0],
+                                                       [ 1,  0,  0]])
+
+                    rotated_axes = np.concatenate((r_control_linear.apply(scaled_axes[:3]), r_control_angular.apply(scaled_axes[3:])))
+
+                    # Apply the rotation matrix
+                    rotated_axes = np.concatenate((r.apply(rotated_axes[:3]), r.apply(rotated_axes[3:])))
+
+                else:
+                    # Rearrange the axes to make the controls more intuitive
+                    r_control_linear = R.from_matrix([[ 0, -1,  0],
+                                                      [ 1,  0,  0],
+                                                      [ 0,  0,  1]])
+                    r_control_angular = R.from_matrix([[-1,  0,  0],
+                                                       [ 0, -1,  0],
+                                                       [ 0,  0, -1]])
+
+                    rotated_axes = np.concatenate((r_control_linear.apply(scaled_axes[:3]), r_control_angular.apply(scaled_axes[3:])))
                 
             except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
-                rospy.logwarn("Control axis rearrangement failed!")
-
-            print(axes)
-
-            # self.linear_x_buffer.append(axes[1] * linear_scale)
-            # self.linear_y_buffer.append(axes[0] * linear_scale)
-            # self.linear_z_buffer.append(((1 - (axes[5] + 1) / 2) - (1 - (axes[2] + 1) / 2)) * linear_scale)
-            # self.angular_x_buffer.append(-axes[3] * angular_scale)
-            # self.angular_y_buffer.append(axes[4] * angular_scale)
-            # self.angular_z_buffer.append((buttons[4] - buttons[5]) * angular_scale)
+                rospy.logwarn("Transform lookup failed!")
 
             self.linear_x_buffer.append(rotated_axes[0])
             self.linear_y_buffer.append(rotated_axes[1])
@@ -134,6 +157,9 @@ class TeleopTwistJoy():
 
 if __name__ == '__main__':
     rospy.init_node('xbox360_twist')
+
+    tf_buffer = tf2_ros.Buffer()
+    tf_listener = tf2_ros.TransformListener(tf_buffer)
 
     teleop_twist_joy = TeleopTwistJoy()
 

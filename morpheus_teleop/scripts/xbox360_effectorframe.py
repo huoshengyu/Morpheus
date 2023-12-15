@@ -63,13 +63,13 @@ class TeleopTwistJoy():
                            -axes[3] * angular_scale, 
                            -axes[4] * angular_scale, 
                             (buttons[5] - buttons[4]) * angular_scale]
-                            
 
-            rotated_axes = scaled_axes # Instantiate in larger scope
-
+            # Enforce a safety limit on speed
             for i in range(len(scaled_axes)):
                 if abs(scaled_axes[i]) > 0.5:
-                    scaled_axes[i] = 0.5 * scaled_axes[i] / abs(scaled_axes[i])
+                    scaled_axes[i] = 0.5 * scaled_axes[i] / abs(scaled_axes[i])         
+
+            rotated_axes = scaled_axes # Instantiate in larger scope
 
             try:
                 # Lookup the transform from source_frame to target_frame
@@ -80,18 +80,18 @@ class TeleopTwistJoy():
                 r = R.from_quat(effector_rotation)
                 #print(r.as_matrix())
 
-                # Apply the rotation matrix
-                rotated_axes = np.concatenate((r.apply(scaled_axes[:3]), r.apply(scaled_axes[3:])))
-
                 # Rearrange the axes to make the controls more intuitive
-                r_control_linear = R.from_matrix([[ 0, -1,  0],
-                                                  [ 1,  0,  0],
-                                                  [ 0,  0,  1]])
-                r_control_angular = R.from_matrix([[-1,  0,  0],
+                r_control_linear = R.from_matrix([[ 0,  1,  0],
+                                                  [ 0,  0, -1],
+                                                  [ 1,  0,  0]])
+                r_control_angular = R.from_matrix([[ 0,  0,  1],
                                                    [ 0, -1,  0],
-                                                   [ 0,  0, -1]])
+                                                   [ 1,  0,  0]])
 
                 rotated_axes = np.concatenate((r_control_linear.apply(scaled_axes[:3]), r_control_angular.apply(scaled_axes[3:])))
+
+                # Apply the rotation matrix
+                rotated_axes = np.concatenate((r.apply(rotated_axes[:3]), r.apply(rotated_axes[3:])))
                 
             except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
                 rospy.logwarn("Transform lookup failed!")
