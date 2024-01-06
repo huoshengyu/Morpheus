@@ -57,33 +57,32 @@ class TeleopTwistJoy():
             # Triggers: LT = axes[2], RT = axes[5]
             # Dpad: L/R = -axes[6], U/D = axes[7]
             # Buttons: [A, B, X, Y, LB, RB, Share, Menu, Xbox, Lstick, Rstick]
-            scaled_axes = [-axes[0] * linear_scale, 
-                            axes[1] * linear_scale, 
+            scaled_axes = [-axes[1] * linear_scale, 
+                           -axes[0] * linear_scale, 
                             ((1 - (axes[5] + 1) / 2) - (1 - (axes[2] + 1) / 2)) * linear_scale, 
                            -axes[3] * angular_scale, 
-                           -axes[4] * angular_scale, 
-                            (buttons[5] - buttons[4]) * angular_scale]
+                            axes[4] * angular_scale, 
+                           -(buttons[5] - buttons[4]) * angular_scale]
 
             # Enforce a safety limit on speed
             for i in range(len(scaled_axes)):
                 if abs(scaled_axes[i]) > 0.5:
                     scaled_axes[i] = 0.5 * scaled_axes[i] / abs(scaled_axes[i])
 
-            for i in range(len(axes)):
-                if abs(axes[i]) < 0.15:
-                    axes[i] = 0
+            rearranged_axes = scaled_axes # Instantiate in larger scope
+            rotated_axes = scaled_axes
 
             try:
-            # Rearrange the axes to make the controls more intuitive
-                r_control_linear = R.from_matrix([[ 0, -1,  0],
-                                                  [ 1,  0,  0],
-                                                  [ 0,  0,  1]])
-                r_control_angular = R.from_matrix([[-1,  0,  0],
-                                                   [ 0, -1,  0],
-                                                   [ 0,  0, -1]])
+                # Rearrange the axes to make the controls more intuitive
+                r_control_linear = np.array([[ 1,  0,  0],
+                                                [ 0,  1,  0],
+                                                [ 0,  0,  1]])
+                r_control_angular = np.array([[ 1,  0,  0],
+                                                [ 0,  1,  0],
+                                                [ 0,  0,  1]])
 
-                rotated_axes = np.concatenate((r_control_linear.apply(scaled_axes[:3]), r_control_angular.apply(scaled_axes[3:])))
-                
+                rearranged_axes = np.concatenate((np.matmul(r_control_linear, scaled_axes[:3]), np.matmul(r_control_angular, scaled_axes[3:])))
+
             except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
                 rospy.logwarn("Control axis rearrangement failed!")
 
@@ -96,12 +95,12 @@ class TeleopTwistJoy():
             # self.angular_y_buffer.append(axes[4] * angular_scale)
             # self.angular_z_buffer.append((buttons[4] - buttons[5]) * angular_scale)
 
-            self.linear_x_buffer.append(rotated_axes[0])
-            self.linear_y_buffer.append(rotated_axes[1])
-            self.linear_z_buffer.append(rotated_axes[2])
-            self.angular_x_buffer.append(rotated_axes[3])
-            self.angular_y_buffer.append(rotated_axes[4])
-            self.angular_z_buffer.append(rotated_axes[5])
+            self.linear_x_buffer.append(rearranged_axes[0])
+            self.linear_y_buffer.append(rearranged_axes[1])
+            self.linear_z_buffer.append(rearranged_axes[2])
+            self.angular_x_buffer.append(rearranged_axes[3])
+            self.angular_y_buffer.append(rearranged_axes[4])
+            self.angular_z_buffer.append(rearranged_axes[5])
 
             twist = geometry_msgs.msg.Twist()
             twist.linear.x = sum(self.linear_x_buffer) / len(self.linear_x_buffer)

@@ -57,51 +57,59 @@ class TeleopTwistJoy():
             # Triggers: LT = axes[2], RT = axes[5]
             # Dpad: L/R = -axes[6], U/D = axes[7]
             # Buttons: [A, B, X, Y, LB, RB, Share, Menu, Xbox, Lstick, Rstick]
-            scaled_axes = [-axes[0] * linear_scale, 
-                            axes[1] * linear_scale, 
+            scaled_axes = [-axes[1] * linear_scale, 
+                           -axes[0] * linear_scale, 
                             ((1 - (axes[5] + 1) / 2) - (1 - (axes[2] + 1) / 2)) * linear_scale, 
                            -axes[3] * angular_scale, 
-                           -axes[4] * angular_scale, 
-                            (buttons[5] - buttons[4]) * angular_scale]
+                            axes[4] * angular_scale, 
+                           -(buttons[5] - buttons[4]) * angular_scale]
 
             # Enforce a safety limit on speed
             for i in range(len(scaled_axes)):
                 if abs(scaled_axes[i]) > 0.5:
-                    scaled_axes[i] = 0.5 * scaled_axes[i] / abs(scaled_axes[i])         
+                    scaled_axes[i] = 0.5 * scaled_axes[i] / abs(scaled_axes[i])
 
-            rotated_axes = scaled_axes # Instantiate in larger scope
+            rearranged_axes = scaled_axes # Instantiate in larger scope
+            rotated_axes = scaled_axes
 
             try:
                 # Lookup the transform from source_frame to target_frame
-                transform = tf_buffer.lookup_transform("base_link", "tcp_link", rospy.Time(0), rospy.Duration(1.0))
+                transform = tf_buffer.lookup_transform("tcp_link", "base_link", rospy.Time(0), rospy.Duration(1.0))
                 
-                effector_rotation = [transform.transform.rotation.x, -transform.transform.rotation.y, transform.transform.rotation.z, transform.transform.rotation.w]
+                effector_rotation = [transform.transform.rotation.x, transform.transform.rotation.y, transform.transform.rotation.z, transform.transform.rotation.w]
 
-                r = R.from_quat(effector_rotation)
+                effector_rotation = R.from_quat(effector_rotation)
+
+                # Account for difference in orientation between tcp_link and base_link at baseline state
+                offset = R.from_rotvec([0, np.pi/2, 0])
+                corrected_rotation = np.matmul(offset.as_matrix(), effector_rotation.as_matrix())
+
+                # Apply offset
+                r = R.from_matrix(corrected_rotation)
                 #print(r.as_matrix())
-
-                # Rearrange the axes to make the controls more intuitive
-                r_control_linear = R.from_matrix([[ 0,  1,  0],
-                                                  [ 0,  0, -1],
-                                                  [ 1,  0,  0]])
-                r_control_angular = R.from_matrix([[ 0,  0,  1],
-                                                   [ 0, -1,  0],
-                                                   [ 1,  0,  0]])
-
-                rotated_axes = np.concatenate((r_control_linear.apply(scaled_axes[:3]), r_control_angular.apply(scaled_axes[3:])))
 
                 # Apply the rotation matrix
                 rotated_axes = np.concatenate((r.apply(rotated_axes[:3]), r.apply(rotated_axes[3:])))
+
+                # Rearrange the axes to make the controls more intuitive
+                r_control_linear = np.array([[ 1,  0,  0],
+                                                [ 0,  1,  0],
+                                                [ 0,  0,  1]])
+                r_control_angular = np.array([[ 1,  0,  0],
+                                                [ 0,  1,  0],
+                                                [ 0,  0,  1]])
+
+                rearranged_axes = np.concatenate((np.matmul(r_control_linear, rotated_axes[:3]), np.matmul(r_control_angular, rotated_axes[3:])))
                 
             except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
                 rospy.logwarn("Transform lookup failed!")
 
-            self.linear_x_buffer.append(rotated_axes[0])
-            self.linear_y_buffer.append(rotated_axes[1])
-            self.linear_z_buffer.append(rotated_axes[2])
-            self.angular_x_buffer.append(rotated_axes[3])
-            self.angular_y_buffer.append(rotated_axes[4])
-            self.angular_z_buffer.append(rotated_axes[5])
+            self.linear_x_buffer.append(rearranged_axes[0])
+            self.linear_y_buffer.append(rearranged_axes[1])
+            self.linear_z_buffer.append(rearranged_axes[2])
+            self.angular_x_buffer.append(rearranged_axes[3])
+            self.angular_y_buffer.append(rearranged_axes[4])
+            self.angular_z_buffer.append(rearranged_axes[5])
 
             twist = geometry_msgs.msg.Twist()
             twist.linear.x = sum(self.linear_x_buffer) / len(self.linear_x_buffer)
