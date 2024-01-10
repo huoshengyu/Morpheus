@@ -3,6 +3,7 @@
 #include <iostream>
 #include <fstream>
 #include <chrono>
+#include <format>
 
 #include <ros/ros.h>
 #include <std_msgs/String.h>
@@ -68,7 +69,14 @@ class DataNode
     public:
         std::shared_ptr<planning_scene_monitor::PlanningSceneMonitor> g_planning_scene_monitor;
         std::chrono::high_resolution_clock::time_point t1;
+        std::string robot;
+        std::string task;
+        std::string id;
+        std::string datetime;
+        std::string session;
+        std::ofstream g_file;
         std::string g_filename;
+        std::stringstream g_next_line;
 
         DataNode(int argc, char** argv)
         {
@@ -77,9 +85,21 @@ class DataNode
             ros::NodeHandle nh;
             ros::AsyncSpinner spinner(0);
             spinner.start();
+            
+            // Start clock
+            t1 = std::chrono::high_resolution_clock::now();
 
-            // Set filename
-            g_filename = "test.csv";
+            // Write a header for the file
+            std::string header;
+            robot = "UR5e";
+            task = "acclimation1";
+            id = "0";
+            datetime = std::format("{:%F%T}", std::chrono::system_clock::now());
+            header << "_" << robot << "_" << task << "_" << id << "_" << datetime;
+            g_filename = header;
+            g_file.open(g_filename);
+            g_file << header << "\n"
+            g_file.close();
 
             // Retrieve preexisting PlanningSceneMonitor, if possible
             g_planning_scene_monitor = std::make_shared<planning_scene_monitor::PlanningSceneMonitor>(ROBOT_DESCRIPTION);
@@ -99,9 +119,6 @@ class DataNode
             g_planning_scene_monitor->startWorldGeometryMonitor();
             g_planning_scene_monitor->startStateMonitor("/joint_states");
 
-            // Start clock
-            t1 = std::chrono::high_resolution_clock::now();
-            
         }
 
         void spin()
@@ -121,20 +138,28 @@ class DataNode
 
         void update()
         {
+            g_next_line = new std::stringstream;
+
+            // Get time since start
+            std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
+            std::chrono::duration<double, std::milli> time_elapsed = t2 - t1;
+            g_next_line << time_elapsed << ", "
+
+            // Get link positions
+            // TODO: Listener should request from monitored planning scene topic
+            // Should include a column for every link
+
+            // Get contact map
+            // TODO: Listener should request from collision/contactmap topic
+            // Should include a column for every link pair
 
         }
 
         void publish()
         {
-            // Get time since start
-            std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
-            std::chrono::duration<double, std::milli> time_elapsed = t2 - t1;
-
-            std::ofstream file;
-            file.open(g_filename);
-            file << time_elapsed.count() << ",";
-            file << "placeholder\n";
-            file.close();
+            g_file.open(g_filename);
+            g_file << g_next_line << "\n"
+            g_file.close();
         }
 
 };
