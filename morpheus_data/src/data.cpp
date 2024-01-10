@@ -118,8 +118,8 @@ class DataNode
             g_planning_scene_monitor->startWorldGeometryMonitor();
             g_planning_scene_monitor->startStateMonitor("/joint_states");
 
-            g_scene_subscriber = nh.subscribe("/move_group/monitored_planning_scene", 10);
-            g_contactmap_subcriber = nh.subscribe("/collision/contactmap");
+            g_scene_subscriber = nh.subscribe("/move_group/monitored_planning_scene", 1);
+            g_contactmap_subcriber = nh.subscribe("/collision/contactmap", 1);
         }
 
         void spin()
@@ -149,7 +149,6 @@ class DataNode
             // Get link positions
             // TODO: Listener should request from monitored planning scene topic
             // Should include a column for every link
-            g_scene_subscriber;
 
             // Get contact map
             // TODO: Listener should request from collision/contactmap topic
