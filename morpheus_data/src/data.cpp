@@ -69,14 +69,12 @@ class DataNode
     public:
         std::shared_ptr<planning_scene_monitor::PlanningSceneMonitor> g_planning_scene_monitor;
         std::chrono::high_resolution_clock::time_point t1;
-        std::string robot;
-        std::string task;
-        std::string id;
-        std::string datetime;
-        std::string session;
         std::ofstream g_file;
         std::string g_filename;
         std::stringstream g_next_line;
+
+        ros::Subscriber g_scene_subscriber;
+        ros::Subscriber g_contactmap_subscriber;
 
         DataNode(int argc, char** argv)
         {
@@ -90,15 +88,16 @@ class DataNode
             t1 = std::chrono::high_resolution_clock::now();
 
             // Write a header for the file
+            // TODO: make header strings dynamic, based on rostopics or arguments
             std::string header;
-            robot = "UR5e";
-            task = "acclimation1";
-            id = "0";
-            datetime = std::format("{:%F%T}", std::chrono::system_clock::now());
-            header << "_" << robot << "_" << task << "_" << id << "_" << datetime;
+            std::string robot = "UR5e";
+            std::string task = "test1";
+            std::string id = "0";
+            std::string datetime = std::format("{:%F%T}", std::chrono::system_clock::now());
+            header << robot << "_" << task << "_" << id << "_" << datetime;
             g_filename = header;
             g_file.open(g_filename);
-            g_file << header << "\n"
+            g_file << header << "\n";
             g_file.close();
 
             // Retrieve preexisting PlanningSceneMonitor, if possible
@@ -119,6 +118,8 @@ class DataNode
             g_planning_scene_monitor->startWorldGeometryMonitor();
             g_planning_scene_monitor->startStateMonitor("/joint_states");
 
+            g_scene_subscriber = nh.subscribe("/move_group/monitored_planning_scene", 10);
+            g_contactmap_subcriber = nh.subscribe("/collision/contactmap");
         }
 
         void spin()
@@ -143,11 +144,12 @@ class DataNode
             // Get time since start
             std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
             std::chrono::duration<double, std::milli> time_elapsed = t2 - t1;
-            g_next_line << time_elapsed << ", "
+            g_next_line << time_elapsed << ", ";
 
             // Get link positions
             // TODO: Listener should request from monitored planning scene topic
             // Should include a column for every link
+            g_scene_subscriber;
 
             // Get contact map
             // TODO: Listener should request from collision/contactmap topic
@@ -158,7 +160,7 @@ class DataNode
         void publish()
         {
             g_file.open(g_filename);
-            g_file << g_next_line << "\n"
+            g_file << g_next_line << "\n";
             g_file.close();
         }
 
