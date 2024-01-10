@@ -13,6 +13,7 @@
 #include <moveit/robot_model_loader/robot_model_loader.h>
 #include <moveit/robot_model/robot_model.h>
 #include <moveit_visual_tools/moveit_visual_tools.h>
+#include <morpheus_msgs/ContactMap.h>
 
 // name of the robot description (a param name, so it can be changed externally)
 static const std::string ROBOT_DESCRIPTION =
@@ -65,6 +66,7 @@ class CollisionNode
         ros::Publisher g_distance_publisher;
         ros::Publisher g_contacts_publisher;
         ros::Publisher g_nearest_publisher;
+        ros::Publisher g_contactmap_publisher;
         collision_detection::CollisionResult g_c_res;
         collision_detection::CollisionRequest g_c_req;
 
@@ -157,6 +159,7 @@ class CollisionNode
             g_distance_publisher = nh.advertise<std_msgs::Float64>("collision/distance", 10);
             g_contacts_publisher = nh.advertise<std_msgs::String>("collision/contacts", 10);
             g_nearest_publisher = nh.advertise<std_msgs::String>("collision/nearest", 10);
+            g_contactmap_publisher = nh.advertise<morpheus_msgs::ContactMap>("collision/contactmap", 10);
 
             
             // Create a marker array publisher for publishing shapes to Rviz
@@ -220,7 +223,7 @@ class CollisionNode
             distance_msg.data = g_c_res.distance;
             g_distance_publisher.publish(distance_msg);
 
-            // Publish contact map
+            // Publish contact map as text
             std_msgs::String contacts_msg;
             contacts_msg.data = contactMapToString(g_c_res.contacts);
             g_contacts_publisher.publish(contacts_msg);
@@ -234,7 +237,45 @@ class CollisionNode
                 geometry_msgs::Point nearest_msg = contactToPoint(nearest_contact);
                 g_nearest_publisher.publish(nearest_msg);
             }
-            
+
+            // Publish contact map as special msg type
+            morpheus_msgs::ContactMap contactmap_msg;
+            for (auto const& key_value : g_c_res.contacts)
+            {
+                auto key = key_value.first;
+                auto value = key_value.second[0]; // Only get nearest contact
+
+                morpheus_msgs::StringPair msg_key;
+                msg_key.first = key.first;
+                msg_key.second = key.second;
+
+                moveit_msgs::ContactInformation msg_value;
+
+                geometry_msgs::Point msg_pos;
+                msg_pos.x = value.pos[0];
+                msg_pos.y = value.pos[1];
+                msg_pos.z = value.pos[2];
+                msg_value.position = msg_pos;
+
+                geometry_msgs::Vector3 msg_normal;
+                msg_normal.x = value.normal[0];
+                msg_normal.y = value.normal[0];
+                msg_normal.z = value.normal[0];
+                msg_value.normal = msg_normal;
+
+                msg_value.depth = value.depth;
+                
+                msg_value.contact_body_1 = value.body_name_1;
+                msg_value.body_type_1 = value.body_type_1;
+
+                msg_value.contact_body_2 = value.body_name_2;
+                msg_value.body_type_2 = value.body_type_2;
+
+                contactmap_msg.keys.push_back(msg_key);
+                contactmap_msg.values.push_back(msg_value);
+            }
+            g_contactmap_publisher.publish(contactmap_msg);
+
         }
 
         bool isRobotObstaclePair(std::pair<std::string, std::string> pair)
