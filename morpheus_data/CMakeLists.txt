@@ -16,6 +16,7 @@ find_package(catkin REQUIRED COMPONENTS
   moveit_msgs
   std_msgs
   geometry_msgs
+  morpheus_msgs
 )
 
 ## System dependencies are found with CMake's conventions

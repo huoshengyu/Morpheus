@@ -1,6 +1,8 @@
+#include <filesystem>
 #include <algorithm>
 #include <iostream>
 #include <fstream>
+#include <chrono>
 
 #include <ros/ros.h>
 #include <std_msgs/String.h>
@@ -15,6 +17,7 @@
 #include <moveit/robot_model_loader/robot_model_loader.h>
 #include <moveit/robot_model/robot_model.h>
 #include <moveit_visual_tools/moveit_visual_tools.h>
+#include <morpheus_msgs/ContactMap.h>
 
 // name of the robot description (a param name, so it can be changed externally)
 static const std::string ROBOT_DESCRIPTION =
@@ -64,6 +67,7 @@ class DataNode
 {
     public:
         std::shared_ptr<planning_scene_monitor::PlanningSceneMonitor> g_planning_scene_monitor;
+        std::chrono::high_resolution_clock::time_point t1;
         std::string g_filename;
 
         DataNode(int argc, char** argv)
@@ -95,6 +99,8 @@ class DataNode
             g_planning_scene_monitor->startWorldGeometryMonitor();
             g_planning_scene_monitor->startStateMonitor("/joint_states");
 
+            // Start clock
+            t1 = std::chrono::high_resolution_clock::now();
             
         }
 
@@ -120,8 +126,13 @@ class DataNode
 
         void publish()
         {
+            // Get time since start
+            std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
+            std::chrono::duration<double, std::milli> time_elapsed = t2 - t1;
+
             std::ofstream file;
             file.open(g_filename);
+            file << time_elapsed.count() << ",";
             file << "placeholder\n";
             file.close();
         }
