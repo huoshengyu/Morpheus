@@ -73,7 +73,6 @@ class DataNode
         std::string g_filename;
         std::stringstream g_next_line;
 
-        ros::Subscriber g_scene_subscriber;
         ros::Subscriber g_contactmap_subscriber;
 
         DataNode(int argc, char** argv)
@@ -95,11 +94,19 @@ class DataNode
             std::string id = "0";
             std::time_t datetime_t = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
             std::string datetime = ctime(&datetime_t);
-            header << robot << "_" << task << "_" << id << "_" << datetime;
+            header << robot << "_" << task << "_" << id << "_";
             g_filename = header.str();
 
-            // ROS_INFO("Creating file with name: " << g_filename);
-            g_file = std::ofstream(g_filename);
+            // Get directory of data folder. Note: cwd is /root/.ros/ by default
+            std::string data_dir = "/root/catkin_ws/src/morpheus/morpheus_data/data/";
+
+            // Add the header line to the file
+            ROS_INFO_STREAM("Creating file with name: " << g_filename);
+            std::stringstream filepath;
+            filepath << data_dir << g_filename;
+            g_file = std::ofstream(filepath.str());
+            if ( (g_file.rdstate() & std::ofstream::failbit ) != 0 )
+                std::cerr << "Error opening file\n";
             g_file << header.str() << std::endl;
 
             // Retrieve preexisting PlanningSceneMonitor, if possible
@@ -120,7 +127,6 @@ class DataNode
             g_planning_scene_monitor->startWorldGeometryMonitor();
             g_planning_scene_monitor->startStateMonitor("/joint_states");
 
-            g_scene_subscriber = nh.subscribe("/move_group/monitored_planning_scene", 1, emptyCallback);
             g_contactmap_subscriber = nh.subscribe("/collision/contactmap", 1, emptyCallback);
         }
 
@@ -163,7 +169,7 @@ class DataNode
 
         void publish()
         {
-            // ROS_INFO("Adding line: " << g_next_line);
+            ROS_INFO_STREAM("Adding line: " << g_next_line.str());
             g_file << g_next_line.str() << std::endl;
         }
 
