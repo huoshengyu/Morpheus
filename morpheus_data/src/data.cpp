@@ -3,7 +3,7 @@
 #include <iostream>
 #include <fstream>
 #include <chrono>
-#include <format>
+#include <ctime>
 
 #include <ros/ros.h>
 #include <std_msgs/String.h>
@@ -89,16 +89,18 @@ class DataNode
 
             // Write a header for the file
             // TODO: make header strings dynamic, based on rostopics or arguments
-            std::string header;
+            std::stringstream header;
             std::string robot = "UR5e";
             std::string task = "test1";
             std::string id = "0";
-            std::string datetime = std::format("{:%F%T}", std::chrono::system_clock::now());
+            std::time_t datetime_t = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+            std::string datetime = ctime(&datetime_t);
             header << robot << "_" << task << "_" << id << "_" << datetime;
-            g_filename = header;
-            g_file.open(g_filename);
-            g_file << header << "\n";
-            g_file.close();
+            g_filename = header.str();
+
+            // ROS_INFO("Creating file with name: " << g_filename);
+            g_file = std::ofstream(g_filename);
+            g_file << header.str() << std::endl;
 
             // Retrieve preexisting PlanningSceneMonitor, if possible
             g_planning_scene_monitor = std::make_shared<planning_scene_monitor::PlanningSceneMonitor>(ROBOT_DESCRIPTION);
@@ -118,8 +120,8 @@ class DataNode
             g_planning_scene_monitor->startWorldGeometryMonitor();
             g_planning_scene_monitor->startStateMonitor("/joint_states");
 
-            g_scene_subscriber = nh.subscribe("/move_group/monitored_planning_scene", 1);
-            g_contactmap_subcriber = nh.subscribe("/collision/contactmap", 1);
+            g_scene_subscriber = nh.subscribe("/move_group/monitored_planning_scene", 1, emptyCallback);
+            g_contactmap_subscriber = nh.subscribe("/collision/contactmap", 1, emptyCallback);
         }
 
         void spin()
@@ -135,16 +137,19 @@ class DataNode
 
             // Spin the ROS node
             ros::spin();
+
+            // Close when complete
+            g_file.close();
         }
 
         void update()
         {
-            g_next_line = new std::stringstream;
+            g_next_line.str(""); // Reset g_next_line
 
             // Get time since start
             std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
             std::chrono::duration<double, std::milli> time_elapsed = t2 - t1;
-            g_next_line << time_elapsed << ", ";
+            g_next_line << time_elapsed.count() << ", ";
 
             // Get link positions
             // TODO: Listener should request from monitored planning scene topic
@@ -158,9 +163,13 @@ class DataNode
 
         void publish()
         {
-            g_file.open(g_filename);
-            g_file << g_next_line << "\n";
-            g_file.close();
+            // ROS_INFO("Adding line: " << g_next_line);
+            g_file << g_next_line.str() << std::endl;
+        }
+
+        static void emptyCallback(const std_msgs::String::ConstPtr& msg)
+        {
+            
         }
 
 };
