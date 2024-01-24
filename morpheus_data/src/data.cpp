@@ -83,32 +83,6 @@ class DataNode
             ros::AsyncSpinner spinner(0);
             spinner.start();
             
-            // Start clock
-            t1 = std::chrono::high_resolution_clock::now();
-
-            // Write a header for the file
-            // TODO: make header strings dynamic, based on rostopics or arguments
-            std::stringstream header;
-            std::string robot = "UR5e";
-            std::string task = "test1";
-            std::string id = "0";
-            std::time_t datetime_t = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-            std::string datetime = ctime(&datetime_t);
-            header << robot << "_" << task << "_" << id << "_";
-            g_filename = header.str();
-
-            // Get directory of data folder. Note: cwd is /root/.ros/ by default
-            std::string data_dir = "/root/catkin_ws/src/morpheus/morpheus_data/data/";
-
-            // Add the header line to the file
-            ROS_INFO_STREAM("Creating file with name: " << g_filename);
-            std::stringstream filepath;
-            filepath << data_dir << g_filename;
-            g_file = std::ofstream(filepath.str());
-            if ( (g_file.rdstate() & std::ofstream::failbit ) != 0 )
-                std::cerr << "Error opening file\n";
-            g_file << header.str() << std::endl;
-
             // Retrieve preexisting PlanningSceneMonitor, if possible
             g_planning_scene_monitor = std::make_shared<planning_scene_monitor::PlanningSceneMonitor>(ROBOT_DESCRIPTION);
 
@@ -128,6 +102,36 @@ class DataNode
             g_planning_scene_monitor->startStateMonitor("/joint_states");
 
             g_contactmap_subscriber = nh.subscribe("/collision/contactmap", 1, emptyCallback);
+
+            // Start clock
+            t1 = std::chrono::high_resolution_clock::now();
+
+            // Write a header for the file
+            // TODO: make header strings dynamic, based on rostopics or arguments
+            std::stringstream header;
+            std::string robot = "UR5e";
+            std::string task = "test1";
+            std::string id = "0";
+            std::time_t datetime_t = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+            struct tm * timeinfo;
+            timeinfo = localtime (&datetime_t);
+            char datetime_buffer [80];
+            strftime(datetime_buffer,80,"%F_%T",timeinfo);
+            header << robot << "_" << task << "_" << id << "_" << datetime_buffer;
+            g_filename = header.str();
+
+            // Get directory of data folder. Note: cwd is /root/.ros/ by default
+            std::string data_dir = "/root/catkin_ws/src/morpheus/morpheus_data/data/";
+
+            // Add the header line to the file
+            ROS_INFO_STREAM("Creating file with name: " << g_filename);
+            std::stringstream filepath;
+            filepath << data_dir << g_filename << ".csv";
+            g_file = std::ofstream(filepath.str());
+            if ( (g_file.rdstate() & std::ofstream::failbit ) != 0 )
+                std::cerr << "Error opening file\n";
+            g_file << header.str() << std::endl;
+
         }
 
         void spin()
