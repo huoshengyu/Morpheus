@@ -51,7 +51,10 @@ static const std::set<std::string> A_BOT_LINK_SET
 static const std::set<std::string> OBSTACLE_SET
 {
     "teapot",
-    "cylinder"
+    "cylinder",
+    "test_wall_1",
+    "wall",
+    "foam"
 };
 
 namespace collision
@@ -432,6 +435,9 @@ class CollisionNode
                     Eigen::Vector3d p0 = contact.pos; // p0 is the position reported by the Contact
                     Eigen::Vector3d p1; // p1 is p0 + depth * normal
                     double d = contact.depth; // get depth value for readibility
+                    double color_d = std::max(0.0001, d); // Don't divide by 0
+                    color.r = std::min(1.0, 1.0 * std::sqrt(0.050 / color_d)); // Use depth to determine color. Red should max out around 50 mm from collision, and shouldn't decay too fast.
+                    color.g = 1 - color.r;
                     Eigen::Vector3d n = contact.normal; // get normal vector for readability
                     for (int i = 0; i < p0.size(); i++) // p1 is p0 + depth * normal
                     {

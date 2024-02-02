@@ -56,7 +56,10 @@ static const std::set<std::string> A_BOT_LINK_SET
 static const std::set<std::string> OBSTACLE_SET
 {
     "teapot",
-    "cylinder"
+    "cylinder",
+    "test_wall_1",
+    "wall",
+    "foam"
 };
 
 namespace data
