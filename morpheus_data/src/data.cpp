@@ -19,13 +19,14 @@
 #include <moveit/robot_model/robot_model.h>
 #include <moveit_visual_tools/moveit_visual_tools.h>
 #include <morpheus_msgs/ContactMap.h>
+#include <morpheus_msgs/StringPair.h>
 
 // name of the robot description (a param name, so it can be changed externally)
 static const std::string ROBOT_DESCRIPTION =
     "robot_description";
 
-// Set of names of links included in the robot for collision detection
-static const std::set<std::string> A_BOT_LINK_SET
+// Vector of names of links included in the robot for collision detection
+static const std::vector<std::string> A_BOT_LINK_VECTOR
 {
     "shoulder_link",
     "upper_arm_link",
@@ -52,8 +53,8 @@ static const std::set<std::string> A_BOT_LINK_SET
     "right_inner_knuckle"
 };
 
-// Set of names of links included in the obstacles for collision detection
-static const std::set<std::string> OBSTACLE_SET
+// Vector of names of links included in the obstacles for collision detection
+static const std::vector<std::string> OBSTACLE_VECTOR
 {
     "teapot",
     "cylinder",
@@ -77,6 +78,8 @@ class DataNode
         std::stringstream g_next_line;
 
         ros::Subscriber g_contactmap_subscriber;
+        morpheus_msgs::ContactMap latest_contactmap;
+        bool received_contactmap;
 
         DataNode(int argc, char** argv)
         {
@@ -106,9 +109,6 @@ class DataNode
 
             g_contactmap_subscriber = nh.subscribe("/collision/contactmap", 1, emptyCallback);
 
-            // Start clock
-            t1 = std::chrono::high_resolution_clock::now();
-
             // Write a header for the file
             // TODO: make header strings dynamic, based on rostopics or arguments
             std::stringstream header;
@@ -135,16 +135,41 @@ class DataNode
                 std::cerr << "Error opening file\n";
             g_file << header.str() << std::endl;
 
+            // Add column labels to the file
+            std::stringstream column_labels;
+            std::vector<std::string> column_label_vector;
+            column_label_vector.push_back("Time");
+            column_label_vector.push_back("Distance");
+            column_labels << "Time, " << "Distance, ";
+            for (std::string link : A_BOT_LINK_VECTOR)
+            {
+                column_labels << link << ", ";
+            }
+            column_labels << std::endl;
+            // g_file << column_labels.str();
+
+            received_contactmap = false;
         }
 
         void spin()
         {
+            // Start clock
+            t1 = std::chrono::high_resolution_clock::now();
+
             // Loop collision requests and publish at specified rate
             ros::Rate loop_rate(10);
             while (ros::ok())
             {
-                update();
-                publish();
+                if (received_contactmap)
+                {
+                    update();
+                    publish();
+                }
+                else
+                {
+                    ROS_INFO_STREAM("Waiting for contactmap topic...");
+                }
+                
                 loop_rate.sleep();
             }
 
@@ -184,6 +209,13 @@ class DataNode
         {
             
         }
+
+        static void contactMapCallback(const morpheus_msgs::ContactMap::ConstPtr& msg)
+        {
+            // latest_contactmap = msg;
+            // received_contactmap = true;
+        }
+
 
 };
 

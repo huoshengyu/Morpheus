@@ -1,4 +1,4 @@
-FROM thbarkouki/homestri-ur:minimal-v1.0.1
+FROM thbarkouki/homestri-ur:minimal-v1.0.3
 
 SHELL ["/bin/bash", "-c"]
 
@@ -15,7 +15,7 @@ RUN pip3 install \
       scipy \
       pybullet \
       urdf_parser_py \
-      pybind11
+      numpy-quaternion
 
 # # Install ROS dependencies
 # RUN apt-get update && apt-get install --no-install-recommends -y \
@@ -39,7 +39,7 @@ RUN source /opt/ros/noetic/setup.bash \
 
 # Build the ROS workspace
 # RUN source /opt/ros/noetic/setup.bash
-RUN catkin build -s
+# RUN catkin build -s
 
 # Installation for ros_pybullet_interface
 # RUN git clone -b main https://github.com/ros-pybullet/ros_pybullet_interface.git /root/catkin_ws/src/ros_pybullet_interface

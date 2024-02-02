@@ -20,7 +20,7 @@ static const std::string ROBOT_DESCRIPTION =
     "robot_description";
 
 // Set of names of links included in the robot for collision detection
-static const std::set<std::string> A_BOT_LINK_SET
+static const std::vector<std::string> A_BOT_LINK_VECTOR
 {
     "shoulder_link",
     "upper_arm_link",
@@ -48,7 +48,7 @@ static const std::set<std::string> A_BOT_LINK_SET
 };
 
 // Set of names of links included in the obstacles for collision detection
-static const std::set<std::string> OBSTACLE_SET
+static const std::vector<std::string> OBSTACLE_VECTOR
 {
     "teapot",
     "cylinder",
@@ -286,13 +286,13 @@ class CollisionNode
             if 
             (
                 (
-                    (A_BOT_LINK_SET.find(pair.first) != A_BOT_LINK_SET.end()) and
-                    (OBSTACLE_SET.find(pair.second) != OBSTACLE_SET.end())
+                    (std::find(A_BOT_LINK_VECTOR.begin(), A_BOT_LINK_VECTOR.end(), pair.first) != A_BOT_LINK_VECTOR.end()) and
+                    (std::find(OBSTACLE_VECTOR.begin(), OBSTACLE_VECTOR.end(), pair.second) != OBSTACLE_VECTOR.end())
                 )
                 or 
                 (
-                    (OBSTACLE_SET.find(pair.first) != OBSTACLE_SET.end()) and
-                    (A_BOT_LINK_SET.find(pair.second) != A_BOT_LINK_SET.end())
+                    (std::find(OBSTACLE_VECTOR.begin(), OBSTACLE_VECTOR.end(), pair.first) != OBSTACLE_VECTOR.end()) and
+                    (std::find(A_BOT_LINK_VECTOR.begin(), A_BOT_LINK_VECTOR.end (), pair.second) != A_BOT_LINK_VECTOR.end())
                 )
             )
             {
@@ -377,8 +377,8 @@ class CollisionNode
         // If contact points from Obstacle to Robot, flip it
         collision_detection::Contact setContactDirection(collision_detection::Contact contact)
         {
-            if ((OBSTACLE_SET.find(contact.body_name_1) != OBSTACLE_SET.end()) and
-                (A_BOT_LINK_SET.find(contact.body_name_2) != A_BOT_LINK_SET.end()))
+            if ((std::find(OBSTACLE_VECTOR.begin(), OBSTACLE_VECTOR.end(), contact.body_name_1) != OBSTACLE_VECTOR.end()) and
+                (std::find(A_BOT_LINK_VECTOR.begin(), A_BOT_LINK_VECTOR.end(), contact.body_name_2) != A_BOT_LINK_VECTOR.end()))
             {
                 std::swap(contact.body_name_1, contact.body_name_2);
                 std::swap(contact.body_type_1, contact.body_type_2);

@@ -73,6 +73,7 @@
   <exec_depend>moveit_visual_tools</exec_depend>
   <exec_depend>moveit_msgs</exec_depend>
 
+  <depend>morpheus_msgs</depend>
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>
