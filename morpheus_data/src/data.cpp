@@ -140,13 +140,19 @@ class DataNode
             std::vector<std::string> column_label_vector;
             column_label_vector.push_back("Time");
             column_label_vector.push_back("Distance");
-            column_labels << "Time, " << "Distance, ";
-            for (std::string link : A_BOT_LINK_VECTOR)
+            
+            std::map<std::string, double> current_state_values = g_planning_scene_monitor->getStateMonitor->getCurrentStateValues();
+            for (auto const& key_value : current_state_values)
             {
-                column_labels << link << ", ";
+                column_label_vector.push_back(key_value.first);
+            }
+
+            for (std::string label : column_label_vector)
+            {
+                column_labels << label << ", ";
             }
             column_labels << std::endl;
-            // g_file << column_labels.str();
+            g_file << column_labels.str();
 
             received_contactmap = false;
         }
@@ -190,8 +196,9 @@ class DataNode
             g_next_line << time_elapsed.count() << ", ";
 
             // Get link positions
-            // TODO: Listener should request from monitored planning scene topic
+            // TODO: Listener should request from planning scene monitor
             // Should include a column for every link
+            std::map<std::string, double> current_state_values = g_planning_scene_monitor->getStateMonitor->getCurrentStateValues();
 
             // Get contact map
             // TODO: Listener should request from collision/contactmap topic
@@ -212,8 +219,8 @@ class DataNode
 
         static void contactMapCallback(const morpheus_msgs::ContactMap::ConstPtr& msg)
         {
-            // latest_contactmap = msg;
-            // received_contactmap = true;
+            g_latest_contactmap = std::copy(msg);
+            received_contactmap = true;
         }
 
 
