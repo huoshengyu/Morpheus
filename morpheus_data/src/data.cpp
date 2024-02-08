@@ -115,7 +115,7 @@ class DataNode
             g_planning_scene_monitor->startWorldGeometryMonitor();
             g_planning_scene_monitor->startStateMonitor("/joint_states");
 
-            g_contactmap_subscriber = nh.subscribe("/collision/contactmap", 1, contactMapCallback);
+            g_contactmap_subscriber = nh.subscribe("collision/contactmap", 1, contactMapCallback);
 
             // Write a header for the file
             // TODO: make header strings dynamic, based on rostopics or arguments
@@ -181,6 +181,7 @@ class DataNode
             {
                 if (received_contactmap)
                 {
+                    ROS_INFO_STREAM("Publishing...");
                     update();
                     publish();
                 }
@@ -221,27 +222,32 @@ class DataNode
             // Should include a column for every robot link
             std::vector<moveit_msgs::ContactInformation> contact_info_vector = g_latest_contactmap.values;
             std::vector<double> sorted_distances;
+
+            // Add a collision distance for each robot link, keeping them sorted by the order in the link vector
+            // Note: The collision node should only be reporting the nearest contacts to begin with, so no checking is done here
             for (moveit_msgs::ContactInformation contact_info : contact_info_vector)
             {
                 std::string link_1 = contact_info.contact_body_1;
                 std::string link_2 = contact_info.contact_body_2;
                 
+                // Need to check both links. Collision node does not swap these to always be robot-obstacle order.
                 auto it = std::find(g_robot_links.begin(), g_robot_links.end(), link_1);
                 if (it != g_robot_links.end())
                 {
                     int index = it - g_robot_links.begin();
                     sorted_distances[index] = contact_info.depth;
                 }
-                else
+                it = std::find(g_robot_links.begin(), g_robot_links.end(), link_2);
+                if (it != g_robot_links.end())
                 {
-                    it = std::find(g_robot_links.begin(), g_robot_links.end(), link_2);
-                    if (it != g_robot_links.end())
-                    {
-                        int index = it - g_robot_links.begin();
-                        sorted_distances[index] = contact_info.depth;
-                    }
+                    int index = it - g_robot_links.begin();
+                    sorted_distances[index] = contact_info.depth;
                 }
                 
+            }
+            for (double distance : sorted_distances)
+            {
+                g_next_line << distance << ", ";
             }
 
         }
@@ -266,6 +272,7 @@ class DataNode
         {
             g_latest_contactmap = msg;
             received_contactmap = true;
+            ROS_INFO_STREAM("Received contactmap");
         }
 
 
