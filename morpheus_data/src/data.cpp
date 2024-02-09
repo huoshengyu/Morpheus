@@ -179,12 +179,17 @@ class DataNode
             ros::Rate loop_rate(10);
             while (ros::ok())
             {
+                // Spin once to invoke subscriber callback(s)
+                ros::spinOnce();
+                // Check if a new contactmap was received
                 if (received_contactmap)
                 {
-                    ROS_INFO_STREAM("Publishing...");
+                    ROS_INFO_STREAM("Updating...");
                     update();
+                    ROS_INFO_STREAM("Publishing...");
                     publish();
                 }
+                // If no new contact map, don't publish and print to terminal
                 else
                 {
                     ROS_INFO_STREAM("Waiting for contactmap topic...");
@@ -192,9 +197,6 @@ class DataNode
                 
                 loop_rate.sleep();
             }
-
-            // Spin the ROS node
-            ros::spin();
 
             // Close when complete
             g_file.close();
@@ -221,7 +223,7 @@ class DataNode
             // TODO: Listener should request from collision/contactmap topic
             // Should include a column for every robot link
             std::vector<moveit_msgs::ContactInformation> contact_info_vector = g_latest_contactmap.values;
-            std::vector<double> sorted_distances;
+            std::vector<double> sorted_distances(g_robot_links.size());
 
             // Add a collision distance for each robot link, keeping them sorted by the order in the link vector
             // Note: The collision node should only be reporting the nearest contacts to begin with, so no checking is done here
