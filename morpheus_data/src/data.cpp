@@ -34,7 +34,7 @@ static const std::vector<std::string> A_BOT_LINK_VECTOR
     "wrist_1_link",
     "wrist_2_link",
     "wrist_3_link",
-    "tcp_link",
+    // "tcp_link", // tcp_link does not have collision
     "tcp_collision_link",
     "d415_mount_link",
     "camera_link",
@@ -84,6 +84,7 @@ class DataNode
         std::vector<std::string> g_robot_links;
         std::vector<std::string> g_obstacle_links;
         std::vector<std::string> g_column_label_vector;
+        std::vector<double> g_data_vector;
 
         DataNode(int argc, char** argv)
         {
@@ -127,7 +128,7 @@ class DataNode
             struct tm * timeinfo;
             timeinfo = localtime (&datetime_t);
             char datetime_buffer [80];
-            strftime(datetime_buffer,80,"%F_%T",timeinfo);
+            strftime(datetime_buffer,80,"%F_%Hh%Mm%Ss",timeinfo);
             header << robot << "_" << task << "_" << id << "_" << datetime_buffer;
             g_filename = header.str();
 
@@ -167,6 +168,8 @@ class DataNode
             column_label_ss << std::endl;
             g_file << column_label_ss.str();
 
+            // Prepare for data collection
+            g_data_vector = *(new std::vector<double>(g_column_label_vector.size()));
             received_contactmap = false;
         }
 
@@ -204,7 +207,7 @@ class DataNode
 
         void update()
         {
-            g_next_line.str(""); // Reset g_next_line
+            g_next_line.str(""); // Reset next string to be printed
 
             // Get time since start
             std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
