@@ -1,0 +1,11 @@
+<launch>
+
+    <param name='obstacle_vector' value=
+    "'teapot',
+    'cylinder',
+    'test_wall_1',
+    'wall',
+    'foam'"
+    />
+
+</launch>

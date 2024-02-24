@@ -1,4 +1,5 @@
 #include <filesystem>
+#include <functional>
 #include <algorithm>
 #include <iostream>
 #include <fstream>
@@ -34,7 +35,7 @@ static const std::vector<std::string> A_BOT_LINK_VECTOR
     "wrist_1_link",
     "wrist_2_link",
     "wrist_3_link",
-    // "tcp_link", // tcp_link does not have collision
+    "tcp_link", // tcp_link does not have collision. May cause misalignment in data if included.
     "tcp_collision_link",
     "d415_mount_link",
     "camera_link",
@@ -68,6 +69,9 @@ namespace data
 
 };
 
+// Get directory of data folder. Note: cwd is /root/.ros/ by default
+static const std::string data_dir = "/root/catkin_ws/src/morpheus/morpheus_data/data/";
+
 class DataNode
 {
     public:
@@ -78,13 +82,16 @@ class DataNode
         std::stringstream g_next_line;
 
         ros::Subscriber g_contactmap_subscriber;
+        ros::Subscriber g_nearest_collision_subscriber;
         inline static morpheus_msgs::ContactMap g_latest_contactmap;
         inline static bool received_contactmap;
+        inline static moveit_msgs::ContactInformation g_nearest_collision;
+        inline static bool received_nearest_collision;
 
         std::vector<std::string> g_robot_links;
         std::vector<std::string> g_obstacle_links;
         std::vector<std::string> g_column_label_vector;
-        std::vector<double> g_data_vector;
+        std::map<std::string, int> g_column_label_index_map;
 
         DataNode(int argc, char** argv)
         {
@@ -117,6 +124,7 @@ class DataNode
             g_planning_scene_monitor->startStateMonitor("/joint_states");
 
             g_contactmap_subscriber = nh.subscribe("collision/contactmap", 1, contactMapCallback);
+            g_nearest_collision_subscriber = nh.subscribe("collision/nearest", 1, nearestCollisionCallback);
 
             // Write a header for the file
             // TODO: make header strings dynamic, based on rostopics or arguments
@@ -132,9 +140,6 @@ class DataNode
             header << robot << "_" << task << "_" << id << "_" << datetime_buffer;
             g_filename = header.str();
 
-            // Get directory of data folder. Note: cwd is /root/.ros/ by default
-            std::string data_dir = "/root/catkin_ws/src/morpheus/morpheus_data/data/";
-
             // Add the header line to the file
             ROS_INFO_STREAM("Creating file with name: " << g_filename);
             std::stringstream filepath;
@@ -144,33 +149,60 @@ class DataNode
                 std::cerr << "Error opening file\n";
             g_file << header.str() << std::endl;
 
-            // Add column labels to the file
-            std::stringstream column_label_ss;
-            g_column_label_vector.push_back("Time");
-            g_column_label_vector.push_back("Distance");
-            // Add robot links to labels, for tracking positions
-            std::map<std::string, double> current_state_values = getCurrentStateValues();
+            // Store column labels
+            // Time
+            g_column_label_vector.push_back("time");
+            // Contact information for nearest contact
+            g_column_label_vector.push_back("nearest_collision_contact_body_1");
+            g_column_label_vector.push_back("nearest_collision_body_type_1");
+            g_column_label_vector.push_back("nearest_collision_contact_body_2");
+            g_column_label_vector.push_back("nearest_collision_body_type_2");
+            g_column_label_vector.push_back("nearest_collision_position_x");
+            g_column_label_vector.push_back("nearest_collision_position_y");
+            g_column_label_vector.push_back("nearest_collision_position_z");
+            g_column_label_vector.push_back("nearest_collision_normal_x");
+            g_column_label_vector.push_back("nearest_collision_normal_y");
+            g_column_label_vector.push_back("nearest_collision_normal_z");
+            g_column_label_vector.push_back("nearest_collision_depth");
+            // Robot joints for tracking joint angles
+            std::map<std::string, double> current_state_values = g_planning_scene_monitor->getStateMonitor()->getCurrentStateValues();
             for (auto const& key_value : current_state_values)
             {
                 g_column_label_vector.push_back(key_value.first);
             }
-            // Add robot links to labels, for tracking distances
+            // Robot links, subdivided by dimensions for tracking positions and rotations
             for (std::string link : g_robot_links)
             {
-                g_column_label_vector.push_back(link);
+                g_column_label_vector.push_back(link + "_position_x");
+                g_column_label_vector.push_back(link + "_position_y");
+                g_column_label_vector.push_back(link + "_position_z");
+                g_column_label_vector.push_back(link + "_quaternion_x");
+                g_column_label_vector.push_back(link + "_quaternion_y");
+                g_column_label_vector.push_back(link + "_quaternion_z");
+                g_column_label_vector.push_back(link + "_quaternion_w");
+            }
+            // Robot links, subdivided by dimensions for tracking collision vectors
+            for (std::string link : g_robot_links)
+            {
+                g_column_label_vector.push_back(link + "_collision_x");
+                g_column_label_vector.push_back(link + "_collision_y");
+                g_column_label_vector.push_back(link + "_collision_z");
             }
 
-            // Add all labels to stringstream
-            for (std::string label : g_column_label_vector)
+            // Index column labels
+            std::stringstream column_label_ss;
+            for (int i = 0; i < g_column_label_vector.size(); ++i)
             {
-                column_label_ss << label << ", ";
+                g_column_label_index_map[g_column_label_vector[i]] = i;
+                column_label_ss << g_column_label_vector[i];
             }
+            // Add labels to file
             column_label_ss << std::endl;
             g_file << column_label_ss.str();
 
             // Prepare for data collection
-            g_data_vector = *(new std::vector<double>(g_column_label_vector.size()));
             received_contactmap = false;
+            received_nearest_collision = false;
         }
 
         void spin()
@@ -185,7 +217,7 @@ class DataNode
                 // Spin once to invoke subscriber callback(s)
                 ros::spinOnce();
                 // Check if a new contactmap was received
-                if (received_contactmap)
+                if (received_contactmap and received_nearest_collision)
                 {
                     ROS_INFO_STREAM("Updating...");
                     update();
@@ -195,7 +227,14 @@ class DataNode
                 // If no new contact map, don't publish and print to terminal
                 else
                 {
-                    ROS_INFO_STREAM("Waiting for contactmap topic...");
+                    if (!received_contactmap)
+                    {
+                        ROS_INFO_STREAM("Waiting for collision/contactmap topic...");
+                    }
+                    if (!received_nearest_collision)
+                    {
+                        ROS_INFO_STREAM("Waiting for collision/nearest topic...");
+                    }   
                 }
                 
                 loop_rate.sleep();
@@ -208,11 +247,35 @@ class DataNode
         void update()
         {
             g_next_line.str(""); // Reset next string to be printed
+            auto robot_state_and_time = g_planning_scene_monitor->getStateMonitor()->getCurrentStateAndTime(); // Retrieve state and time
+            auto robot_state_ptr = robot_state_and_time.first;
+            auto robot_time = robot_state_and_time.second;
 
             // Get time since start
-            std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
-            std::chrono::duration<double, std::milli> time_elapsed = t2 - t1;
-            g_next_line << time_elapsed.count() << ", ";
+            // std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
+            // std::chrono::duration<double, std::milli> time_elapsed = t2 - t1;
+            // g_next_line << time_elapsed.count() << ", ";
+            g_next_line << robot_time.nsec << ", ";
+
+            // Get info about the nearest collision
+            // Body 1 (should always be robot link)
+            g_next_line << g_nearest_collision.contact_body_1 << ", ";
+            // ROBOT_LINK=0, WORLD_OBJECT=1, ROBOT_ATTACHED=2
+            g_next_line << g_nearest_collision.body_type_1 << ", ";
+            // Body 2 (should always be world object)
+            g_next_line << g_nearest_collision.contact_body_2 << ", ";
+            // ROBOT_LINK=0, WORLD_OBJECT=1, ROBOT_ATTACHED=2
+            g_next_line << g_nearest_collision.body_type_2 << ", ";
+            // Contact Position
+            g_next_line << g_nearest_collision.position.x << ", ";
+            g_next_line << g_nearest_collision.position.y << ", ";
+            g_next_line << g_nearest_collision.position.z << ", ";
+            // Contact Normal
+            g_next_line << g_nearest_collision.normal.x << ", ";
+            g_next_line << g_nearest_collision.normal.y << ", ";
+            g_next_line << g_nearest_collision.normal.z << ", ";
+            // Contact depth
+            g_next_line << g_nearest_collision.depth << ", ";
 
             // Get joint angles
             // Should include a column for every robot joint
@@ -222,11 +285,33 @@ class DataNode
                 g_next_line << key_value.second << ", ";
             }
 
+            // Get link positions
+            // Should include 3 columns for every robot link; 1 column per dimension
+            std::vector<double> sorted_positions(7 * g_robot_links.size());
+            for (std::size_t i = 0; i != g_robot_links.size(); ++i)
+            {
+                const Eigen::Affine3d & frame_transform = robot_state_ptr->getFrameTransform(g_robot_links[i]);
+                auto translation = frame_transform.translation(); // Retrieve translation part
+                auto rotation = frame_transform.rotation(); // Retrieve rotation part
+                Eigen::Quaterniond quaternion(rotation);
+                
+                sorted_positions[7 * i + 0] = translation[0];
+                sorted_positions[7 * i + 1] = translation[1];
+                sorted_positions[7 * i + 2] = translation[2];
+                sorted_positions[7 * i + 3] = quaternion.x();
+                sorted_positions[7 * i + 4] = quaternion.y();
+                sorted_positions[7 * i + 5] = quaternion.z();
+                sorted_positions[7 * i + 6] = quaternion.w();
+            }
+            for (double distance : sorted_positions)
+            {
+                g_next_line << distance << ", ";
+            }
+
             // Get contact map
-            // TODO: Listener should request from collision/contactmap topic
-            // Should include a column for every robot link
+            // Should include 3 columns for every robot link; 1 column per dimension
             std::vector<moveit_msgs::ContactInformation> contact_info_vector = g_latest_contactmap.values;
-            std::vector<double> sorted_distances(g_robot_links.size());
+            std::vector<double> sorted_distances(3 * g_robot_links.size());
 
             // Add a collision distance for each robot link, keeping them sorted by the order in the link vector
             // Note: The collision node should only be reporting the nearest contacts to begin with, so no checking is done here
@@ -240,15 +325,26 @@ class DataNode
                 if (it != g_robot_links.end())
                 {
                     int index = it - g_robot_links.begin();
-                    sorted_distances[index] = contact_info.depth;
+                    geometry_msgs::Vector3 collision_normal = contact_info.normal;
+                    std::vector<double> collision_vector = {collision_normal.x, collision_normal.y, collision_normal.z};
+                    std::transform(collision_vector.begin(), collision_vector.end(), collision_vector.begin(),
+                        std::bind(std::multiplies<double>(), std::placeholders::_1, contact_info.depth));
+                    sorted_distances[3 * index + 0] = collision_vector[0];
+                    sorted_distances[3 * index + 1] = collision_vector[1];
+                    sorted_distances[3 * index + 2] = collision_vector[2];
                 }
                 it = std::find(g_robot_links.begin(), g_robot_links.end(), link_2);
                 if (it != g_robot_links.end())
                 {
                     int index = it - g_robot_links.begin();
-                    sorted_distances[index] = contact_info.depth;
+                    geometry_msgs::Vector3 collision_normal = contact_info.normal;
+                    std::vector<double> collision_vector = {collision_normal.x, collision_normal.y, collision_normal.z};
+                    std::transform(collision_vector.begin(), collision_vector.end(), collision_vector.begin(),
+                        std::bind(std::multiplies<double>(), std::placeholders::_1, -contact_info.depth)); // If robot link is link 2, negate depth
+                    sorted_distances[3 * index + 0] = collision_vector[0];
+                    sorted_distances[3 * index + 1] = collision_vector[1];
+                    sorted_distances[3 * index + 2] = collision_vector[2];
                 }
-                
             }
             for (double distance : sorted_distances)
             {
@@ -278,6 +374,13 @@ class DataNode
             g_latest_contactmap = msg;
             received_contactmap = true;
             ROS_INFO_STREAM("Received contactmap");
+        }
+
+        static void nearestCollisionCallback(moveit_msgs::ContactInformation nearest)
+        {
+            g_nearest_collision = nearest;
+            received_nearest_collision = true;
+            ROS_INFO_STREAM("Received nearest collision");
         }
 
 

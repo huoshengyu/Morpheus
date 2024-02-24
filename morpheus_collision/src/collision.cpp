@@ -161,7 +161,7 @@ class CollisionNode
             // Create collision publishers
             g_distance_publisher = nh.advertise<std_msgs::Float64>("collision/distance", 10);
             g_contacts_publisher = nh.advertise<std_msgs::String>("collision/contacts", 10);
-            g_nearest_publisher = nh.advertise<std_msgs::String>("collision/nearest", 10);
+            g_nearest_publisher = nh.advertise<moveit_msgs::ContactInformation>("collision/nearest", 10);
             g_contactmap_publisher = nh.advertise<morpheus_msgs::ContactMap>("collision/contactmap", 10);
 
             
@@ -237,7 +237,7 @@ class CollisionNode
             collision_detection::Contact nearest_contact = pair.second;
             if (success)
             {
-                geometry_msgs::Point nearest_msg = contactToPoint(nearest_contact);
+                moveit_msgs::ContactInformation nearest_msg = contactToContactInformation(nearest_contact);
                 g_nearest_publisher.publish(nearest_msg);
             }
 
@@ -253,26 +253,7 @@ class CollisionNode
                 msg_key.second = key.second;
 
                 moveit_msgs::ContactInformation msg_value;
-
-                geometry_msgs::Point msg_pos;
-                msg_pos.x = value.pos[0];
-                msg_pos.y = value.pos[1];
-                msg_pos.z = value.pos[2];
-                msg_value.position = msg_pos;
-
-                geometry_msgs::Vector3 msg_normal;
-                msg_normal.x = value.normal[0];
-                msg_normal.y = value.normal[0];
-                msg_normal.z = value.normal[0];
-                msg_value.normal = msg_normal;
-
-                msg_value.depth = value.depth;
-                
-                msg_value.contact_body_1 = value.body_name_1;
-                msg_value.body_type_1 = value.body_type_1;
-
-                msg_value.contact_body_2 = value.body_name_2;
-                msg_value.body_type_2 = value.body_type_2;
+                msg_value = contactToContactInformation(value);
 
                 contactmap_msg.keys.push_back(msg_key);
                 contactmap_msg.values.push_back(msg_value);
@@ -396,6 +377,36 @@ class CollisionNode
             point.y = vector[1];
             point.z = vector[2];
             return point;
+        }
+
+        moveit_msgs::ContactInformation contactToContactInformation(collision_detection::Contact contact)
+        {
+            // Initialize and add header
+            moveit_msgs::ContactInformation ci;
+            ci.header.stamp = ros::Time::now(); // Timestamp
+            ci.header.frame_id = "world"; // Reference frame id
+
+            // Convert contact coordinates to geometry_msgs::Point
+            geometry_msgs::Point contact_point;
+            contact_point.x = contact.pos[0];
+            contact_point.y = contact.pos[1];
+            contact_point.z = contact.pos[2];
+            ci.position = contact_point;
+
+            // Convert contact normal to geometry_msgs::Vector3 (which should always be a normalized vector)
+            geometry_msgs::Vector3 contact_vector;
+            contact_vector.x = contact.normal[0];
+            contact_vector.y = contact.normal[1];
+            contact_vector.z = contact.normal[2];
+            ci.normal = contact_vector;
+
+            // Transfer other info
+            ci.depth = contact.depth;
+            ci.contact_body_1 = contact.body_name_1;
+            ci.body_type_1 = contact.body_type_1;
+            ci.contact_body_2 = contact.body_name_2;
+
+            return ci;
         }
 
         void visualize(collision_detection::CollisionResult::ContactMap contact_map)
