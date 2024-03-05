@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="a_bot_double_sided_shelf_scene">
+
+    <xacro:include filename="$(find morpheus_teleop)/urdf/scenes/a_bot_scene.xacro" />
+    
+    <xacro:include filename="$(find morpheus_teleop)/urdf/macros/double_sided_shelf.xacro" />
+    <xacro:double_sided_shelf
+        prefix=""
+        parent="world"
+        x="0.5"
+        y="0.0"
+        z="0.5"
+        scale="0.0254"
+    />
+    <!-- scale=0.0254 meters/inch -->
+
+</robot>

@@ -19,8 +19,8 @@
 static const std::string ROBOT_DESCRIPTION =
     "robot_description";
 
-// Set of names of links included in the robot for collision detection
-static const std::vector<std::string> A_BOT_LINK_VECTOR
+// Set of names of links included in the robot for collision detection (a param name, so it can be changed externally)
+static const std::vector<std::string> A_BOT_LINK_VECTOR_DEFAULT
 {
     "shoulder_link",
     "upper_arm_link",
@@ -47,8 +47,8 @@ static const std::vector<std::string> A_BOT_LINK_VECTOR
     "right_inner_knuckle"
 };
 
-// Set of names of links included in the obstacles for collision detection
-static const std::vector<std::string> OBSTACLE_VECTOR
+// Set of names of links included in the obstacles for collision detection (a param name, so it can be changed externally)
+static const std::vector<std::string> OBSTACLE_VECTOR_DEFAULT
 {
     "teapot",
     "cylinder",
@@ -77,6 +77,9 @@ class CollisionNode
         visualization_msgs::MarkerArray g_collision_points;
         // moveit_visual_tools::MoveItVisualToolsPtr visual_tools_;
 
+        std::vector<std::string> A_BOT_LINK_VECTOR;
+        std::vector<std::string> OBSTACLE_VECTOR;
+
         CollisionNode(int argc, char** argv)
         {
             // Initialize ROS node
@@ -95,6 +98,26 @@ class CollisionNode
             // Create a PlanningSceneMonitor around the PlanningScene
             // planning_scene_monitor::PlanningSceneMonitorPtr planning_scene_monitor(
             //     new planning_scene_monitor::PlanningSceneMonitor("robot_description"));
+
+            // Get robot and obstacle vectors from ros server, if possible
+            if (ros::param::get("/A_BOT_LINK_VECTOR", A_BOT_LINK_VECTOR))
+            {
+                ROS_INFO("Using A_BOT_LINK_VECTOR from parameter server");
+            }
+            else
+            {
+                A_BOT_LINK_VECTOR = A_BOT_LINK_VECTOR_DEFAULT;
+                ROS_INFO("Using A_BOT_LINK_VECTOR_DEFAULT");
+            }
+            if (ros::param::get("/OBSTACLE_VECTOR", OBSTACLE_VECTOR))
+            {
+                ROS_INFO("Using OBSTACLE_VECTOR from parameter server");
+            }
+            else
+            {
+                OBSTACLE_VECTOR = OBSTACLE_VECTOR_DEFAULT;
+                ROS_INFO("Using OBSTACLE_VECTOR_DEFAULT");
+            }
 
             // Retrieve preexisting PlanningSceneMonitor, if possible
             g_planning_scene_monitor = std::make_shared<planning_scene_monitor::PlanningSceneMonitor>(ROBOT_DESCRIPTION);

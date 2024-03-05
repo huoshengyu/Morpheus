@@ -205,8 +205,8 @@ if __name__=="__main__":
     turn = rospy.get_param("~turn", 1.0)
     speed_limit = rospy.get_param("~speed_limit", 1000)
     turn_limit = rospy.get_param("~turn_limit", 1000)
-    repeat = rospy.get_param("~repeat_rate", 0.0)
-    key_timeout = rospy.get_param("~key_timeout", 0.5)
+    repeat = rospy.get_param("~repeat_rate", 50)
+    key_timeout = rospy.get_param("~key_timeout", 0.1)
     stamped = rospy.get_param("~stamped", False)
     twist_frame = rospy.get_param("~frame_id", '')
     if stamped:

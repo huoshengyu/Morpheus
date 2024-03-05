@@ -1,10 +1,8 @@
 <launch>
 
-    <!-- launch keyboard twist -->
+    <!-- launch key to joy -->
     <arg name="twist_topic" default="/twist_controller/command" />
-    <node pkg="teleop_twist_keyboard" type="keyboard_twist.py" name="keyboard_twist" output="screen">
-        <param name="twist_topic" value="$(arg twist_topic)" />
-    </node>
+    <node pkg="morpheus_teleop" type="key_to_joy.py" name="key_to_joy" output="screen" />
 
     <!-- Republish twists as wrenches -->
     <node name="spacenav_to_wrench" pkg="cartesian_controller_utilities" type="converter.py" output="screen">

@@ -1,11 +1,12 @@
 <launch>
 
-    <param name='obstacle_vector' value=
+    <param name='/OBSTACLE_VECTOR' value=
     "'teapot',
     'cylinder',
     'test_wall_1',
     'wall',
-    'foam'"
+    'foam'
+    'double_sided_shelf'"
     />
 
 </launch>
