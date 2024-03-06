@@ -115,11 +115,11 @@ class TeleopTwistJoy():
 
                 else:
                     # Rearrange the axes to make the controls more intuitive
-                    r_control_linear = np.array([[ 1,  0,  0],
-                                                  [ 0,  1,  0],
+                    r_control_linear = np.array([[ 0, -1,  0],
+                                                  [ 1,  0,  0],
                                                   [ 0,  0,  1]])
-                    r_control_angular = np.array([[ 1,  0,  0],
-                                                  [ 0,  1,  0],
+                    r_control_angular = np.array([[ 0, -1,  0],
+                                                  [ 1,  0,  0],
                                                   [ 0,  0,  1]])
 
                     rearranged_axes = np.concatenate((np.matmul(r_control_linear, scaled_axes[:3]), np.matmul(r_control_angular, scaled_axes[3:])))

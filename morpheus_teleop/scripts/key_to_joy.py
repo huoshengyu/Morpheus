@@ -28,6 +28,7 @@ keybinds = {
     'l':[0,3,1], # Yaw right
     'u':[1,4,1], # Roll left
     'o':[1,5,1], # Roll right
+    '-':[1,8,1] # Swap reference frame (base <--> end effector)
 
 }
 
@@ -62,11 +63,15 @@ class KeyToJoy():
         self.joy.buttons = [0,0,0,0,0,0,0,0,0,0,0]
 
         key = self.get_key()
+        # If key in binds, send command (only takes one key at a time)
         if key in keybinds.keys():
             if keybinds[key][0] == 0:
                 self.joy.axes[keybinds[key][1]] = self.joy.buttons[keybinds[key][1]] + keybinds[key][2]
             elif keybinds[key][0] == 1:
                 self.joy.buttons[keybinds[key][1]] = self.joy.buttons[keybinds[key][1]] + keybinds[key][2]
+        # If key==esc, exit
+        elif len(key) is not 0 and ord(key) == 27:
+            sys.exit()
 
         return self.joy
     
@@ -81,5 +86,9 @@ if __name__=="__main__":
     rospy.init_node('key_to_joy')
 
     key_to_joy = KeyToJoy()
+    rate = rospy.Rate(60)  # 10hz
     while not rospy.is_shutdown():
         key_to_joy.loop()
+        rate.sleep()
+    
+    rospy.spin()
