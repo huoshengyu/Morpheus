@@ -1,5 +1,7 @@
 #! /usr/bin/env python3
 
+### The following code comes from teleop_twist_keyboard
+
 from __future__ import print_function
 
 import threading

@@ -1,6 +1,6 @@
 <launch>
 
-    <include file="$(find morpheus_teleop)/launch/obstacle_vector.launch"/>
+    <include file="$(find morpheus_collision)/launch/obstacle_vector.launch"/>
 
     <node name="collision_server" pkg="morpheus_collision" type="morpheus_collision" output="screen">
     </node>

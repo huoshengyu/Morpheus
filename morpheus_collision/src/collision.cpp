@@ -57,6 +57,12 @@ static const std::vector<std::string> OBSTACLE_VECTOR_DEFAULT
     "foam"
 };
 
+// Set of names of links excluded from the obstacles for collision detection (a param name, so it can be changed externally)
+static const std::vector<std::string> DISABLE_COLLISION_VECTOR_DEFAULT
+{
+    "pedestal"
+};
+
 namespace collision
 {
 

@@ -2,7 +2,7 @@
 
     <!-- simulated robot arguments -->
     <arg name="use_rviz" default="true" />
-    <arg name="urdf_path" default="$(find morpheus_teleop)/urdf/scenes/test_scene.xacro" />
+    <arg name="urdf_path" default="$(find morpheus_teleop)/urdf/scenes/a_bot_double_sided_shelf_scene.xacro" />
     <!-- <arg name="xacro_path" default="$(find morpheus_teleop)/urdf/scenes/test_scene.xacro"/>
     <arg name="srdf_path" default="$(find morpheus_teleop)/config/test_scene.srdf"/> -->
 

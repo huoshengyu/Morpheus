@@ -11,7 +11,7 @@
 
     <arg name="urdf_path" default="$(find morpheus_teleop)/urdf/scenes/test_scene.xacro" />
     <arg name="xacro_path" default="$(find morpheus_teleop)/urdf/scenes/test_scene.xacro"/>
-    <arg name="srdf_path" default="$(find morpheus_teleop)/config/test_scene.srdf"/>
+    <arg name="srdf_path" default="$(find morpheus_teleop)/srdf/scenes/test_scene.srdf"/>
 
     <!-- Set the robot urdf on the parameter server -->
     <param name="robot_description" command="$(find xacro)/xacro '$(arg urdf_path)' 

@@ -1,0 +1,7 @@
+<launch>
+
+    <param name='/DISABLE_COLLISION_VECTOR' value=
+    "'pedestal'"
+    />
+
+</launch>

@@ -8,7 +8,7 @@
 
     <arg name="urdf_path" default="$(find morpheus_teleop)/urdf/scenes/a_bot_double_sided_shelf_scene.xacro" />
     <arg name="xacro_path" default="$(find morpheus_teleop)/urdf/scenes/a_bot_double_sided_shelf_scene.xacro"/>
-    <arg name="srdf_path" default="$(find morpheus_teleop)/config/a_bot_double_sided_shelf_scene.srdf"/>
+    <arg name="srdf_path" default="$(find morpheus_teleop)/srdf/scenes/a_bot_double_sided_shelf_scene.srdf"/>
 
     <!-- Control motion and compliance controller with one handle -->
     <remap from="motion_control_handle/target_frame" to="target_frame" />

@@ -7,11 +7,21 @@
     <xacro:double_sided_shelf
         prefix=""
         parent="world"
-        x="0.5"
-        y="0.0"
+        x="0.0"
+        y="0.6952"
         z="0.5"
         scale="0.0254"
     />
     <!-- scale=0.0254 meters/inch -->
+
+    <xacro:include filename="$(find morpheus_teleop)/urdf/macros/table_2x8ft.xacro" />
+    <xacro:table_2x8ft
+        prefix=""
+        parent="world"
+        x="-0.5"
+        y="1.0"
+        z="0.5"
+        scale="0.0254"
+    />
 
 </robot>
