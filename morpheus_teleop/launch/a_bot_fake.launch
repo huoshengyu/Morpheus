@@ -6,7 +6,6 @@
     <arg name="moveit_controller_config_file" default="$(find homestri_gazebo)/config/a_bot_moveit_controllers.yaml" />
     <arg name="use_rviz" default="true" />
 
-    <arg name="urdf_path" default="$(find morpheus_teleop)/urdf/scenes/a_bot_keyhole_scene.xacro" />
     <arg name="xacro_path" default="$(find morpheus_teleop)/urdf/scenes/a_bot_keyhole_scene.xacro"/>
     <arg name="srdf_path" default="$(find morpheus_teleop)/srdf/scenes/a_bot_keyhole_scene.srdf"/>
 
@@ -26,7 +25,7 @@
         <arg name="controllers" value="$(arg controllers)"/>
         <arg name="stopped_controllers" value="$(arg stopped_controllers)"/>
         <arg name="controller_config_file" value="$(arg controller_config_file)" />
-        <arg name="urdf_path" value="$(arg urdf_path)"/>
+        <arg name="urdf_path" value="$(arg xacro_path)"/>
     </include>
 
     <!-- compliant trajectory action server -->
@@ -47,7 +46,7 @@
         <arg name="info" value="true" />
         <arg name="debug" value="false" />
         <arg name="pipeline" value="ompl" />
-        <arg name="load_robot_description" value="true" />
+        <arg name="load_robot_description" value="false" />
         <arg name="xacro_path" value="$(arg xacro_path)"/>
         <arg name="srdf_path" value="$(arg srdf_path)"/>
     </include>
@@ -56,7 +55,7 @@
 
     <!-- launch rviz -->
     <group if="$(arg use_rviz)">
-        <arg name="my_rviz" value="-d $(find morpheus_teleop)/rviz/gazebo_test.rviz" />
+        <arg name="my_rviz" value="-d $(find morpheus_teleop)/rviz/morpheus_gazebo.rviz" />
         <node name="rviz" pkg="rviz" type="rviz" respawn="false" args="$(arg my_rviz)"
             output="screen" />
     </group>

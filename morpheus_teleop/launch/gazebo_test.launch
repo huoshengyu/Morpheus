@@ -27,7 +27,7 @@
 
     <!-- launch rviz -->
 <!--     <group if="$(arg use_rviz)">
-        <arg name="my_rviz" value="-d $(find morpheus_teleop)/rviz/gazebo_test.rviz" />
+        <arg name="my_rviz" value="-d $(find morpheus_teleop)/rviz/morpheus_gazebo.rviz" />
         <node name="rviz" pkg="rviz" type="rviz" respawn="false" args="$(arg my_rviz)"
             output="screen" />
     </group> -->
