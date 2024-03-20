@@ -1,7 +1,8 @@
 <launch>
 
     <param name='A_BOT_LINK_VECTOR' value=
-        "'shoulder_link',
+        "'base_link_inertia',
+        'shoulder_link',
         'upper_arm_link',
         'forearm_link',
         'wrist_1_link',

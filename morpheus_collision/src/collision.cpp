@@ -47,20 +47,13 @@ static const std::vector<std::string> A_BOT_LINK_VECTOR_DEFAULT
     "right_inner_knuckle"
 };
 
-// Set of names of links included in the obstacles for collision detection (a param name, so it can be changed externally)
-static const std::vector<std::string> OBSTACLE_VECTOR_DEFAULT
-{
-    "teapot",
-    "cylinder",
-    "test_wall_1",
-    "wall",
-    "foam"
-};
-
 // Set of names of links excluded from the obstacles for collision detection (a param name, so it can be changed externally)
-static const std::vector<std::string> DISABLE_COLLISION_VECTOR_DEFAULT
+static const std::vector<std::string> ALLOWED_COLLISION_VECTOR_DEFAULT
 {
-    "pedestal"
+    "base_link",
+    "base_link_inertia",
+    "pedestal",
+    "simple_pedestal"
 };
 
 namespace collision
@@ -84,7 +77,7 @@ class CollisionNode
         // moveit_visual_tools::MoveItVisualToolsPtr visual_tools_;
 
         std::vector<std::string> A_BOT_LINK_VECTOR;
-        std::vector<std::string> OBSTACLE_VECTOR;
+        std::vector<std::string> ALLOWED_COLLISION_VECTOR;
 
         CollisionNode(int argc, char** argv)
         {
@@ -115,14 +108,14 @@ class CollisionNode
                 A_BOT_LINK_VECTOR = A_BOT_LINK_VECTOR_DEFAULT;
                 ROS_INFO("Using A_BOT_LINK_VECTOR_DEFAULT");
             }
-            if (ros::param::get("/OBSTACLE_VECTOR", OBSTACLE_VECTOR))
+            if (ros::param::get("/ALLOWED_COLLISION_VECTOR", ALLOWED_COLLISION_VECTOR))
             {
-                ROS_INFO("Using OBSTACLE_VECTOR from parameter server");
+                ROS_INFO("Using ALLOWED_COLLISION_VECTOR from parameter server");
             }
             else
             {
-                OBSTACLE_VECTOR = OBSTACLE_VECTOR_DEFAULT;
-                ROS_INFO("Using OBSTACLE_VECTOR_DEFAULT");
+                ALLOWED_COLLISION_VECTOR = ALLOWED_COLLISION_VECTOR_DEFAULT;
+                ROS_INFO("Using ALLOWED_COLLISION_VECTOR_DEFAULT");
             }
 
             // Retrieve preexisting PlanningSceneMonitor, if possible
@@ -295,14 +288,18 @@ class CollisionNode
         {
             if 
             (
+                !(std::find(ALLOWED_COLLISION_VECTOR.begin(), ALLOWED_COLLISION_VECTOR.end(), pair.first) != ALLOWED_COLLISION_VECTOR.end()) and
+                !(std::find(ALLOWED_COLLISION_VECTOR.begin(), ALLOWED_COLLISION_VECTOR.end(), pair.second) != ALLOWED_COLLISION_VECTOR.end()) and
                 (
-                    (std::find(A_BOT_LINK_VECTOR.begin(), A_BOT_LINK_VECTOR.end(), pair.first) != A_BOT_LINK_VECTOR.end()) and
-                    (std::find(OBSTACLE_VECTOR.begin(), OBSTACLE_VECTOR.end(), pair.second) != OBSTACLE_VECTOR.end())
-                )
-                or 
-                (
-                    (std::find(OBSTACLE_VECTOR.begin(), OBSTACLE_VECTOR.end(), pair.first) != OBSTACLE_VECTOR.end()) and
-                    (std::find(A_BOT_LINK_VECTOR.begin(), A_BOT_LINK_VECTOR.end (), pair.second) != A_BOT_LINK_VECTOR.end())
+                    (
+                        (std::find(A_BOT_LINK_VECTOR.begin(), A_BOT_LINK_VECTOR.end(), pair.first) != A_BOT_LINK_VECTOR.end()) and
+                        !(std::find(A_BOT_LINK_VECTOR.begin(), A_BOT_LINK_VECTOR.end(), pair.second) != A_BOT_LINK_VECTOR.end())
+                    )
+                    or 
+                    (
+                        !(std::find(A_BOT_LINK_VECTOR.begin(), A_BOT_LINK_VECTOR.end(), pair.first) != A_BOT_LINK_VECTOR.end()) and
+                        (std::find(A_BOT_LINK_VECTOR.begin(), A_BOT_LINK_VECTOR.end (), pair.second) != A_BOT_LINK_VECTOR.end())
+                    )
                 )
             )
             {
@@ -387,7 +384,7 @@ class CollisionNode
         // If contact points from Obstacle to Robot, flip it
         collision_detection::Contact setContactDirection(collision_detection::Contact contact)
         {
-            if ((std::find(OBSTACLE_VECTOR.begin(), OBSTACLE_VECTOR.end(), contact.body_name_1) != OBSTACLE_VECTOR.end()) and
+            if (!(std::find(A_BOT_LINK_VECTOR.begin(), A_BOT_LINK_VECTOR.end(), contact.body_name_1) != A_BOT_LINK_VECTOR.end()) and
                 (std::find(A_BOT_LINK_VECTOR.begin(), A_BOT_LINK_VECTOR.end(), contact.body_name_2) != A_BOT_LINK_VECTOR.end()))
             {
                 std::swap(contact.body_name_1, contact.body_name_2);

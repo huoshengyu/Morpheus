@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="a_bot_double_sided_shelf_scene">
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="a_bot_large_tunnel_scene">
 
     <xacro:include filename="$(find morpheus_teleop)/urdf/scenes/a_bot_scene.xacro" />
 
@@ -13,8 +13,8 @@
         scale="0.0254"
     />
     
-    <xacro:include filename="$(find morpheus_teleop)/urdf/macros/double_sided_shelf.xacro" />
-    <xacro:double_sided_shelf
+    <xacro:include filename="$(find morpheus_teleop)/urdf/macros/large_tunnel.xacro" />
+    <xacro:large_tunnel
         prefix=""
         parent="world"
         x="0.0"

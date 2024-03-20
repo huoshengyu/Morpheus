@@ -16,6 +16,11 @@ keybinds = {
     # 'key':[i,j,k]
     # where i,j select input channel [axes, buttons][i][j]
     # k selects input value
+    # Left stick: x = -axes[0], y = axes[1]
+    # Right stick: x = -axes[3], y = axes[4]
+    # Triggers: LT = axes[2], RT = axes[5]
+    # Dpad: L/R = -axes[6], U/D = axes[7]
+    # Buttons: [A, B, X, Y, LB, RB, Share, Menu, Xbox, Lstick, Rstick]
     'w':[0,1,-1], # Translate forward
     'a':[0,0,-1], # Translate left
     's':[0,1,1], # Translate backward
@@ -28,6 +33,8 @@ keybinds = {
     'l':[0,3,1], # Yaw right
     'u':[1,4,1], # Roll left
     'o':[1,5,1], # Roll right
+    '1':[1,0,1], # Close gripper
+    '2':[1,1,1], # Open gripper
     '-':[1,8,1] # Swap reference frame (base <--> end effector)
 
 }
@@ -70,7 +77,7 @@ class KeyToJoy():
             elif keybinds[key][0] == 1:
                 self.joy.buttons[keybinds[key][1]] = self.joy.buttons[keybinds[key][1]] + keybinds[key][2]
         # If key==esc, exit
-        elif len(key) is not 0 and ord(key) == 27:
+        elif len(key) != 0 and ord(key) == 27:
             sys.exit()
 
         return self.joy

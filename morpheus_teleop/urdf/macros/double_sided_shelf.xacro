@@ -1,43 +1,59 @@
 <?xml version="1.0"?>
 
 <robot name="double_sided_shelf" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:include filename="$(find morpheus_teleop)/urdf/macros/shelf.xacro" />
+  <xacro:include filename="$(find morpheus_teleop)/urdf/macros/wall_4x12in.xacro" />
+  
   <xacro:macro name="double_sided_shelf"
-    params="x:=0 y:=0 z:=0 scale:=0.05 prefix parent">
+    params="x:=0 y:=0 z:=0 scale:=0.0254 prefix parent">
 
-    <link name="${prefix}double_sided_shelf">
-        <contact>
-            <lateral_friction value="1.0"/>
-            <rolling_friction value="0.0"/>
-            <contact_cfm value="0.0"/>
-            <contact_erp value="1.0"/>
-        </contact>
-        <inertial>
-            <origin rpy="0 0 0" xyz="0.0 0.0 0.03"/>
-            <mass value="1"/>
-            <inertia ixx="1" ixy="0" ixz="0" iyy="1" iyz="0" izz="1"/>
-        </inertial>
-        <visual>
-            <origin rpy="1.57079632679 0 0" xyz="0 0 0"/>
-            <geometry>
-                <mesh filename="package://morpheus_teleop/meshes/components/visual/double_sided_shelf.obj" scale="${scale} ${scale} ${scale}"/>
-            </geometry>
-            <material name="grey">
-                <color rgba="0.3 0.3 0.3 1" />
-            </material>
-        </visual>
-        <collision>
-            <origin rpy="1.57079632679 0 0" xyz="0 0 0" />
-            <geometry>
-                <mesh filename="package://morpheus_teleop/meshes/components/collision/double_sided_shelf.obj" scale="${scale} ${scale} ${scale}"/>
-            </geometry>
-        </collision>
-    </link>
+    <xacro:shelf
+        prefix="${prefix}left_"
+        parent="${parent}"
+        scale="${scale}"
+    />
+    <xacro:shelf
+        prefix="${prefix}right_"
+        parent="${parent}"
+        scale="${scale}"
+    />
 
-    <joint name="${prefix}double_sided_shelf_joint" type="fixed">
+    <xacro:wall_4x12in
+        prefix="${prefix}bottom_"
+        parent="${parent}"
+        scale="${scale}"
+    />
+    <xacro:wall_4x12in
+        prefix="${prefix}top_"
+        parent="${parent}"
+        scale="${scale}"
+    />
+
+    <joint name="${prefix}double_sided_shelf_left_shelf_joint" type="fixed">
       <parent link="${parent}" />
-      <child link="${prefix}double_sided_shelf" />
-      <origin xyz="${x} ${y} ${z}" />
+      <child link="${prefix}left_shelf" />
+      <origin rpy="0 0 1.57079632679" xyz="${scale * 4 + x} ${y} ${z}" />
     </joint>
+
+    <joint name="${prefix}double_sided_shelf_right_shelf_joint" type="fixed">
+      <parent link="${parent}" />
+      <child link="${prefix}right_shelf" />
+      <origin rpy="0 0 1.57079632679" xyz="${scale * 9 + x} ${y} ${z}" />
+    </joint>
+
+    <joint name="${prefix}double_sided_shelf_bottom_wall_4x12in_joint" type="fixed">
+      <parent link="${parent}" />
+      <child link="${prefix}bottom_wall_4x12in" />
+      <origin rpy="1.57079632679 0 1.57079632679" xyz="${scale * 4 + x} ${y} ${z}" />
+    </joint>
+
+    <joint name="${prefix}double_sided_shelf_top_wall_4x12in_joint" type="fixed">
+      <parent link="${parent}" />
+      <child link="${prefix}top_wall_4x12in" />
+      <origin rpy="1.57079632679 0 1.57079632679" xyz="${scale * 4 + x} ${y} ${scale * 4 + z}" />
+    </joint>
+
   </xacro:macro>
 
 </robot>
