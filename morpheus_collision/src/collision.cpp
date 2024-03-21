@@ -75,6 +75,7 @@ class CollisionNode
         ros::Publisher* g_marker_array_publisher = nullptr;
         visualization_msgs::MarkerArray g_collision_points;
         // moveit_visual_tools::MoveItVisualToolsPtr visual_tools_;
+        int max_markers = 10;
 
         std::vector<std::string> A_BOT_LINK_VECTOR;
         std::vector<std::string> ALLOWED_COLLISION_VECTOR;
@@ -455,6 +456,8 @@ class CollisionNode
 
             // Iterate over key-value pairs of contact_map
             std::map<std::string, unsigned> ns_counts;
+            // Record the lowest (max_markers) distance values and return only the nearest (max_markers) collisions
+            std::set<double> nearest_n_markers;
 
             for (const auto& key_value : contact_map)
             {
@@ -465,9 +468,16 @@ class CollisionNode
 
                 collision_detection::Contact contact = setContactDirection(orig_contact);
                 
-                // Enforce condition: Only visualize distances between robot and obstacle
-                if (isRobotObstaclePair(key))
+                // Enforce condition: Only visualize distances between robot and obstacle, and only (max_markers) shortest distances
+                int num_nearer_markers = std::distance(nearest_n_markers.begin(), nearest_n_markers.lower_bound(contact.depth));
+                if (isRobotObstaclePair(key) and (num_nearer_markers < max_markers))
                 {
+                    nearest_n_markers.insert(contact.depth)
+                    if (nearest_n_markers.size() > max_markers)
+                    {
+                        it = prev(nearest_n_markers.end());
+                        nearest_n_markers.erase(it);
+                    }
                     std::vector<Eigen::Vector3d> vec;
                     Eigen::Vector3d p0 = contact.pos; // p0 is the position reported by the Contact
                     Eigen::Vector3d p1; // p1 is p0 + depth * normal
