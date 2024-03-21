@@ -5,12 +5,12 @@
     <arg name="kinematics_config" default="$(find homestri_bringup)/etc/a_bot_calibration.yaml" />
     <arg name="controllers" default="joint_state_controller twist_controller speed_scaling_state_controller force_torque_sensor_controller"/>
     <arg name="stopped_controllers" default="joint_group_vel_controller scaled_pos_joint_traj_controller motion_control_handle cartesian_motion_controller cartesian_force_controller cartesian_compliance_controller"/>
-    <arg name="controller_config_file" default="$(find homestri_bringup)/config/b_bot_controllers.yaml" />
-    <arg name="moveit_controller_config_file" default="$(find homestri_bringup)/config/b_bot_moveit_controllers.yaml" />
+    <arg name="controller_config_file" default="$(find homestri_bringup)/config/a_bot_controllers.yaml" />
+    <arg name="moveit_controller_config_file" default="$(find homestri_bringup)/config/a_bot_moveit_controllers.yaml" />
     <arg name="use_rviz" default="true" />
 
-    <arg name="xacro_path" default="$(find morpheus_teleop)/urdf/scenes/b_bot_scene.xacro"/>
-    <arg name="srdf_path" default="$(find morpheus_teleop)/srdf/scenes/b_bot_scene.srdf"/>
+    <arg name="xacro_path" default="$(find morpheus_teleop)/urdf/scenes/a_bot_keyhole_scene.xacro"/>
+    <arg name="srdf_path" default="$(find morpheus_teleop)/srdf/scenes/a_bot_scene.srdf"/>
 
     <arg name="twist_topic" default="/twist_controller/command" />
 
@@ -28,12 +28,12 @@
 
         <arg name="xacro_path" value="$(arg xacro_path)"/>
         <arg name="srdf_path" value="$(arg srdf_path)"/>
-    <include/>
+    </include>
 
 
     <!-- launch teleop xbox360 swap -->
     <include file="$(find morpheus_teleop)/launch/xbox360_swap.launch">
         <arg name="twist_topic" value="$(arg twist_topic)" />
-    <include/>
+    </include>
 
 </launch>

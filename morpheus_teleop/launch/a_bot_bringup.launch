@@ -31,7 +31,7 @@
     <remap from="cartesian_force_controller/ft_sensor_wrench" to="wrench_filtered" />
     <remap from="cartesian_compliance_controller/ft_sensor_wrench" to="wrench_filtered" />
     <!-- ur5e driver -->
-    <include file="$(find ur_robot_driver)/launch/ur5e_bringup.launch">
+    <include file="$(find ur_robot_driver)/launch/ur_control.launch">
         <arg name="robot_ip" value="$(arg robot_ip)" />
         <arg name="reverse_ip" value="$(arg reverse_ip)" />
         <arg name="use_tool_communication" value="true" />

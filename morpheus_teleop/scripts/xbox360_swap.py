@@ -90,11 +90,11 @@ class TeleopTwistJoy():
                     
                     effector_rotation = [transform.transform.rotation.x, transform.transform.rotation.y, transform.transform.rotation.z, transform.transform.rotation.w]
 
-                    effector_rotation = R.from_quat(effector_rotation)
+                    effector_rotation = R.from_quat(effector_rotation).as_matrix()
 
                     # Account for difference in orientation between tcp_link and base_link at baseline state
-                    offset = R.from_rotvec([0, np.pi/2, 0])
-                    corrected_rotation = np.matmul(offset.as_matrix(), effector_rotation.as_matrix())
+                    offset = R.from_rotvec([0, np.pi/2, 0]).as_matrix()
+                    corrected_rotation = np.matmul(offset, effector_rotation)
 
                     # Apply offset
                     r = R.from_matrix(corrected_rotation)
