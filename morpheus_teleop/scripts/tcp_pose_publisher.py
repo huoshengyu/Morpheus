@@ -6,8 +6,8 @@ import geometry_msgs.msg
 
 def transform_callback(tf_buffer):
     try:
-        # Lookup the transform from source_frame to target_frame
-        transform = tf_buffer.lookup_transform("base_link", "tcp_link", rospy.Time(0), rospy.Duration(1.0))
+        # Lookup the transform to (target_frame) from (source_frame)
+        transform = tf_buffer.lookup_transform("tcp_link", "world", rospy.Time(0), rospy.Duration(1.0))
         
         # Create a Pose message
         pose_msg = geometry_msgs.msg.Pose()

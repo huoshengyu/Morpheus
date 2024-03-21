@@ -15,130 +15,40 @@ from scipy import pi
 
 from robotiq_2f_gripper_control.msg import Robotiq2FGripper_robot_output
 
-class TeleopTwistJoy():
-    def __init__(self):
-        twist_topic = rospy.get_param("~twist_topic", "/joy/twist")
+from xbox360_twist import TeleopTwistJoy
 
-        self.twist_pub = rospy.Publisher(twist_topic, geometry_msgs.msg.Twist, queue_size=1)
-        self.gripper_pub = rospy.Publisher('/robotiq_2f_85_gripper/control', Robotiq2FGripper_robot_output, queue_size=1)
-        self.joy_sub = rospy.Subscriber("/joy", sensor_msgs.msg.Joy, self.callback)
+class TeleopTwistJoyEffectorFrame(TeleopTwistJoy):
+    def rotate_axes(self, scaled_axes, target_frame = "world", source_frame = "tcp_link"):
+        # Perform coordinate transfer by rotating to target_frame from source_frame
+        rotated_axes = scaled_axes
+
+        # Lookup the transform (target_frame) from (source_frame)
+        transform = tf_buffer.lookup_transform(target_frame, source_frame, rospy.Time(0), rospy.Duration(1.0))
         
-        self.joy_msg = None
-        self.joy_msg_mutex = Lock()
+        effector_rotation = [transform.transform.rotation.x, transform.transform.rotation.y, transform.transform.rotation.z, transform.transform.rotation.w]
 
-        self.twist_filter_size = 5  # Adjust this value for the moving average window size
-        self.linear_x_buffer = deque(maxlen=self.twist_filter_size)
-        self.linear_y_buffer = deque(maxlen=self.twist_filter_size)
-        self.linear_z_buffer = deque(maxlen=self.twist_filter_size)
-        self.angular_x_buffer = deque(maxlen=self.twist_filter_size)
-        self.angular_y_buffer = deque(maxlen=self.twist_filter_size)
-        self.angular_z_buffer = deque(maxlen=self.twist_filter_size)
+        effector_rotation = R.from_quat(effector_rotation).as_matrix()
 
-    def publish(self):
-        self.joy_msg_mutex.acquire()
-        msg = deepcopy(self.joy_msg)
-        self.joy_msg_mutex.release()
+        # Apply the rotation matrix
+        rotated_axes = np.concatenate((np.matmul(effector_rotation, rotated_axes[:3]), np.matmul(effector_rotation, rotated_axes[3:])))
+        return rotated_axes
 
-        if msg is not None:
-            axes = list(self.joy_msg.axes)
-            buttons = list(self.joy_msg.buttons)
+    def rearrange_axes(self, rotated_axes):
+        rearranged_axes = rotated_axes
+        # Rearrange the control axes to make the controls more intuitive
+        try:
+            r_control_linear = np.array([[ 1,  0,  0],
+                                            [ 0,  0,  1],
+                                            [ 0, -1,  0]])
+            r_control_angular = np.array([[ 1,  0,  0],
+                                            [ 0,  0,  1],
+                                            [ 0, -1,  0]])
 
-            for i in range(len(axes)):
-                if abs(axes[i]) < 0.15:
-                    axes[i] = 0
-                if abs(axes[i]) > 1:
-                    axes[i] = axes[i] / abs(axes[i])
+            rearranged_axes = np.concatenate((np.matmul(r_control_linear, rotated_axes[:3]), np.matmul(r_control_angular, rotated_axes[3:])))
 
-            linear_scale = 0.05
-            angular_scale = 0.05
-
-            # Left stick: x = -axes[0], y = axes[1]
-            # Right stick: x = -axes[3], y = axes[4]
-            # Triggers: LT = axes[2], RT = axes[5]
-            # Dpad: L/R = -axes[6], U/D = axes[7]
-            # Buttons: [A, B, X, Y, LB, RB, Share, Menu, Xbox, Lstick, Rstick]
-            scaled_axes = [-axes[1] * linear_scale, 
-                           -axes[0] * linear_scale, 
-                            ((1 - (axes[5] + 1) / 2) - (1 - (axes[2] + 1) / 2)) * linear_scale, 
-                           -axes[3] * angular_scale, 
-                            axes[4] * angular_scale, 
-                           -(buttons[5] - buttons[4]) * angular_scale]
-
-            # Enforce a safety limit on speed
-            for i in range(len(scaled_axes)):
-                if abs(scaled_axes[i]) > 0.5:
-                    scaled_axes[i] = 0.5 * scaled_axes[i] / abs(scaled_axes[i])
-
-            rearranged_axes = scaled_axes # Instantiate in larger scope
-            rotated_axes = scaled_axes
-
-            try:
-                # Lookup the transform from source_frame to target_frame
-                transform = tf_buffer.lookup_transform("tcp_link", "base_link", rospy.Time(0), rospy.Duration(1.0))
-                
-                effector_rotation = [transform.transform.rotation.x, transform.transform.rotation.y, transform.transform.rotation.z, transform.transform.rotation.w]
-
-                effector_rotation = R.from_quat(effector_rotation)
-
-                # Account for difference in orientation between tcp_link and base_link at baseline state
-                offset = R.from_rotvec([0, np.pi/2, 0])
-                corrected_rotation = np.matmul(offset.as_matrix(), effector_rotation.as_matrix())
-
-                # Apply offset
-                r = R.from_matrix(corrected_rotation)
-                #print(r.as_matrix())
-
-                # Apply the rotation matrix
-                rotated_axes = np.concatenate((r.apply(rotated_axes[:3]), r.apply(rotated_axes[3:])))
-
-                # Rearrange the axes to make the controls more intuitive
-                r_control_linear = np.array([[ 1,  0,  0],
-                                                [ 0,  1,  0],
-                                                [ 0,  0,  1]])
-                r_control_angular = np.array([[ 1,  0,  0],
-                                                [ 0,  1,  0],
-                                                [ 0,  0,  1]])
-
-                rearranged_axes = np.concatenate((np.matmul(r_control_linear, rotated_axes[:3]), np.matmul(r_control_angular, rotated_axes[3:])))
-                
-            except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
-                rospy.logwarn("Transform lookup failed!")
-
-            self.linear_x_buffer.append(rearranged_axes[0])
-            self.linear_y_buffer.append(rearranged_axes[1])
-            self.linear_z_buffer.append(rearranged_axes[2])
-            self.angular_x_buffer.append(rearranged_axes[3])
-            self.angular_y_buffer.append(rearranged_axes[4])
-            self.angular_z_buffer.append(rearranged_axes[5])
-
-            twist = geometry_msgs.msg.Twist()
-            twist.linear.x = sum(self.linear_x_buffer) / len(self.linear_x_buffer)
-            twist.linear.y = sum(self.linear_y_buffer) / len(self.linear_y_buffer)
-            twist.linear.z = sum(self.linear_z_buffer) / len(self.linear_z_buffer)
-            twist.angular.x = sum(self.angular_x_buffer) / len(self.angular_x_buffer)
-            twist.angular.y = sum(self.angular_y_buffer) / len(self.angular_y_buffer)
-            twist.angular.z = sum(self.angular_z_buffer) / len(self.angular_z_buffer)
-
-            command = Robotiq2FGripper_robot_output()
-            command.rACT = 0x1
-            command.rGTO = 0x1 # go to position
-            command.rATR = 0x0 # No emergency release
-            command.rSP = 128 # speed
-            command.rPR = 0x0 # position
-            command.rFR = 30 # effort
-            if buttons[0] == 1:
-                command.rPR = 230 # position
-                self.gripper_pub.publish(command)
-            elif buttons[1] == 1:
-                command.rPR = 0 # position
-                self.gripper_pub.publish(command)
-
-            self.twist_pub.publish(twist)
-
-    def callback(self, msg):
-        self.joy_msg_mutex.acquire()
-        self.joy_msg = msg
-        self.joy_msg_mutex.release()
+        except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
+            rospy.logwarn("Control axis rearrangement failed!")
+        return rearranged_axes
 
 if __name__ == '__main__':
     rospy.init_node('xbox360_twist')
@@ -146,11 +56,11 @@ if __name__ == '__main__':
     tf_buffer = tf2_ros.Buffer()
     tf_listener = tf2_ros.TransformListener(tf_buffer)
 
-    teleop_twist_joy = TeleopTwistJoy()
+    teleop_twist_joy = TeleopTwistJoyEffectorFrame()
 
     rate = rospy.Rate(60)  # 10hz
     while not rospy.is_shutdown():
-        teleop_twist_joy.publish()
+        teleop_twist_joy.loop_once()
         rate.sleep()
     
     rospy.spin()
