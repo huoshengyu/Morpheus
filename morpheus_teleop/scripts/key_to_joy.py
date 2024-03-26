@@ -93,7 +93,7 @@ if __name__=="__main__":
     rospy.init_node('key_to_joy')
 
     key_to_joy = KeyToJoy()
-    rate = rospy.Rate(60)  # 10hz
+    rate = rospy.Rate(60)  # hz
     while not rospy.is_shutdown():
         key_to_joy.loop()
         rate.sleep()

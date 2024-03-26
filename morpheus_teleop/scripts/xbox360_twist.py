@@ -65,12 +65,21 @@ class TeleopTwistJoy():
         # Triggers: LT = axes[2], RT = axes[5]
         # Dpad: L/R = -axes[6], U/D = axes[7]
         # Buttons: [A, B, X, Y, LB, RB, Share, Menu, Xbox, Lstick, Rstick]
+        # scaled_axes = [-axes[1] * linear_scale, 
+        #                 -axes[0] * linear_scale, 
+        #                 ((1 - (axes[5] + 1) / 2) - (1 - (axes[2] + 1) / 2)) * linear_scale, 
+        #                 -axes[3] * angular_scale, 
+        #                 axes[4] * angular_scale, 
+        #                 -(buttons[5] - buttons[4]) * angular_scale]
+
+        # Button remapping so that left side = translation, right side = rotation
+        
         scaled_axes = [-axes[1] * linear_scale, 
                         -axes[0] * linear_scale, 
-                        ((1 - (axes[5] + 1) / 2) - (1 - (axes[2] + 1) / 2)) * linear_scale, 
+                        ((buttons[4]) - (axes[5] > 0.8)) * linear_scale, 
                         -axes[3] * angular_scale, 
                         axes[4] * angular_scale, 
-                        -(buttons[5] - buttons[4]) * angular_scale]
+                        -((buttons[5]) - (axes[2] > 0.8)) * angular_scale]
 
         # Enforce a safety limit on speed
         for i in range(len(scaled_axes)):
@@ -154,12 +163,13 @@ class TeleopTwistJoy():
             return None
 
     def loop_once(self):
-        msg = self.get_joy_msg()
-        rearranged_axes = self.update(msg)
-        if rearranged_axes is not None:
-            self.publish(rearranged_axes, msg)
+        if self.joy_msg is not None:
+            rearranged_axes = self.update(self.joy_msg)
+            if rearranged_axes is not None:
+                self.publish(rearranged_axes, self.joy_msg)
 
     def callback(self, msg):
+        # Retrieve joy_msg
         self.joy_msg_mutex.acquire()
         self.joy_msg = msg
         self.joy_msg_mutex.release()
@@ -169,7 +179,7 @@ if __name__ == '__main__':
 
     teleop_twist_joy = TeleopTwistJoy()
 
-    rate = rospy.Rate(60)  # 10hz
+    rate = rospy.Rate(60)  # hz
     while not rospy.is_shutdown():
         teleop_twist_joy.loop_once()
         rate.sleep()

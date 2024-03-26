@@ -33,7 +33,7 @@ if __name__ == '__main__':
     
     pose_pub = rospy.Publisher('/tcp_pose', geometry_msgs.msg.Pose, queue_size=10)
     
-    rate = rospy.Rate(10)  # 10 Hz
+    rate = rospy.Rate(10)  # hz
     
     while not rospy.is_shutdown():
         transform_callback(tf_buffer)

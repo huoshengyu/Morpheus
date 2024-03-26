@@ -100,7 +100,7 @@ if __name__ == '__main__':
 
     teleop_twist_joy = TeleopTwistJoySwapFrame()
 
-    rate = rospy.Rate(60)  # 10hz
+    rate = rospy.Rate(60)  # hz
     while not rospy.is_shutdown():
         teleop_twist_joy.loop_once()
         rate.sleep()
