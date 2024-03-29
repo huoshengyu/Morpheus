@@ -1,0 +1,4 @@
+goal_transform:
+  keyhole:
+    translation: {x: 0.350, y: 0.535, z: 0.0}
+    rotation: {x: 0.5, y: -0.5, z: -0.5, w: -0.5}

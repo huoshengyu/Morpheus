@@ -20,8 +20,8 @@ class GoalHaptics():
         joy_feedback_topic = rospy.get_param("~joy_feedback_topic", "/joy/set_feedback")
         goal_haptics_topic = rospy.get_param("~goal_haptics_topic", "/goal_haptics")
 
-        self.joy_feedback_pub = rospy.Publisher(joy_feedback_topic, sensor_msgs.JoyFeedbackArray, queue_size=1)
-        self.goal_haptics_pub = rospy.Publisher(goal_haptics_topic, sensor_msgs.JoyFeedbackArray, queue_size=1)
+        self.joy_feedback_pub = rospy.Publisher(joy_feedback_topic, sensor_msgs.msg.JoyFeedbackArray, queue_size=1)
+        self.goal_haptics_pub = rospy.Publisher(goal_haptics_topic, sensor_msgs.msg.JoyFeedbackArray, queue_size=1)
         self.joy_sub = rospy.Subscriber("/joy", sensor_msgs.msg.Joy, self.callback)
 
         self.joy_msg = None
@@ -31,10 +31,35 @@ class GoalHaptics():
         self.already_toggled = False
 
         self.tf_buffer = tf2_ros.Buffer()
-        self.tf_listener = tf2_ros.TransformListener(tf_buffer)
+        self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
         
         self.goal_translation = [0, 0, 0] # (x, y, z) 
         self.goal_quaternion = [0, 0, 0, 0] # (X, Y, Z, W)
+
+        # Attempt to retrieve the name of a goal preset from parameter server
+        self.goal_name = rospy.get_param("/goal_name", None)
+        if self.goal_name is not None:
+            rospy.loginfo("Using goal name from parameter server")
+        else:
+            self.goal_name = "keyhole"
+            rospy.loginfo("Using default goal name")
+
+        # Attempt to retrieve ideal goal pose from parameter server
+        self.goal_transform_dict = rospy.get_param("/goal_transform", None)
+        if self.goal_transform_dict is not None:
+            rospy.loginfo("Using goal transform from parameter server")
+            # Retrieve translation and quaternion from the goal transform dict
+            goal_transform = self.goal_transform_dict[self.goal_name]
+            self.goal_translation = [goal_transform[translation][x], 
+                                    goal_transform[translation][y], 
+                                    goal_transform[translation][z]]
+            self.goal_quaternion = [goal_transform[rotation][x], 
+                                    goal_transform[rotation][y], 
+                                    goal_transform[rotation][z], 
+                                    goal_transform[rotation][w],]
+        else:
+            rospy.loginfo("Using default goal transform")
+
         self.translation_weight = 1
         self.rotation_weight = 1
         self.cost = None
@@ -71,7 +96,12 @@ class GoalHaptics():
             joy_feedback_msg = sensor_msgs.JoyFeedback
             joy_feedback_msg.type = 1 # Rumble
             joy_feedback_msg.id = 0
-            joy_feedback_msg.intensity = min(1.0, self.cost)
+            # If cost is below threshold, set feedback intensity to 0
+            if self.cost < 0.05:
+                joy_feedback_msg.intensity = 0.0
+            # Else, make sure intensity does not exceed 1.0
+            else:
+                joy_feedback_msg.intensity = min(1.0, self.cost)
             joy_feedback_array.append(joy_feedback_msg)
 
             # Assign new array to the joy_feedback_array_msg

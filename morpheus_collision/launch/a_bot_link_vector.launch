@@ -1,29 +1,5 @@
 <launch>
 
-    <param name='A_BOT_LINK_VECTOR' value=
-        "'base_link_inertia',
-        'shoulder_link',
-        'upper_arm_link',
-        'forearm_link',
-        'wrist_1_link',
-        'wrist_2_link',
-        'wrist_3_link',
-        'tcp_collision_link',
-        'd415_mount_link',
-        'camera_link',
-        'coupler',
-        'cable_protector',
-        'gripper_body',
-        'left_outer_knuckle',
-        'left_outer_finger',
-        'left_inner_finger',
-        'left_inner_finger_pad',
-        'left_inner_knuckle',
-        'right_outer_knuckle',
-        'right_outer_finger',
-        'right_inner_finger',
-        'right_inner_finger_pad',
-        'right_inner_knuckle'"
-    />
+    <rosparam command="load" file="$(find morpheus_collision)/config/a_bot_link_vector.yaml" />
 
 </launch>
