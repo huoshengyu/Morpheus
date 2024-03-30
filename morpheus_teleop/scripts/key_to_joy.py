@@ -35,7 +35,8 @@ keybinds = {
     'o':[1,5,1], # Roll right
     '1':[1,0,1], # Close gripper
     '2':[1,1,1], # Open gripper
-    '-':[1,8,1] # Swap reference frame (base <--> end effector)
+    '-':[1,8,1], # Swap reference frame (base <--> end effector)
+    '=':[1,6,1]  # Toggle goal haptics (goal_haptics.py must be running. Probably only works on Linux anyway)
 
 }
 
@@ -85,7 +86,7 @@ class KeyToJoy():
     def publish(self):
         self.joy_pub.publish(self.joy)
 
-    def loop(self):
+    def loop_once(self):
         self.key_to_joy()
         self.publish()
 
@@ -95,7 +96,7 @@ if __name__=="__main__":
     key_to_joy = KeyToJoy()
     rate = rospy.Rate(60)  # hz
     while not rospy.is_shutdown():
-        key_to_joy.loop()
+        key_to_joy.loop_once()
         rate.sleep()
     
     rospy.spin()

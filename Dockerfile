@@ -12,10 +12,9 @@ RUN apt-get update && apt-get install git -y
 #     package1 \
 RUN pip3 install \
       numpy \
-      scipy \
-      pybullet \
-      urdf_parser_py \
-      numpy-quaternion
+      scipy
+
+RUN apt-get install python3-tk
 
 # # Install ROS dependencies
 # RUN apt-get update && apt-get install --no-install-recommends -y \

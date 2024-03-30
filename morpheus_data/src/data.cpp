@@ -140,14 +140,14 @@ class DataNode
             header << robot << "_" << task << "_" << id << "_" << datetime_buffer;
             g_filename = header.str();
 
-            // Add the header line to the file
+            // Open file
             ROS_INFO_STREAM("Creating file with name: " << g_filename);
             std::stringstream filepath;
             filepath << data_dir << g_filename << ".csv";
             g_file = std::ofstream(filepath.str());
             if ( (g_file.rdstate() & std::ofstream::failbit ) != 0 )
                 std::cerr << "Error opening file\n";
-            g_file << header.str() << std::endl;
+            // g_file << header.str() << std::endl;
 
             // Store column labels
             // Time
@@ -194,7 +194,7 @@ class DataNode
             for (int i = 0; i < g_column_label_vector.size(); ++i)
             {
                 g_column_label_index_map[g_column_label_vector[i]] = i;
-                column_label_ss << g_column_label_vector[i];
+                column_label_ss << g_column_label_vector[i] << ", ";
             }
             // Add labels to file
             column_label_ss << std::endl;

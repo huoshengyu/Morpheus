@@ -35,7 +35,7 @@ static const std::vector<std::string> A_BOT_LINK_VECTOR
     "wrist_1_link",
     "wrist_2_link",
     "wrist_3_link",
-    // "tcp_link", // tcp_link does not have collision. May cause misalignment in data if included.
+    "tcp_link", // tcp_link does not have collision. May cause misalignment in data if included.
     "tcp_collision_link",
     "d415_mount_link",
     "camera_link",
