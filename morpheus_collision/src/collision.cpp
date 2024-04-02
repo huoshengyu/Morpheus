@@ -513,7 +513,8 @@ class CollisionNode
                 mk.scale.y = 0.02; // Arrow head diameter
                 mk.scale.z = 0.02; // Arrow head length
                 mk.color = color; // Color specified above
-                mk.lifetime = ros::Duration(); // Remain until deleted
+                // mk.lifetime = ros::Duration(); // Remain until deleted
+                mk.lifetime = ros::Duration(0.5); // Remain for 0.5 sec or until replaced
                 markers.markers.push_back(mk); // Add to MarkerArray markers
             }
 
@@ -528,7 +529,7 @@ class CollisionNode
                 for (auto& marker : g_collision_points.markers)
                 marker.action = visualization_msgs::Marker::DELETE;
 
-                g_marker_array_publisher->publish(g_collision_points);
+                // g_marker_array_publisher->publish(g_collision_points);
             }
 
             // move new markers into g_collision_points
