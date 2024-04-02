@@ -20,8 +20,8 @@ class GoalHaptics():
         joy_feedback_topic = rospy.get_param("~joy_feedback_topic", "/joy/set_feedback")
         goal_haptics_topic = rospy.get_param("~goal_haptics_topic", "/goal_haptics")
 
-        self.joy_feedback_pub = rospy.Publisher(joy_feedback_topic, sensor_msgs.msg.JoyFeedbackArray, queue_size=1)
-        self.goal_haptics_pub = rospy.Publisher(goal_haptics_topic, sensor_msgs.msg.JoyFeedbackArray, queue_size=1)
+        self.joy_feedback_pub = rospy.Publisher(joy_feedback_topic, sensor_msgs.msg.JoyFeedbackArray, queue_size=5)
+        self.goal_haptics_pub = rospy.Publisher(goal_haptics_topic, sensor_msgs.msg.JoyFeedbackArray, queue_size=5)
         self.joy_sub = rospy.Subscriber("/joy", sensor_msgs.msg.Joy, self.callback)
 
         self.joy_msg = None
@@ -50,18 +50,18 @@ class GoalHaptics():
             rospy.loginfo("Using goal transform from parameter server")
             # Retrieve translation and quaternion from the goal transform dict
             goal_transform = self.goal_transform_dict[self.goal_name]
-            self.goal_translation = [goal_transform[translation][x], 
-                                    goal_transform[translation][y], 
-                                    goal_transform[translation][z]]
-            self.goal_quaternion = [goal_transform[rotation][x], 
-                                    goal_transform[rotation][y], 
-                                    goal_transform[rotation][z], 
-                                    goal_transform[rotation][w],]
+            self.goal_translation = [goal_transform['translation']['x'], 
+                                    goal_transform['translation']['y'], 
+                                    goal_transform['translation']['z']]
+            self.goal_quaternion = [goal_transform['rotation']['x'], 
+                                    goal_transform['rotation']['y'], 
+                                    goal_transform['rotation']['z'], 
+                                    goal_transform['rotation']['w'],]
         else:
             rospy.loginfo("Using default goal transform")
 
-        self.translation_weight = 1
-        self.rotation_weight = 1
+        self.translation_weight = 0.25
+        self.rotation_weight = 0.0
         self.cost = None
 
         self.force_feedback_msg = None
@@ -72,37 +72,56 @@ class GoalHaptics():
 
 
     def update(self):
-        transform = self.tf_buffer.lookup_transform("tcp_link", "world", rospy.Time(0), rospy.Duration(1.0))
+        transform = None
+        while transform == None:
+            try:
+                transform = self.tf_buffer.lookup_transform("world", "tcp_link", rospy.Time(0), rospy.Duration(5.0))
+            except:
+                rospy.loginfo("Waiting for tcp_link transform")
         
         # Calculate final - initial translation
-        translation_to_goal = self.goal_translation - transform.transform.translation
+        translation_as_list = [transform.transform.translation.x, transform.transform.translation.y, transform.transform.translation.z]
+        translation_to_goal = np.subtract(self.goal_translation, translation_as_list)
         translation_to_goal_magnitude = np.linalg.norm(translation_to_goal)
 
         # Calculate final - initial rotation
-        rotation_to_goal = R.concatenate((R.from_quat(self.goal_quaternion), R.from_quat(transform.transform.quaternion).inv()))
+        rotation_as_quat = [transform.transform.rotation.x, transform.transform.rotation.y, transform.transform.rotation.z, transform.transform.rotation.w]
+        rotation_to_goal = R.concatenate((R.from_quat(self.goal_quaternion), R.from_quat(rotation_as_quat).inv()))
         rotation_to_goal_magnitude = rotation_to_goal.magnitude()
-
-        # Calculate a cost for the current pose, as a function of distance to goal in translation and rotation
-        self.cost = self.translation_weight * translation_to_goal_magnitude + self.rotation_weight * rotation_to_goal_magnitude
         
+        # Calculate a cost for the current pose, as a function of distance to goal in translation and rotation
+        self.cost = np.sum(self.translation_weight * translation_to_goal_magnitude + self.rotation_weight * rotation_to_goal_magnitude)
 
     def publish(self):
         if self.cost is not None:
             # Clear force feedback message and make new array
-            self.joy_feedback_array_msg = sensor_msgs.JoyFeedbackArray
+            self.joy_feedback_array_msg = sensor_msgs.msg.JoyFeedbackArray()
             joy_feedback_array = []
 
             # Make new force feedback message and add to array
-            joy_feedback_msg = sensor_msgs.JoyFeedback
+            joy_feedback_msg = sensor_msgs.msg.JoyFeedback()
             joy_feedback_msg.type = 1 # Rumble
             joy_feedback_msg.id = 0
             # If cost is below threshold, set feedback intensity to 0
-            if self.cost < 0.05:
+            rospy.loginfo("Cost was " + str(self.cost))
+            if self.cost < 0.01 or not self.on:
                 joy_feedback_msg.intensity = 0.0
             # Else, make sure intensity does not exceed 1.0
             else:
                 joy_feedback_msg.intensity = min(1.0, self.cost)
             joy_feedback_array.append(joy_feedback_msg)
+
+            # Make new LED feedback message and add to array (Current controller does not have LED)
+            led_feedback_msg = sensor_msgs.msg.JoyFeedback()
+            led_feedback_msg.type = 0 # LED
+            led_feedback_msg.id = 0
+            # If cost is below threshold, set feedback intensity to 0
+            if self.cost < 0.01 or not self.on:
+                led_feedback_msg.intensity = 0.0
+            # Else, make sure intensity does not exceed 1.0
+            else:
+                led_feedback_msg.intensity = min(1.0, self.cost)
+            joy_feedback_array.append(led_feedback_msg)
 
             # Assign new array to the joy_feedback_array_msg
             self.joy_feedback_array_msg.array = joy_feedback_array
@@ -117,14 +136,13 @@ class GoalHaptics():
             buttons = list(self.joy_msg.buttons)
             # Check if control frame needs to be swapped
             # buttons[6] = share button
-            if (buttons[6]==1) and (not self.already_swapped):
-                self.already_swapped = True
+            if (buttons[6]==1) and (not self.already_toggled):
+                self.already_toggled = True
                 self.on = not self.on
             elif (buttons[6]==0):
-                self.already_swapped = False
-        if self.on:
-            self.update()
-            self.publish()
+                self.already_toggled = False
+        self.update()
+        self.publish()
     
     def callback(self, msg):
         # Retrieve joy_msg

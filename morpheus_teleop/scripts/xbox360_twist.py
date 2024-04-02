@@ -76,10 +76,10 @@ class TeleopTwistJoy():
         
         scaled_axes = [-axes[1] * linear_scale, 
                         -axes[0] * linear_scale, 
-                        ((buttons[4]) - (axes[5] > 0.8)) * linear_scale, 
+                        ((buttons[4]) - (axes[2] < 0.0)) * linear_scale, 
                         -axes[3] * angular_scale, 
                         axes[4] * angular_scale, 
-                        -((buttons[5]) - (axes[2] > 0.8)) * angular_scale]
+                        -((buttons[5]) - (axes[5] < 0.0)) * angular_scale]
 
         # Enforce a safety limit on speed
         for i in range(len(scaled_axes)):
