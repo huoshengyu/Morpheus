@@ -12,9 +12,10 @@ RUN apt-get update && apt-get install git -y
 #     package1 \
 RUN pip3 install \
       numpy \
-      scipy
+      numpy-quaternion \
+      scipy 
 
-RUN apt-get install python3-tk
+RUN apt-get install python3-tk -y
 
 # # Install ROS dependencies
 # RUN apt-get update && apt-get install --no-install-recommends -y \
