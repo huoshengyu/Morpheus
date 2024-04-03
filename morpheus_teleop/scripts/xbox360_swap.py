@@ -1,8 +1,11 @@
 #! /usr/bin/env python3
 
+import sys
 import numpy as np
 import rospy
 import tf2_ros
+import moveit_commander
+import moveit_msgs.msg
 import geometry_msgs.msg   
 import sensor_msgs.msg 
 import control_msgs.msg
@@ -97,6 +100,8 @@ if __name__ == '__main__':
 
     tf_buffer = tf2_ros.Buffer()
     tf_listener = tf2_ros.TransformListener(tf_buffer)
+
+    moveit_commander.roscpp_initialize(sys.argv)
 
     teleop_twist_joy = TeleopTwistJoySwapFrame()
 
