@@ -266,6 +266,11 @@ class CollisionNode
                 moveit_msgs::ContactInformation nearest_msg = contactToContactInformation(nearest_contact);
                 g_nearest_publisher.publish(nearest_msg);
             }
+            else
+            {
+                moveit_msgs::ContactInformation nearest_msg = contactToContactInformation(g_sorted_contacts[0]);
+                g_nearest_publisher.publish(nearest_msg);
+            }
 
             // Publish contact map as special msg type
             morpheus_msgs::ContactMap contactmap_msg;

@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.animation as animation
 import numpy as np
+from scipy.spatial.transform import Rotation as R
 
 import sys
 
@@ -27,51 +28,94 @@ class Analysis():
         self.column_label_dict = {}
         for i in range(len(self.column_labels)):
             self.column_label_dict[self.column_labels[i]] = i
-        self.data = np.array(np.genfromtxt(filename, delimiter=",", dtype=None, skip_header=1, autostrip=True, unpack=True))
-        print(np.shape(self.data))
+        self.data = np.array(np.genfromtxt(filename, delimiter=",", dtype='unicode', skip_header=1, autostrip=True, unpack=True))
 
     def plot(self):
         if self.data is None:
             print("No data to plot! Run read(filename) first.")
             return
         
-        # Plot all data for sanity checking
+        # Plot arbitrary data for sanity checking
         plt.figure("All columns")
-        for i in range(1, len(self.column_labels)):
-            plt.plot(self.data[0], self.data[i])
+        t = self.data[0].astype(np.float64)
+        for i in range(12, 16):
+            plt.plot(t, self.data[i].astype(np.float64))
         
         # Plot distance to nearest collision
         plt.figure("Distance to collision")
-        plt.plot(self.data[0], self.data[self.column_label_dict["nearest_collision_depth"]])
+        d = self.data[self.column_label_dict["nearest_collision_depth"]].astype(np.float64)
+        plt.plot(t, d)
 
-        def update_lines(step, line_data, line_plots):
-            for line_plot, line_datum in zip(np.array(line_plots), np.array(line_data)):
-                line_plot.set_data(line_datum[:step,:2].T)
-                line_plot.set_3d_properties(line_datum[:step,2])
-            return line_plots
+        def update_lines(step, data, plots):
+            for plot, datum in zip(plots, data):
+                plot.set_data(datum[:step,:2].T)
+                plot.set_3d_properties(datum[:step,2])
+            return plots
+        
+        def update_position_rotation(step, position_data_by_link, position_plots, rotation_matrices_by_link, rotation_plots):
+            for position_plot, position_data, rotation_plot, rotation_matrices in zip(position_plots, position_data_by_link, rotation_plots, rotation_matrices_by_link):
+                position_plot.set_data(position_data[:step,:2].T)
+                position_plot.set_3d_properties(position_data[:step,2])
+                
+                x_vector = np.array(rotation_matrices[step-1,:,0].T)
+                print(step)
+                print(x_vector)
+                x_vector_data = np.array([position_data[step-1], np.add(position_data[step-1], x_vector)])
+                rotation_plot.set_data(x_vector_data[:,:2].T)
+                rotation_plot.set_3d_properties(x_vector_data[:,2])
+
+            plots = np.concatenate((position_plots, rotation_plots))
+            return position_plots
+
+        # Set common info for plotting over time
+        step_size = 5
+        num_steps = len(self.data[0]) // step_size
+        links = ["tcp_link"]
 
         # Set info for plotting position over time
-        num_steps = len(self.data[:,0])
-        links = ["tcp_link"]
         position_suffixes = ["_position_x", "_position_y", "_position_z"]
-        link_positions = [[link + suffix for suffix in position_suffixes] for link in links]
-        line_data = [[self.data[self.column_label_dict[position]] for position in link] for link in link_positions]
+        position_labels_by_link = [[link + suffix for suffix in position_suffixes] for link in links]
+        position_data_by_link = np.array([np.transpose([self.data[self.column_label_dict[label]].astype(np.float64) for label in position_labels]) for position_labels in position_labels_by_link])
+
+        # Set info for plotting quaternion over time
+        quaternion_suffixes = ["_quaternion_x", "_quaternion_y", "_quaternion_z", "_quaternion_w"]
+        quaternion_labels_by_link = [[link + suffix for suffix in quaternion_suffixes] for link in links]
+        quaternion_data_by_link = np.array([np.transpose([self.data[self.column_label_dict[label]].astype(np.float64) for label in quaternion_labels]) for quaternion_labels in quaternion_labels_by_link])
+
+        # Get slice of data
+        position_data_by_link = position_data_by_link[:,::step_size,:]
+        quaternion_data_by_link = quaternion_data_by_link[:,::step_size,:]
+
+        # Calculate directions of xyz axis lines
+        rotation_matrices_by_link = np.empty(shape=(len(links), num_steps, 3, 3), dtype=np.float64)
+        for i in range(len(links)):
+            rotation_matrices = np.empty(shape=(num_steps, 3, 3), dtype=np.float64)
+            for j in range(num_steps):
+                rotation = R.from_quat(quaternion_data_by_link[i,j])
+                rotation_matrices[j] = np.array(rotation.as_matrix())
+            rotation_matrices_by_link[i] = rotation_matrices
 
         # Attaching 3D axis to the figure
         fig = plt.figure("tcp_link position")
         ax = fig.add_subplot(projection="3d")
         
         # Create lines initially without data
-        line_plots = [ax.plot([], [], [])[0] for _ in links]
+        position_plots = [ax.plot([], [], [])[0] for _ in links]
+        rotation_plots = [ax.plot([], [], [])[0] for _ in links]
 
         # Setting the axes properties
-        ax.set(xlim3d=(-1, 1), xlabel='X')
-        ax.set(ylim3d=(-1, 1), ylabel='Y')
-        ax.set(zlim3d=(-1, 1), zlabel='Z')
-
+        # ax.set(xlim3d=(-1, 1), xlabel='X')
+        # ax.set(ylim3d=(-1, 1), ylabel='Y')
+        # ax.set(zlim3d=(-1, 1), zlabel='Z')
+        print("Starting animation")
         # Creating the Animation object
         ani = animation.FuncAnimation(
-        fig, update_lines, num_steps, fargs=(line_data, line_plots), interval=100)
+            fig, update_position_rotation, num_steps, 
+                fargs=(position_data_by_link, 
+                position_plots, 
+                rotation_matrices_by_link, 
+                rotation_plots), 
+                interval=50, repeat_delay=0)
 
         plt.show()
 
@@ -79,7 +123,7 @@ class Analysis():
 
 if __name__=="__main__":
 
-    filename = "/root/catkin_ws/src/morpheus/morpheus_data/data/UR5e_simkeyhole_0_2024-03-12_16h49m22s.csv"
+    filename = "/root/catkin_ws/src/morpheus/morpheus_data/data/UR5e_test1_0_2024-04-02_19h21m25s.csv"
     if len(sys.argv) > 1:
         filename = sys.argv[1]
 

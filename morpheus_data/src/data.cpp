@@ -255,7 +255,7 @@ class DataNode
             // std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
             // std::chrono::duration<double, std::milli> time_elapsed = t2 - t1;
             // g_next_line << time_elapsed.count() << ", ";
-            g_next_line << robot_time.nsec << ", ";
+            g_next_line << robot_time.toSec() << ", ";
 
             // Get info about the nearest collision
             // Body 1 (should always be robot link)
