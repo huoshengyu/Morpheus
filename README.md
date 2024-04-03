@@ -1,3 +1,9 @@
+Follow docker install instructions in "Morpheus ROS Help" here:
+
+https://www.notion.so/Morpheus-Student-Group-4d9b4c5947c34823b4dcc76b30b47f8b
+
+
+
 In same directory as dockerfile:
 
 Build the docker image and container on first run, or just open it on subsequent runs:
