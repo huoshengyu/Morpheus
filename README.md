@@ -4,6 +4,9 @@ Build the docker image and container on first run, or just open it on subsequent
 
 docker compose up
 
+
+Inside the docker container:
+
 Build catkin workspace (must do on first run and whenever C code is changed):
 
 catkin build -s
