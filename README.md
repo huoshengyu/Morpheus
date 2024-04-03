@@ -11,6 +11,10 @@ Build the docker image and container on first run, or just open it on subsequent
 docker compose up
 ```
 
+# In the VSCode Docker extension:
+
+Right click on the morpheus docker container and select "Start", then "Attach Visual Studio Code".
+
 # Inside the docker container:
 
 Build catkin workspace (must do on first run and whenever C code is changed):
