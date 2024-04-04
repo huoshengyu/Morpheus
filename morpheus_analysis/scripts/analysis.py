@@ -36,16 +36,28 @@ class Analysis():
             return
         
         # Plot arbitrary data for sanity checking
-        plt.figure("All columns")
+        column_numbers = range(12,16)
+        plt.figure("Columns " + str(list(column_numbers)))
         t = self.data[0].astype(np.float64)
-        for i in range(12, 16):
+        for i in column_numbers:
             plt.plot(t, self.data[i].astype(np.float64))
+        plt.legend([self.column_labels[i] for i in column_numbers], bbox_to_anchor=(1.04, 0.5), loc="center left")
+        plt.tight_layout()
         
         # Plot distance to nearest collision
         plt.figure("Distance to collision")
         d = self.data[self.column_label_dict["nearest_collision_depth"]].astype(np.float64)
         plt.plot(t, d)
 
+        # Plot joint states
+        plt.figure("Joint states")
+        joint_state_labels = [column_label for column_label in self.column_labels if "_joint" in column_label]
+        for label in joint_state_labels:
+            plt.plot(t, self.data[self.column_label_dict[label]].astype(np.float64))
+        plt.legend(joint_state_labels, bbox_to_anchor=(1.04, 0.5), loc="center left")
+        plt.tight_layout()
+
+        # Prepare functions for animated plot
         def update_lines(step, data, plots):
             for plot, datum in zip(plots, data):
                 plot.set_data(datum[:step,:2].T)
@@ -64,8 +76,7 @@ class Analysis():
                 x_vector = np.array(rotation_matrices[step-1,:,1].T) * axis_vector_scale
                 y_vector = np.array(rotation_matrices[step-1,:,2].T) * axis_vector_scale
                 z_vector = np.array(-rotation_matrices[step-1,:,0].T) * axis_vector_scale
-                print(step)
-                print(x_vector)
+
                 x_vector_data = np.array([position_data[step-1], np.add(position_data[step-1], x_vector)])
                 y_vector_data = np.array([position_data[step-1], np.add(position_data[step-1], y_vector)])
                 z_vector_data = np.array([position_data[step-1], np.add(position_data[step-1], z_vector)])
