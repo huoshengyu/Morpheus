@@ -25,13 +25,13 @@ keybinds = {
     'a':[0,0,-1], # Translate left
     's':[0,1,1], # Translate backward
     'd':[0,0,1], # Translate right
-    'q':[0,5,1], # Translate down
-    'e':[0,2,1], # Translate up
+    'q':[0,2,-1], # Translate down
+    'e':[1,4,1], # Translate up
     'i':[0,4,-1], # Pitch up
-    'j':[0,3,-1], # Pitch down
-    'k':[0,4,1], # Yaw left
+    'k':[0,4,1], # Pitch down
+    'j':[0,3,-1], # Yaw left
     'l':[0,3,1], # Yaw right
-    'u':[1,4,1], # Roll left
+    'u':[0,5,-1], # Roll left
     'o':[1,5,1], # Roll right
     '1':[1,0,1], # Close gripper
     '2':[1,1,1], # Open gripper

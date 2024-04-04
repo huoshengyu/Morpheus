@@ -30,16 +30,15 @@ class TeleopTwistJoySwapFrame(TeleopTwistJoy):
         # Perform coordinate transfer by rotating to target_frame from source_frame
         rotated_axes = np.array(scaled_axes)
         
-        if self.use_effector_frame:
-            # Lookup the transform (target_frame) from (source_frame)
-            transform = tf_buffer.lookup_transform(target_frame, source_frame, rospy.Time(0), rospy.Duration(1.0))
-            
-            effector_rotation = [transform.transform.rotation.x, transform.transform.rotation.y, transform.transform.rotation.z, transform.transform.rotation.w]
+        # Lookup the transform (target_frame) from (source_frame)
+        transform = tf_buffer.lookup_transform(target_frame, source_frame, rospy.Time(0), rospy.Duration(1.0))
+        
+        effector_quaternion = [transform.transform.rotation.x, transform.transform.rotation.y, transform.transform.rotation.z, transform.transform.rotation.w]
 
-            effector_rotation = np.array(R.from_quat(effector_rotation).as_matrix())
+        effector_rotation = R.from_quat(effector_quaternion)
 
-            # Apply the rotation matrix
-            rotated_axes = np.concatenate((np.matmul(effector_rotation, rotated_axes[:3]), np.matmul(effector_rotation, rotated_axes[3:])))
+        # Apply the rotation matrix
+        rotated_axes = np.concatenate((effector_rotation.apply(rotated_axes[:3]), effector_rotation.apply(rotated_axes[3:])))
         return rotated_axes
 
     def rearrange_axes(self, rotated_axes):
@@ -48,11 +47,11 @@ class TeleopTwistJoySwapFrame(TeleopTwistJoy):
             if self.use_effector_frame:
                 # Rearrange the axes to make the controls more intuitive
                 r_control_linear = np.array([[ 1,  0,  0],
-                                                [ 0,  1,  0],
-                                                [ 0,  0,  1]])
+                                                [ 0,  0,  1],
+                                                [ 0, -1,  0]])
                 r_control_angular = np.array([[ 1,  0,  0],
-                                                [ 0,  1,  0],
-                                                [ 0,  0,  1]])
+                                                [ 0,  0,  1],
+                                                [ 0, -1,  0]])
 
                 rearranged_axes = np.concatenate((np.matmul(r_control_linear, rotated_axes[:3]), np.matmul(r_control_angular, rotated_axes[3:])))
 
@@ -83,7 +82,9 @@ class TeleopTwistJoySwapFrame(TeleopTwistJoy):
                 self.already_swapped = False
 
             scaled_axes = self.msg_to_axes(msg)
-            rotated_axes = self.rotate_axes(scaled_axes)
+            rotated_axes = np.array(scaled_axes)
+            if self.use_effector_frame:
+                rotated_axes = self.rotate_axes(scaled_axes)
             rearranged_axes = self.rearrange_axes(rotated_axes)
             return rearranged_axes
         else:
