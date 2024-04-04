@@ -52,20 +52,38 @@ class Analysis():
                 plot.set_3d_properties(datum[:step,2])
             return plots
         
-        def update_position_rotation(step, position_data_by_link, position_plots, rotation_matrices_by_link, rotation_plots):
-            for position_plot, position_data, rotation_plot, rotation_matrices in zip(position_plots, position_data_by_link, rotation_plots, rotation_matrices_by_link):
+        def update_position_rotation(step, position_data_by_link, position_plots_by_link, rotation_matrices_by_link, rotation_plots_by_link):
+            # For each step, get all previous position data and get the current rotation vector
+            for position_plot, position_data, rotation_plots, rotation_matrices in zip(position_plots_by_link, position_data_by_link, rotation_plots_by_link, rotation_matrices_by_link):
                 position_plot.set_data(position_data[:step,:2].T)
                 position_plot.set_3d_properties(position_data[:step,2])
+                position_plot.set_color("black")
                 
-                x_vector = np.array(rotation_matrices[step-1,:,0].T)
+                # Get axis vectors of the effector frame. Note they must be additionally rotated to match the control scheme.
+                axis_vector_scale = 0.2
+                x_vector = np.array(rotation_matrices[step-1,:,1].T) * axis_vector_scale
+                y_vector = np.array(rotation_matrices[step-1,:,2].T) * axis_vector_scale
+                z_vector = np.array(-rotation_matrices[step-1,:,0].T) * axis_vector_scale
                 print(step)
                 print(x_vector)
                 x_vector_data = np.array([position_data[step-1], np.add(position_data[step-1], x_vector)])
-                rotation_plot.set_data(x_vector_data[:,:2].T)
-                rotation_plot.set_3d_properties(x_vector_data[:,2])
+                y_vector_data = np.array([position_data[step-1], np.add(position_data[step-1], y_vector)])
+                z_vector_data = np.array([position_data[step-1], np.add(position_data[step-1], z_vector)])
 
-            plots = np.concatenate((position_plots, rotation_plots))
-            return position_plots
+                rotation_plots[0].set_data(x_vector_data[:,:2].T)
+                rotation_plots[0].set_3d_properties(x_vector_data[:,2])
+                rotation_plots[0].set_color("red")
+
+                rotation_plots[1].set_data(y_vector_data[:,:2].T)
+                rotation_plots[1].set_3d_properties(y_vector_data[:,2])
+                rotation_plots[1].set_color("green")
+
+                rotation_plots[2].set_data(z_vector_data[:,:2].T)
+                rotation_plots[2].set_3d_properties(z_vector_data[:,2])
+                rotation_plots[0].set_color("blue")
+
+            plots = [position_plots_by_link] + rotation_plots_by_link
+            return position_plots_by_link
 
         # Set common info for plotting over time
         step_size = 5
@@ -100,8 +118,8 @@ class Analysis():
         ax = fig.add_subplot(projection="3d")
         
         # Create lines initially without data
-        position_plots = [ax.plot([], [], [])[0] for _ in links]
-        rotation_plots = [ax.plot([], [], [])[0] for _ in links]
+        position_plots_by_link = [ax.plot([], [], [])[0] for _ in links]
+        rotation_plots_by_link = [[ax.plot([], [], [])[0] for i in range(3)] for _ in links]
 
         # Setting the axes properties
         # ax.set(xlim3d=(-1, 1), xlabel='X')
@@ -112,9 +130,9 @@ class Analysis():
         ani = animation.FuncAnimation(
             fig, update_position_rotation, num_steps, 
                 fargs=(position_data_by_link, 
-                position_plots, 
+                position_plots_by_link, 
                 rotation_matrices_by_link, 
-                rotation_plots), 
+                rotation_plots_by_link), 
                 interval=50, repeat_delay=0)
 
         plt.show()
