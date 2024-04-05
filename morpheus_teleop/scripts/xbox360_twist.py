@@ -74,10 +74,10 @@ class TeleopTwistJoy():
 
         # Button remapping so that left side = translation, right side = rotation
         
-        scaled_axes = [-axes[1] * linear_scale, 
+        scaled_axes = [ axes[1] * linear_scale, 
                         -axes[0] * linear_scale, 
                         ((buttons[4]) - (axes[2] < 0.0)) * linear_scale, 
-                        -axes[3] * angular_scale, 
+                        axes[3] * angular_scale, 
                         axes[4] * angular_scale, 
                         -((buttons[5]) - (axes[5] < 0.0)) * angular_scale]
 
@@ -98,10 +98,10 @@ class TeleopTwistJoy():
         # Rearrange the control axes to make the controls more intuitive
         try:
             r_control_linear = np.array([[ 0, -1,  0],
-                                            [ 1,  0,  0],
+                                            [-1,  0,  0],
                                             [ 0,  0,  1]])
             r_control_angular = np.array([[ 0, -1,  0],
-                                            [ 1,  0,  0],
+                                            [-1,  0,  0],
                                             [ 0,  0,  1]])
 
             rearranged_axes = np.concatenate((np.matmul(r_control_linear, rotated_axes[:3]), np.matmul(r_control_angular, rotated_axes[3:])))
