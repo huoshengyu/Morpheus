@@ -65,10 +65,11 @@ class CollisionNode
 {
     public:
         std::shared_ptr<planning_scene_monitor::PlanningSceneMonitor> g_planning_scene_monitor;
-        ros::Publisher g_distance_publisher;
-        ros::Publisher g_contacts_publisher;
-        ros::Publisher g_nearest_publisher;
-        ros::Publisher g_contactmap_publisher;
+        ros::Publisher g_contactmap_string_publisher;
+        ros::Publisher g_contactmap_msg_publisher;
+        ros::Publisher g_nearest_contact_publisher;
+        ros::Publisher g_nearest_distance_publisher;
+        ros::Publisher g_nearest_direction_publisher;
         collision_detection::CollisionResult g_c_res;
         collision_detection::CollisionRequest g_c_req;
         std::vector<collision_detection::Contact> g_sorted_contacts;
@@ -183,10 +184,11 @@ class CollisionNode
             */
 
             // Create collision publishers
-            g_distance_publisher = nh.advertise<std_msgs::Float64>("collision/distance", 0);
-            g_contacts_publisher = nh.advertise<std_msgs::String>("collision/contacts", 0);
-            g_nearest_publisher = nh.advertise<moveit_msgs::ContactInformation>("collision/nearest", 0);
-            g_contactmap_publisher = nh.advertise<morpheus_msgs::ContactMap>("collision/contactmap", 0);
+            g_contactmap_string_publisher = nh.advertise<std_msgs::String>("collision/contactmap/string", 0);
+            g_contactmap_msg_publisher = nh.advertise<morpheus_msgs::ContactMap>("collision/contactmap/msg", 0);
+            g_nearest_contact_publisher = nh.advertise<moveit_msgs::ContactInformation>("collision/nearest/contact", 0);
+            g_nearest_distance_publisher = nh.advertise<std_msgs::Float64>("collision/nearest/distance", 0);
+            g_nearest_direction_publisher = nh.advertise<geometry_msgs::Vector3>("collision/nearest/direction", 0);
 
             
             // Create a marker array publisher for publishing shapes to Rviz
@@ -247,30 +249,11 @@ class CollisionNode
 
         void publish()
         {
-            // Publish minimum distance
-            std_msgs::Float64 distance_msg;
-            distance_msg.data = g_c_res.distance;
-            g_distance_publisher.publish(distance_msg);
 
-            // Publish contact map as text
+            // Publish contact map as text string
             std_msgs::String contacts_msg;
             contacts_msg.data = contactMapToString(g_c_res.contacts);
-            g_contacts_publisher.publish(contacts_msg);
-
-            // Publish vector to nearest collision
-            std::pair<bool, collision_detection::Contact> pair = getNearestContact();
-            bool success = pair.first;
-            collision_detection::Contact nearest_contact = pair.second;
-            if (success)
-            {
-                moveit_msgs::ContactInformation nearest_msg = contactToContactInformation(nearest_contact);
-                g_nearest_publisher.publish(nearest_msg);
-            }
-            else
-            {
-                moveit_msgs::ContactInformation nearest_msg = contactToContactInformation(g_sorted_contacts[0]);
-                g_nearest_publisher.publish(nearest_msg);
-            }
+            g_contactmap_string_publisher.publish(contacts_msg);
 
             // Publish contact map as special msg type
             morpheus_msgs::ContactMap contactmap_msg;
@@ -289,7 +272,24 @@ class CollisionNode
                 contactmap_msg.keys.push_back(msg_key);
                 contactmap_msg.values.push_back(msg_value);
             }
-            g_contactmap_publisher.publish(contactmap_msg);
+            g_contactmap_msg_publisher.publish(contactmap_msg);
+
+            // Publish contact object associated with nearest collision
+            collision_detection::Contact nearest_contact = g_sorted_contacts[0];
+            moveit_msgs::ContactInformation nearest_msg = contactToContactInformation(nearest_contact);
+            g_nearest_contact_publisher.publish(nearest_msg);
+
+            // Publish distance associated with nearest contact
+            std_msgs::Float64 distance_msg;
+            distance_msg.data = nearest_contact.depth;
+            g_nearest_distance_publisher.publish(distance_msg);
+
+            // Publish direction associated with nearest contact
+            geometry_msgs::Vector3 direction_msg;
+            direction_msg.x = nearest_contact.normal[0];
+            direction_msg.y = nearest_contact.normal[1];
+            direction_msg.z = nearest_contact.normal[2];
+            g_nearest_direction_publisher.publish(direction_msg);
 
         }
 
