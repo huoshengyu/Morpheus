@@ -26,9 +26,42 @@ class TeleopTwistJoySwapFrame(TeleopTwistJoy):
         self.use_effector_frame = False
         self.already_swapped = False
 
-    def rotate_axes(self, scaled_axes, target_frame = "world", source_frame = "tcp_link"):
+    def rearrange_axes(self, scaled_axes):
+        rearranged_axes = scaled_axes
+        try:
+            if self.use_effector_frame:
+                # Rearrange the axes to make the controls more intuitive
+                r_control_linear = np.array([[ 1,  0,  0],
+                                                [ 0,  1,  0],
+                                                [ 0,  0,  1]])
+                r_control_angular = np.array([[ 1,  0,  0],
+                                                [ 0,  1,  0],
+                                                [ 0,  0,  1]])
+
+                rearranged_axes = np.concatenate((np.matmul(r_control_linear, scaled_axes[:3]), np.matmul(r_control_angular, scaled_axes[3:])))
+
+            else:
+                # Rearrange the axes to make the controls more intuitive
+                r_control_linear = np.array([[ 1,  0,  0],
+                                                [ 0,  1,  0],
+                                                [ 0,  0,  1]])
+                r_control_angular = np.array([[ 1,  0,  0],
+                                                [ 0,  1,  0],
+                                                [ 0,  0,  1]])
+
+                rearranged_axes = np.concatenate((np.matmul(r_control_linear, scaled_axes[:3]), np.matmul(r_control_angular, scaled_axes[3:])))
+            
+        except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
+            rospy.logwarn("Transform lookup failed!")
+        return rearranged_axes
+
+    def rotate_axes(self, rearranged_axes, target_frame = "world", source_frame = "tcp_link"):
         # Perform coordinate transfer by rotating to target_frame from source_frame
-        rotated_axes = np.array(scaled_axes)
+        rotated_axes = np.array(rearranged_axes)
+
+        effector_offset = R.from_matrix([[ 0,  1,  0],
+                                         [ 0,  0,  1],
+                                         [-1,  0,  0]])
         
         # Lookup the transform (target_frame) from (source_frame)
         transform = tf_buffer.lookup_transform(target_frame, source_frame, rospy.Time(0), rospy.Duration(1.0))
@@ -38,37 +71,10 @@ class TeleopTwistJoySwapFrame(TeleopTwistJoy):
         effector_rotation = R.from_quat(effector_quaternion)
 
         # Apply the rotation matrix
-        rotated_axes = np.concatenate((effector_rotation.apply(rotated_axes[:3]), effector_rotation.apply(rotated_axes[3:])))
+        offset_axes = np.concatenate((effector_offset.apply(rearranged_axes[:3]), effector_offset.apply(rearranged_axes[3:])))
+        rotated_axes = np.concatenate((effector_rotation.apply(offset_axes[:3]), effector_rotation.apply(offset_axes[3:])))
+        rotated_axes = np.multiply(rotated_axes, [-1, -1, 1, -1, -1, 1])
         return rotated_axes
-
-    def rearrange_axes(self, rotated_axes):
-        rearranged_axes = rotated_axes
-        try:
-            if self.use_effector_frame:
-                # Rearrange the axes to make the controls more intuitive
-                r_control_linear = np.array([[ 1,  0,  0],
-                                                [ 0,  0,  1],
-                                                [ 0,  1,  0]])
-                r_control_angular = np.array([[ 1,  0,  0],
-                                                [ 0,  0,  1],
-                                                [ 0,  1,  0]])
-
-                rearranged_axes = np.concatenate((np.matmul(r_control_linear, rotated_axes[:3]), np.matmul(r_control_angular, rotated_axes[3:])))
-
-            else:
-                # Rearrange the axes to make the controls more intuitive
-                r_control_linear = np.array([[ 0, -1,  0],
-                                                [-1,  0,  0],
-                                                [ 0,  0,  1]])
-                r_control_angular = np.array([[ 0, -1,  0],
-                                                [-1,  0,  0],
-                                                [ 0,  0,  1]])
-
-                rearranged_axes = np.concatenate((np.matmul(r_control_linear, rotated_axes[:3]), np.matmul(r_control_angular, rotated_axes[3:])))
-            
-        except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
-            rospy.logwarn("Transform lookup failed!")
-        return rearranged_axes
 
     def update(self, msg):
         if msg is not None:
@@ -82,19 +88,19 @@ class TeleopTwistJoySwapFrame(TeleopTwistJoy):
                 self.already_swapped = False
 
             scaled_axes = self.msg_to_axes(msg)
-            rotated_axes = np.array(scaled_axes)
+            rearranged_axes = self.rearrange_axes(scaled_axes)
+            rotated_axes = np.array(rearranged_axes)
             if self.use_effector_frame:
-                rotated_axes = self.rotate_axes(scaled_axes)
-            rearranged_axes = self.rearrange_axes(rotated_axes)
-            return rearranged_axes
+                rotated_axes = self.rotate_axes(rearranged_axes)
+            return rotated_axes
         else:
             return None
 
     def loop_once(self):
         msg = self.get_joy_msg()
-        rearranged_axes = self.update(msg)
-        if rearranged_axes is not None:
-            self.publish(rearranged_axes, msg)
+        rotated_axes = self.update(msg)
+        if rotated_axes is not None:
+            self.publish(rotated_axes, msg)
 
 if __name__ == '__main__':
     rospy.init_node('xbox360_twist')

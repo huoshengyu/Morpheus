@@ -74,11 +74,11 @@ class TeleopTwistJoy():
 
         # Button remapping so that left side = translation, right side = rotation
         
-        scaled_axes = [ axes[1] * linear_scale, 
-                        -axes[0] * linear_scale, 
+        scaled_axes = [ axes[0] * linear_scale, 
+                        -axes[1] * linear_scale, 
                         ((buttons[4]) - (axes[2] < 0.0)) * linear_scale, 
-                        axes[3] * angular_scale, 
-                        axes[4] * angular_scale, 
+                        -axes[4] * angular_scale, 
+                        -axes[3] * angular_scale, 
                         -((buttons[5]) - (axes[5] < 0.0)) * angular_scale]
 
         # Enforce a safety limit on speed
@@ -88,29 +88,28 @@ class TeleopTwistJoy():
         
         return scaled_axes
 
-    def rotate_axes(self, scaled_axes, target_frame = "world", source_frame = "tcp_link"):
-        # Perform coordinate transfer by rotating from 
-        rotated_axes = scaled_axes
-        return rotated_axes
-
-    def rearrange_axes(self, rotated_axes):
-        rearranged_axes = rotated_axes
+    def rearrange_axes(self, scaled_axes):
+        rearranged_axes = scaled_axes
         # Rearrange the control axes to make the controls more intuitive
         try:
-            r_control_linear = np.array([[ 0, -1,  0],
-                                            [-1,  0,  0],
+            r_control_linear = np.array([[ 1,  0,  0],
+                                            [ 0,  1,  0],
                                             [ 0,  0,  1]])
-            r_control_angular = np.array([[ 0, -1,  0],
-                                            [-1,  0,  0],
+            r_control_angular = np.array([[ 1,  0,  0],
+                                            [ 0,  1,  0],
                                             [ 0,  0,  1]])
 
-            rearranged_axes = np.concatenate((np.matmul(r_control_linear, rotated_axes[:3]), np.matmul(r_control_angular, rotated_axes[3:])))
-
+            rearranged_axes = np.concatenate((np.matmul(r_control_linear, scaled_axes[:3]), np.matmul(r_control_angular, scaled_axes[3:])))
         except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
             rospy.logwarn("Control axis rearrangement failed!")
         return rearranged_axes
+    
+    def rotate_axes(self, rearranged_axes, target_frame = "world", source_frame = "tcp_link"):
+        # Perform coordinate transfer by rotating from 
+        rotated_axes = rearranged_axes
+        return rotated_axes
 
-    def publish(self, rearranged_axes, msg):
+    def publish(self, rotated_axes, msg):
         # Publish pre-processed commands to the twist topic
         buttons = list(msg.buttons)
 
@@ -122,12 +121,12 @@ class TeleopTwistJoy():
         # self.angular_y_buffer.append(axes[4] * angular_scale)
         # self.angular_z_buffer.append((buttons[4] - buttons[5]) * angular_scale)
 
-        self.linear_x_buffer.append(rearranged_axes[0])
-        self.linear_y_buffer.append(rearranged_axes[1])
-        self.linear_z_buffer.append(rearranged_axes[2])
-        self.angular_x_buffer.append(rearranged_axes[3])
-        self.angular_y_buffer.append(rearranged_axes[4])
-        self.angular_z_buffer.append(rearranged_axes[5])
+        self.linear_x_buffer.append(rotated_axes[0])
+        self.linear_y_buffer.append(rotated_axes[1])
+        self.linear_z_buffer.append(rotated_axes[2])
+        self.angular_x_buffer.append(rotated_axes[3])
+        self.angular_y_buffer.append(rotated_axes[4])
+        self.angular_z_buffer.append(rotated_axes[5])
 
         twist = geometry_msgs.msg.Twist()
         twist.linear.x = sum(self.linear_x_buffer) / len(self.linear_x_buffer)
@@ -156,17 +155,17 @@ class TeleopTwistJoy():
     def update(self, msg):
         if msg is not None:
             scaled_axes = self.msg_to_axes(msg)
-            rotated_axes = self.rotate_axes(scaled_axes)
-            rearranged_axes = self.rearrange_axes(rotated_axes)
-            return rearranged_axes
+            rearranged_axes = self.rearrange_axes(scaled_axes)
+            rotated_axes = self.rotate_axes(rearranged_axes)
+            return rotated_axes
         else:
             return None
 
     def loop_once(self):
         if self.joy_msg is not None:
-            rearranged_axes = self.update(self.joy_msg)
-            if rearranged_axes is not None:
-                self.publish(rearranged_axes, self.joy_msg)
+            rotated_axes = self.update(self.joy_msg)
+            if rotated_axes is not None:
+                self.publish(rotated_axes, self.joy_msg)
 
     def callback(self, msg):
         # Retrieve joy_msg
