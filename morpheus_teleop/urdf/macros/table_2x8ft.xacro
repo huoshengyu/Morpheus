@@ -2,7 +2,7 @@
 
 <robot name="table_2x8ft" xmlns:xacro="http://www.ros.org/wiki/xacro">
   <xacro:macro name="table_2x8ft"
-    params="x:=0 y:=0 z:=0 scale:=0.0254 prefix parent">
+    params="x:=0 y:=0 z:=0 R:=0 P:=0 Y:=0 scale:=0.0254 prefix parent">
 
     <link name="${prefix}table_2x8ft">
         <inertial>

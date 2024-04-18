@@ -6,8 +6,8 @@
     <arg name="moveit_controller_config_file" default="$(find homestri_gazebo)/config/a_bot_moveit_controllers.yaml" />
     <arg name="use_rviz" default="true" />
 
-    <arg name="xacro_path" default="$(find morpheus_teleop)/urdf/scenes/a_bot_keyhole_scene.xacro"/>
-    <arg name="srdf_path" default="$(find morpheus_teleop)/srdf/scenes/a_bot_keyhole_scene.srdf"/>
+    <arg name="xacro_path" default="$(find morpheus_teleop)/urdf/scenes/a_bot_H_scene.xacro"/>
+    <arg name="srdf_path" default="$(find morpheus_teleop)/srdf/scenes/a_bot_scene.srdf"/>
 
 
     <!-- launch a_bot-fake -->

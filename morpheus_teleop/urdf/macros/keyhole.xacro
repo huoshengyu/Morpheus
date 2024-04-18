@@ -7,75 +7,83 @@
   <xacro:include filename="$(find morpheus_teleop)/urdf/macros/wall_4x12in.xacro" />
 
   <xacro:macro name="keyhole"
-    params="x:=0 y:=0 z:=0 scale:=0.0254 prefix parent">
+    params="x:=0 y:=0 z:=0 R:=0 P:=0 Y:=0 scale:=0.0254 prefix parent">
+
+    <link name="${prefix}keyhole"/>
 
     <xacro:shelf
-        prefix="${prefix}"
-        parent="${parent}"
+        x="0"
+        y="0"
+        z="0"
+        R="0"
+        P="0"
+        Y="0"
+        prefix="${prefix}keyhole_shelf_"
+        parent="${prefix}keyhole"
         scale="${scale}"
     />
 
     <xacro:bar_4in
-        prefix="${prefix}1"
-        parent="${parent}"
+        x="${scale * 4}"
+        y="${scale * 4}"
+        z="${scale * 5}"
+        R="1.57079632679"
+        P="0"
+        Y="0"
+        prefix="${prefix}keyhole_spacer1_"
+        parent="${prefix}keyhole"
         scale="${scale}"
     />
     <xacro:bar_4in
-        prefix="${prefix}2"
-        parent="${parent}"
+        x="${scale * 7}"
+        y="${scale * 4}"
+        z="${scale * 5}"
+        R="1.57079632679"
+        P="0"
+        Y="0"
+        prefix="${prefix}keyhole_spacer2_"
+        parent="${prefix}keyhole"
         scale="${scale}"
     />
     <xacro:bar_4in
-        prefix="${prefix}3"
-        parent="${parent}"
+        x="${scale * 4}"
+        y="${scale * 4}"
+        z="${scale * 6}"
+        R="1.57079632679"
+        P="0"
+        Y="0"
+        prefix="${prefix}keyhole_spacer3_"
+        parent="${prefix}keyhole"
         scale="${scale}"
     />
     <xacro:bar_4in
-        prefix="${prefix}4"
-        parent="${parent}"
+        x="${scale * 7}"
+        y="${scale * 4}"
+        z="${scale * 6}"
+        R="1.57079632679"
+        P="0"
+        Y="0"
+        prefix="${prefix}keyhole_spacer4_"
+        parent="${prefix}keyhole"
         scale="${scale}"
     />
 
     <xacro:wall_4x12in
-        prefix="${prefix}"
-        parent="${parent}"
+        x="0"
+        y="0"
+        z="${scale * 7}"
+        R="0"
+        P="0"
+        Y="0"
+        prefix="${prefix}keyhole_top_"
+        parent="${prefix}keyhole"
         scale="${scale}"
     />
 
-    <joint name="${prefix}keyhole_shelf_joint" type="fixed">
+    <joint name="${prefix}keyhole_joint" type="fixed">
       <parent link="${parent}" />
-      <child link="${prefix}shelf" />
-      <origin rpy="0 0 0" xyz="${x} ${y} ${z}" />
-    </joint>
-
-    <joint name="${prefix}keyhole_1bar_4in_joint" type="fixed">
-      <parent link="${parent}" />
-      <child link="${prefix}1bar_4in" />
-      <origin rpy="1.57079632679 0 0" xyz="${scale * 4 + x} ${scale * 4 + y} ${scale * 5 + z}" />
-    </joint>
-
-    <joint name="${prefix}keyhole_2bar_4in_joint" type="fixed">
-      <parent link="${parent}" />
-      <child link="${prefix}2bar_4in" />
-      <origin rpy="1.57079632679 0 0" xyz="${scale * 7 + x} ${scale * 4 + y} ${scale * 5 + z}" />
-    </joint>
-
-    <joint name="${prefix}keyhole_3bar_4in_joint" type="fixed">
-      <parent link="${parent}" />
-      <child link="${prefix}3bar_4in" />
-      <origin rpy="1.57079632679 0 0" xyz="${scale * 4 + x} ${scale * 4 + y} ${scale * 6 + z}" />
-    </joint>
-
-    <joint name="${prefix}keyhole_4bar_4in_joint" type="fixed">
-      <parent link="${parent}" />
-      <child link="${prefix}4bar_4in" />
-      <origin rpy="1.57079632679 0 0" xyz="${scale * 7 + x} ${scale * 4 + y} ${scale * 6 + z}" />
-    </joint>
-
-    <joint name="${prefix}keyhole_wall_4x12in_joint" type="fixed">
-      <parent link="${parent}" />
-      <child link="${prefix}wall_4x12in" />
-      <origin rpy="0 0 0" xyz="${x} ${y} ${scale * 7 + z}" />
+      <child link="${prefix}keyhole" />
+      <origin xyz="${x} ${y} ${z}" rpy="${R} ${P} ${Y}" />
     </joint>
 
   </xacro:macro>

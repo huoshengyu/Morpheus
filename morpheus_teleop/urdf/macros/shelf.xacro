@@ -6,69 +6,60 @@
   <xacro:include filename="$(find morpheus_teleop)/urdf/macros/bar_4in.xacro" />
 
   <xacro:macro name="shelf"
-    params="x:=0 y:=0 z:=0 scale:=0.0254 prefix parent">
+    params="x:=0 y:=0 z:=0 R:=0 P:=0 Y:=0 scale:=0.0254 prefix parent">
 
     <link name="${prefix}shelf"/>
 
     <xacro:wall_4x12in
+        x="${x}"
+        y="${y}"
+        z="${scale * 4 + z}"
         prefix="${prefix}shelf_"
-        parent="${parent}"
+        parent="${prefix}shelf"
         scale="${scale}"
     />
 
     <xacro:bar_4in
+        x="${x}"
+        y="${y}"
+        z="${z}"
         prefix="${prefix}shelf_1"
-        parent="${parent}"
+        parent="${prefix}shelf"
         scale="${scale}"
     />
 
     <xacro:bar_4in
+        x="${scale * 11 + x}"
+        y="${y}"
+        z="${z}"
         prefix="${prefix}shelf_2"
-        parent="${parent}"
+        parent="${prefix}shelf"
         scale="${scale}"
     />
 
     <xacro:bar_4in
+        x="${x}"
+        y="${scale * 3 + y}"
+        z="${z}"
         prefix="${prefix}shelf_3"
-        parent="${parent}"
+        parent="${prefix}shelf"
         scale="${scale}"
     />
 
     <xacro:bar_4in
+        x="${scale * 11 + x}"
+        y="${scale * 3 + y}"
+        z="${z}"
         prefix="${prefix}shelf_4"
-        parent="${parent}"
+        parent="${prefix}shelf"
         scale="${scale}"
     />
 
-    <joint name="${prefix}shelf_wall_4x12in_joint" type="fixed">
-      <parent link="${prefix}shelf" />
-      <child link="${prefix}shelf_wall_4x12in" />
-      <origin xyz="${x} ${y} ${scale * 4 + z}" />
-    </joint>
-
-    <joint name="${prefix}shelf_leg1_joint" type="fixed">
-      <parent link="${prefix}shelf" />
-      <child link="${prefix}shelf_1bar_4in" />
-      <origin xyz="${x} ${y} ${z}" />
-    </joint>
-
-    <joint name="${prefix}shelf_leg2_joint" type="fixed">
-      <parent link="${prefix}shelf" />
-      <child link="${prefix}shelf_2bar_4in" />
-      <origin xyz="${scale * 11 + x} ${y} ${z}" />
-    </joint>
-
-    <joint name="${prefix}shelf_leg3_joint" type="fixed">
-      <parent link="${prefix}shelf" />
-      <child link="${prefix}shelf_3bar_4in" />
-      <origin xyz="${x} ${scale * 3 + y} ${z}" />
-    </joint>
-
-    <joint name="${prefix}shelf_leg4_joint" type="fixed">
-      <parent link="${prefix}shelf" />
-      <child link="${prefix}shelf_4bar_4in" />
-      <origin xyz="${scale * 11 + x} ${scale * 3 + y} ${z}" />
-    </joint>
+    <joint name="${prefix}shelf_joint" type="fixed">
+        <parent link="${parent}" />
+        <child link="${prefix}shelf" />
+        <origin xyz="${x} ${y} ${z}" rpy="${R} ${P} ${Y}" />
+      </joint>
 
   </xacro:macro>
 

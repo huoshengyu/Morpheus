@@ -32,6 +32,13 @@
             </geometry>
         </collision>
     </link>
+
+    <joint name="${prefix}wall_6x12in_joint" type="fixed">
+        <parent link="${parent}" />
+        <child link="${prefix}wall_6x12in" />
+        <origin xyz="${x} ${y} ${z}" rpy="${R} ${P} ${Y}" />
+    </joint>
+
   </xacro:macro>
 
 </robot>

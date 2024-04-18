@@ -6,52 +6,60 @@
   <xacro:include filename="$(find morpheus_teleop)/urdf/macros/wall_4x12in.xacro" />
   
   <xacro:macro name="double_sided_shelf"
-    params="x:=0 y:=0 z:=0 scale:=0.0254 prefix parent">
+    params="x:=0 y:=0 z:=0 R:=0 P:=0 Y:=0 scale:=0.0254 prefix parent">
+
+    <link name="${prefix}double_sided_shelf"/>
 
     <xacro:shelf
+        x="${scale * 4}"
+        y="0"
+        z="0"
+        R="0"
+        P="0"
+        Y="${pi/2}"
         prefix="${prefix}left_"
-        parent="${parent}"
+        parent="${prefix}double_sided_shelf"
         scale="${scale}"
     />
     <xacro:shelf
+        x="${scale * 9}"
+        y="0"
+        z="0"
+        R="0"
+        P="0"
+        Y="${pi/2}"
         prefix="${prefix}right_"
-        parent="${parent}"
+        parent="${prefix}double_sided_shelf"
         scale="${scale}"
     />
 
     <xacro:wall_4x12in
+        x="${scale * 4}"
+        y="0"
+        z="0"
+        R="${pi/2}"
+        P="0"
+        Y="${pi/2}"
         prefix="${prefix}bottom_"
-        parent="${parent}"
+        parent="${prefix}double_sided_shelf"
         scale="${scale}"
     />
     <xacro:wall_4x12in
+        x="${scale * 4}"
+        y="0"
+        z="${scale * 4}"
+        R="${pi/2}"
+        P="0"
+        Y="${pi/2}"
         prefix="${prefix}top_"
-        parent="${parent}"
+        parent="${prefix}double_sided_shelf"
         scale="${scale}"
     />
 
-    <joint name="${prefix}double_sided_shelf_left_shelf_joint" type="fixed">
+    <joint name="${prefix}double_sided_shelf_joint" type="fixed">
       <parent link="${parent}" />
-      <child link="${prefix}left_shelf" />
-      <origin rpy="0 0 1.57079632679" xyz="${scale * 4 + x} ${y} ${z}" />
-    </joint>
-
-    <joint name="${prefix}double_sided_shelf_right_shelf_joint" type="fixed">
-      <parent link="${parent}" />
-      <child link="${prefix}right_shelf" />
-      <origin rpy="0 0 1.57079632679" xyz="${scale * 9 + x} ${y} ${z}" />
-    </joint>
-
-    <joint name="${prefix}double_sided_shelf_bottom_wall_4x12in_joint" type="fixed">
-      <parent link="${parent}" />
-      <child link="${prefix}bottom_wall_4x12in" />
-      <origin rpy="1.57079632679 0 1.57079632679" xyz="${scale * 4 + x} ${y} ${z}" />
-    </joint>
-
-    <joint name="${prefix}double_sided_shelf_top_wall_4x12in_joint" type="fixed">
-      <parent link="${parent}" />
-      <child link="${prefix}top_wall_4x12in" />
-      <origin rpy="1.57079632679 0 1.57079632679" xyz="${scale * 4 + x} ${y} ${scale * 4 + z}" />
+      <child link="${prefix}double_sided_shelf" />
+      <origin xyz="${x} ${y} ${z}" rpy="${R} ${P} ${Y}" />
     </joint>
 
   </xacro:macro>

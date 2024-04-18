@@ -6,52 +6,61 @@
   <xacro:include filename="$(find morpheus_teleop)/urdf/macros/wall_4x12in.xacro" />
 
   <xacro:macro name="trees"
-    params="x:=0 y:=0 z:=0 scale:=0.0254 prefix parent">
+    params="x:=0 y:=0 z:=0 R:=0 P:=0 Y:=0 scale:=0.0254 prefix parent">
+
+    <link name="${prefix}trees"/>
 
     <xacro:wall_4x12in
+        x="0"
+        y="0"
+        z="0"
+        R="0"
+        P="${pi/2}"
+        Y="0"
         prefix="${prefix}"
-        parent="${parent}"
+        parent="${prefix}trees"
         scale="${scale}"
     />
     <xacro:bar_4in
+        x="0"
+        y="0"
+        z="${scale * 1}"
+        R="0"
+        P="0"
+        Y="0"
         prefix="${prefix}1"
-        parent="${parent}"
+        parent="${prefix}trees"
         scale="${scale}"
     />
     <xacro:bar_4in
+        x="${scale * 5.5}"
+        y="0"
+        z="${scale * 1}"
+        R="0"
+        P="0"
+        Y="0"
         prefix="${prefix}2"
-        parent="${parent}"
+        parent="${prefix}trees"
         scale="${scale}"
     />
     <xacro:bar_4in
+        x="${scale * 11}"
+        y="0"
+        z="${scale * 1}"
+        R="0"
+        P="0"
+        Y="0"
         prefix="${prefix}3"
-        parent="${parent}"
+        parent="${prefix}trees"
         scale="${scale}"
     />
 
-    <joint name="${prefix}trees_wall_4x12in_joint" type="fixed">
+    <joint name="${prefix}trees_joint" type="fixed">
       <parent link="${parent}" />
-      <child link="${prefix}wall_4x12in" />
-      <origin rpy="0 1.57079632679 0" xyz="${x} ${y} ${z}" />
+      <child link="${prefix}trees"/>
+      <origin xyz="${x} ${y} ${z}" rpy="${R} ${P} ${Y}" />
     </joint>
 
-    <joint name="${prefix}trees_1bar_4in_joint" type="fixed">
-      <parent link="${parent}" />
-      <child link="${prefix}1bar_4in" />
-      <origin rpy="0 0 0" xyz="${x} ${y} ${scale * 1 + z}" />
-    </joint>
-
-    <joint name="${prefix}trees_2bar_4in_joint" type="fixed">
-      <parent link="${parent}" />
-      <child link="${prefix}2bar_4in" />
-      <origin rpy="0 0 0" xyz="${scale * 5.5 + x} ${y} ${scale * 1 + z}" />
-    </joint>
-
-    <joint name="${prefix}trees_3bar_4in_joint" type="fixed">
-      <parent link="${parent}" />
-      <child link="${prefix}3bar_4in" />
-      <origin rpy="0 0 0" xyz="${scale * 11 + x} ${y} ${scale * 1 + z}" />
-    </joint>
   </xacro:macro>
 
 </robot>

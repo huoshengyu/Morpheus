@@ -2,7 +2,7 @@
 
 <robot name="foam" xmlns:xacro="http://www.ros.org/wiki/xacro">
   <xacro:macro name="foam"
-    params="x:=0 y:=0 z:=0 scale:=0.05 prefix parent">
+    params="x:=0 y:=0 z:=0 R:=0 P:=0 Y:=0 scale:=0.05 prefix parent">
 
     <link name="${prefix}foam">
         <contact>
@@ -36,7 +36,7 @@
     <joint name="${prefix}foam_joint" type="fixed">
       <parent link="${parent}" />
       <child link="${prefix}foam" />
-      <origin xyz="${x} ${y} ${z}" />
+      <origin xyz="${x} ${y} ${z}" rpy="${R} ${P} ${Y}" />
     </joint>
   </xacro:macro>
 
