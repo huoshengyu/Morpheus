@@ -27,14 +27,10 @@ class TrajectoryNode
 {
     public:
         std::shared_ptr<planning_scene_monitor::PlanningSceneMonitor> g_planning_scene_monitor;
-        ros::Publisher g_distance_publisher;
-        ros::Publisher g_contacts_publisher;
-        collision_detection::CollisionResult g_c_res;
-        collision_detection::CollisionRequest g_c_req;
 
-        ros::Publisher* g_marker_array_publisher = nullptr;
+        ros::Publisher g_marker_array_publisher;
         ros::Publisher g_trajectory_publisher;
-        visualization_msgs::MarkerArray g_trajectory_points;
+        visualization_msgs::MarkerArray g_trajectory_marker_array;
         // moveit_visual_tools::MoveItVisualToolsPtr visual_tools_;
 
         // std::shared_ptr<moveit_cpp::PlanningComponent> g_planning_components;
@@ -79,8 +75,8 @@ class TrajectoryNode
             // moveit_cpp_ptr->getPlanningSceneMonitorNonConst()->providePlanningSceneService();
             
             // Create a RobotModelLoader to load the robot's URDF and SRDF
-            robot_model_loader::RobotModelLoader robot_model_loader("robot_description");
-            robot_model::RobotModelPtr robot_model = robot_model_loader.getModel();
+            // robot_model_loader::RobotModelLoader robot_model_loader("robot_description");
+            // robot_model::RobotModelPtr robot_model = robot_model_loader.getModel();
 
             // Create a PlanningScene object and set the robot model
             // planning_scene::PlanningScenePtr planning_scene(new planning_scene::PlanningScene(robot_model));
@@ -153,14 +149,8 @@ class TrajectoryNode
             
             // Start the PlanningSceneMonitor
             g_planning_scene_monitor->startSceneMonitor("/move_group/monitored_planning_scene"); // Get scene updates from topic
-            // g_planning_scene_monitor->startWorldGeometryMonitor();
+            g_planning_scene_monitor->startWorldGeometryMonitor();
             g_planning_scene_monitor->startStateMonitor("/joint_states");
-
-            // Prepare collision result and request objects
-            g_c_req.contacts = true;
-            g_c_req.distance = true;
-            g_c_req.max_contacts = 20;
-            g_c_req.max_contacts_per_pair = 1;
             
             /*
             // Edit the allowed collision matrix to focus only on robot-obstacle collisions
@@ -170,28 +160,28 @@ class TrajectoryNode
             allowed_collision_matrix.setEntry("teapot", false); // Register collisions involving teapot
             */
 
-            // Create collision publishers
-            g_distance_publisher = nh.advertise<std_msgs::Float64>("distance", 10);
-            g_contacts_publisher = nh.advertise<std_msgs::String>("contacts", 10);
-
             // Create trajectory publisher
             g_trajectory_publisher = nh.advertise<std_msgs::String>("trajectory", 10);
             
             
             // Create a marker array publisher for publishing shapes to Rviz
-            g_marker_array_publisher =
-                new ros::Publisher(nh.advertise<visualization_msgs::MarkerArray>("visualization_marker_array", 100));
+            g_marker_array_publisher = nh.advertise<visualization_msgs::MarkerArray>("visualization_marker_array", 100);
             
             // Generate a target pose for trajectory planning
             geometry_msgs::PoseStamped g_target;
             g_target.header.stamp = ros::Time::now();
             g_target.header.frame_id = "world";
-            g_target.pose.position.x = 0.2;
-            g_target.pose.position.y = 0.0;
-            g_target.pose.position.z = 0.8;
+            g_target.pose.position.x = 0.4;
+            g_target.pose.position.y = -0.2;
+            g_target.pose.position.z = 1.0;
+            g_target.pose.orientation.x = 0.0;
+            g_target.pose.orientation.y = 0.0;
+            g_target.pose.orientation.z = 0.0;
+            g_target.pose.orientation.w = 0.0;
 
             // Get the current robot state once, so that it does not vary between objects
             robot_state::RobotStatePtr robot_state = g_move_group_interface->getCurrentState();
+            const robot_model::RobotModelConstPtr robot_model = g_planning_scene_monitor->getRobotModel();
             g_move_group_interface->setPlanningTime(60);
             // g_move_group_interface->setPoseTarget(g_target, "tcp_link");
             g_move_group_interface->setPositionTarget(0.2, 0.2, 0.8, "tcp_link");
@@ -223,13 +213,12 @@ class TrajectoryNode
                 // updateCollision();
                 // publishCollision();
                 // visualizeCollision(g_c_res.contacts);
+                
+                auto current_state = g_planning_scene_monitor->getPlanningScene()->getCurrentState();
 
-                // updateNearest();
                 // auto plan = g_planning_components->getLastMotionPlanResponse();
                 auto waypoints = getWaypoints(*g_trajectory);
                 auto transform_deque = getTransforms(waypoints);
-                
-                auto current_state = g_planning_scene_monitor->getPlanningScene()->getCurrentState();
                 current_state.updateLinkTransforms();
                 Eigen::Affine3d tcp_transform = current_state.getGlobalLinkTransform("tcp_link");
                 std::pair<Eigen::Affine3d, double> pair = getNearestTransform(transform_deque, tcp_transform);
@@ -251,170 +240,6 @@ class TrajectoryNode
 
             // Spin the ROS node
             ros::spin();
-        }
-
-        void updateCollision()
-        {
-            // Update the planning scene monitor, in case new collision objects have been added
-            // g_planning_scene_monitor->requestPlanningSceneState("/get_planning_scene");
-            // Update the collision result, based on the collision request
-            g_c_res.clear();
-            g_planning_scene_monitor->getPlanningScene()->checkCollision(g_c_req, g_c_res);
-
-            /*
-            ros::Time update_time = g_planning_scene_monitor->getLastUpdateTime(); // Get last update time
-            std::stringstream update_time_ss; // Instantiate stringstream for concatenation
-            update_time_ss << update_time.sec << "." << update_time.nsec; // Concatenate seconds.nanoseconds
-            std::string update_time_str = update_time_ss.str(); // Convert to std::string
-            ROS_INFO(update_time_str.c_str()); // Convert to const char*
-            */
-        }
-
-        void publishCollision()
-        {
-            // Publish minimum distance
-            std_msgs::Float64 distance_msg;
-            distance_msg.data = g_c_res.distance;
-            g_distance_publisher.publish(distance_msg);
-
-            // Publish contact map
-            std_msgs::String contacts_msg;
-            contacts_msg.data = contactMapToString(g_c_res.contacts);
-            g_contacts_publisher.publish(contacts_msg);
-        }
-
-        std::string contactMapToString(collision_detection::CollisionResult::ContactMap contact_map)
-        {
-            // Convert the key list to a string
-            std::stringstream key_value_list_str;
-            // Iterate over key-value pairs of contact_map
-            for (const auto& key_value : contact_map) 
-            {
-                // Separate keys from values for readability
-                const std::pair<std::string, std::string>& key = key_value.first;
-                const std::vector<collision_detection::Contact>& value = key_value.second;
-
-                // Enforce condition
-                if ((key.first == "teapot" and key.second == "tcp_link") or (key.second == "teapot" and key.first == "tcp_link"))
-                {
-                    // First add the keys, each of which is a pair of link names, for links in contact
-                    key_value_list_str << "Contact: (" << key.first << ", " << key.second << "), Vector: [";
-                    // Optionally add the depth, normal, and position associated of the Contact object, i.e. a distance vector
-                    // for (const collision_detection::Contact& contact : value) 
-                    // {
-                    //     key_value_list_str << "{depth: " << contact.depth << ", normal: " << contact.normal << ", pos: " << contact.pos << "}, ";
-                    // }
-                    // Just publish the first (smallest) depth so we can see the pairwise nearest distances
-                    const collision_detection::Contact& contact = value[0];
-                    key_value_list_str << contact.depth;
-                    // End entry
-                    key_value_list_str << "]" << '\\';
-                }
-            }
-
-            // Convert result to string type
-            std::string result = key_value_list_str.str();
-
-            return result;
-        }
-
-        void visualizeCollision(collision_detection::CollisionResult::ContactMap contact_map)
-        {
-            // Set a color for the visualization markers
-            std_msgs::ColorRGBA color;
-            color.r = 0.0;
-            color.g = 0.0;
-            color.b = 1.0;
-            color.a = 0.5;
-
-            // Instantiate marker array for holding the markers to be visualized
-            visualization_msgs::MarkerArray markers;
-            // The function below works for any contact map, but can only create sphere markers
-            /* 
-            collision_detection::getCollisionMarkersFromContacts(markers, "world", contact_map, color,
-                                                                ros::Duration(),  // remain until deleted
-                                                                0.01);            // radius
-            */
-
-            // Iterate over key-value pairs of contact_map
-            std::map<std::string, unsigned> ns_counts;
-
-            for (const auto& key_value : contact_map)
-            {
-                // Separate keys from values for readability
-                const std::pair<std::string, std::string>& key = key_value.first;
-                const std::vector<collision_detection::Contact>& value = key_value.second;
-                const collision_detection::Contact contact = value[0]; // Get the nearest contact only
-                
-                // Enforce condition: Only visualize distances from the named object
-                if ((key.first == "teapot" and key.second == "tcp_collision_link") or (key.second == "teapot" and key.first == "tcp_collision_link"))
-                {
-                    std::vector<Eigen::Vector3d> vec;
-                    Eigen::Vector3d p0 = contact.pos; // p0 is the position reported by the Contact
-                    Eigen::Vector3d p1; // p1 is p0 + depth * normal
-                    double d = contact.depth; // get depth value for readibility
-                    Eigen::Vector3d n = contact.normal; // get normal vector for readability
-                    for (int i = 0; i < p0.size(); i++) // p1 is p0 + depth * normal
-                    {
-                        p1[i] = p0[i] + d * n[i];
-                    }
-                    vec.push_back(p0);
-                    vec.push_back(p1);
-                    
-                    std::vector<geometry_msgs::Point> points; // Put points in the array type accepted by Marker
-                    for (int i = 0; i < vec.size(); i++)
-                    {
-                        geometry_msgs::Point point;
-                        point.x = vec[i][0];
-                        point.y = vec[i][1];
-                        point.z = vec[i][2];
-                        points.push_back(point);
-                    }
-                    
-                    std::string ns_name = contact.body_name_1 + "=" + contact.body_name_2; // String name
-                    if (ns_counts.find(ns_name) == ns_counts.end())
-                        ns_counts[ns_name] = 0;
-                    else
-                        ns_counts[ns_name]++;
-                    visualization_msgs::Marker mk; // Instantiate marker
-                    mk.header.stamp = ros::Time::now(); // Timestamp
-                    mk.header.frame_id = "world"; // Reference frame id
-                    mk.ns = ns_name; // String name
-                    mk.id = ns_counts[ns_name]; // Unique number id
-                    mk.type = visualization_msgs::Marker::ARROW; // Arrow marker shape
-                    mk.action = visualization_msgs::Marker::ADD; // Add shape to Rviz
-                    mk.points = points; // Start and end points of arrow
-                    mk.scale.x = 0.015; // Arrow shaft diameter
-                    mk.scale.y = 0.03; // Arrow head diameter
-                    mk.scale.z = 0.03; // Arrow head length
-                    mk.color = color; // Color specified above
-                    mk.lifetime = ros::Duration(); // Remain until deleted
-                    markers.markers.push_back(mk); // Add to MarkerArray markers
-                    
-                }
-                
-            }
-
-            publishMarkers(markers);
-        }
-
-        void publishMarkers(visualization_msgs::MarkerArray& markers)
-        {
-            // delete old markers
-            if (!g_trajectory_points.markers.empty())
-            {
-                for (auto& marker : g_trajectory_points.markers)
-                marker.action = visualization_msgs::Marker::DELETE;
-
-                g_marker_array_publisher->publish(g_trajectory_points);
-            }
-
-            // move new markers into g_trajectory_points
-            std::swap(g_trajectory_points.markers, markers.markers);
-
-            // draw new markers (if there are any)
-            if (!g_trajectory_points.markers.empty())
-                g_marker_array_publisher->publish(g_trajectory_points);
         }
 
         // Generate target poses for planning
@@ -452,7 +277,7 @@ class TrajectoryNode
         */
 
         // Get waypoints from plan
-        std::deque<moveit::core::RobotState> getWaypoints(planning_interface::MotionPlanResponse plan) // returns a std::deque< robot_state::RobotStatePtr >
+        std::deque<moveit::core::RobotState> getWaypoints(planning_interface::MotionPlanResponse& plan) // returns a std::deque< robot_state::RobotStatePtr >
         {
             std::deque<moveit::core::RobotState> waypoints;
             for (int i = 0; i < plan.trajectory_->getWayPointCount(); i++)
@@ -590,19 +415,6 @@ class TrajectoryNode
             return out;
         }
 
-        void updateNearest()
-        {
-            //auto plan = g_planning_components->getLastMotionPlanResponse();
-            auto waypoints = getWaypoints(*g_trajectory);
-            auto transform_deque = getTransforms(waypoints);
-            auto current_state = g_planning_scene_monitor->getPlanningScene()->getCurrentState();
-            current_state.updateLinkTransforms();
-            Eigen::Affine3d tcp_transform = current_state.getGlobalLinkTransform("tcp_link");
-            std::pair<Eigen::Affine3d, double> pair = getNearestTransform(transform_deque, tcp_transform);
-            Eigen::Affine3d g_nearest = pair.first;
-            double distance = pair.second;
-        }
-
         void publishTrajectory(std::deque<Eigen::Affine3d> transform_deque)
         {
             // Convert transform deque to string
@@ -621,6 +433,25 @@ class TrajectoryNode
 
             // Publish
             g_trajectory_publisher.publish(trajectory_msg);
+        }
+
+        void publishMarkers(visualization_msgs::MarkerArray& markers)
+        {
+            // delete old markers
+            if (!g_trajectory_marker_array.markers.empty())
+            {
+                for (auto& marker : g_trajectory_marker_array.markers)
+                marker.action = visualization_msgs::Marker::DELETE;
+
+                g_marker_array_publisher.publish(g_trajectory_marker_array);
+            }
+
+            // move new markers into g_trajectory_marker_array
+            std::swap(g_trajectory_marker_array.markers, markers.markers);
+
+            // draw new markers (if there are any)
+            if (!g_trajectory_marker_array.markers.empty())
+                g_marker_array_publisher.publish(g_trajectory_marker_array);
         }
 
         void visualizeTrajectory(std::deque<Eigen::Affine3d> transform_deque)
@@ -676,8 +507,8 @@ class TrajectoryNode
                 mk.action = visualization_msgs::Marker::ADD; // Add shape to Rviz
                 mk.points = points; // Start and end points of arrow
                 mk.scale.x = 0.005; // Arrow shaft diameter
-                mk.scale.y = 0.008; // Arrow head diameter
-                mk.scale.z = 0.008; // Arrow head length
+                mk.scale.y = 0.015; // Arrow head diameter
+                mk.scale.z = 0.015; // Arrow head length
                 mk.color = color; // Color specified above
                 mk.lifetime = ros::Duration(); // Remain until deleted
                 markers.markers.push_back(mk); // Add to MarkerArray markers
@@ -730,8 +561,8 @@ class TrajectoryNode
             mk.lifetime = ros::Duration(); // Remain until deleted
             markers.markers.push_back(mk); // Add to MarkerArray markers
 
-            //// Publish markers ////
-            g_marker_array_publisher->publish(markers);
+            //// Update markers to be published ////
+            publishMarkers(markers);
         }
         
     private:
