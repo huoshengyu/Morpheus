@@ -44,6 +44,7 @@ class TrajectoryNode
         moveit::planning_interface::MoveGroupInterface::Plan g_plan;
         std::shared_ptr<robot_trajectory::RobotTrajectory> g_trajectory;
         Eigen::Affine3d g_nearest;
+        double g_distance;
         geometry_msgs::PoseStamped g_target;
         moveit_msgs::OrientationConstraint g_constraint;
 
@@ -273,8 +274,8 @@ class TrajectoryNode
                 current_state.updateLinkTransforms();
                 Eigen::Affine3d tcp_transform = current_state.getGlobalLinkTransform("tcp_link");
                 std::pair<Eigen::Affine3d, double> pair = getNearestTransform(transform_deque, tcp_transform);
-                Eigen::Affine3d g_nearest = pair.first;
-                double distance = pair.second;
+                g_nearest = pair.first;
+                g_distance = pair.second;
                 publishTrajectory(transform_deque);
                 visualizeTrajectory(transform_deque);
 
@@ -399,7 +400,7 @@ class TrajectoryNode
             Eigen::Affine3d A;
             Eigen::Affine3d B;
             // Loop over transform_deque to find where the trajectory is nearest to P
-            for (int i = 1; i < transform_deque.size(); i++)
+            for (int i = 1; i <= transform_deque.size(); i++)
             {
                 // Use loop to walk through the deque, trying every consecutive segment AB
                 Eigen::Affine3d A_loop = transform_deque[i-1];
@@ -561,7 +562,7 @@ class TrajectoryNode
                 mk.scale.y = 0.015; // Arrow head diameter
                 mk.scale.z = 0.015; // Arrow head length
                 mk.color = color; // Color specified above
-                mk.lifetime = ros::Duration(); // Remain until deleted
+                mk.lifetime = ros::Duration(1); // Remain for 1 second or until updated
                 markers.markers.push_back(mk); // Add to MarkerArray markers
             }
 
@@ -584,9 +585,13 @@ class TrajectoryNode
             tcp_point.y = tcp_translation[1];
             tcp_point.z = tcp_translation[2];
             geometry_msgs::Point nearest_point;
-            nearest_point.x = nearest_translation[0];
-            nearest_point.y = nearest_translation[1];
-            nearest_point.z = nearest_translation[2];
+            nearest_point.x = tcp_translation[0] - nearest_translation[0];
+            nearest_point.y = tcp_translation[1] - nearest_translation[1];
+            nearest_point.z = tcp_translation[2] - nearest_translation[2];
+
+            std::stringstream ss;
+            ss << nearest_translation[0] << " " << nearest_translation[1] << " " << nearest_translation[2] << " " << g_distance;
+            ROS_INFO_STREAM(ss.str());
 
             std::vector<geometry_msgs::Point> points;
             points.push_back(tcp_point);
@@ -609,7 +614,7 @@ class TrajectoryNode
             mk.scale.y = 0.015; // Arrow head diameter
             mk.scale.z = 0.015; // Arrow head length
             mk.color = tcp_color; // Color specified above
-            mk.lifetime = ros::Duration(); // Remain until deleted
+            mk.lifetime = ros::Duration(1); // Remain for 1 second or until updated
             markers.markers.push_back(mk); // Add to MarkerArray markers
 
             //// Update markers to be published ////
