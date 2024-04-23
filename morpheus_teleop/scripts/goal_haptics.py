@@ -18,7 +18,7 @@ from robotiq_2f_gripper_control.msg import Robotiq2FGripper_robot_output
 class GoalHaptics():
     def __init__(self):
         joy_feedback_topic = rospy.get_param("~joy_feedback_topic", "/joy/set_feedback")
-        goal_haptics_topic = rospy.get_param("~goal_haptics_topic", "/goal_haptics")
+        goal_haptics_topic = rospy.get_param("~goal_haptics_topic", "/goal/haptics")
 
         self.joy_feedback_pub = rospy.Publisher(joy_feedback_topic, sensor_msgs.msg.JoyFeedbackArray, queue_size=5)
         self.goal_haptics_pub = rospy.Publisher(goal_haptics_topic, sensor_msgs.msg.JoyFeedbackArray, queue_size=5)
@@ -33,11 +33,11 @@ class GoalHaptics():
         self.tf_buffer = tf2_ros.Buffer()
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
         
-        self.goal_translation = [0, 0, 0] # (x, y, z) 
-        self.goal_quaternion = [0, 0, 0, 0] # (X, Y, Z, W)
+        self.goal_position = [0, 0, 0] # (x, y, z) 
+        self.goal_orientation = [0, 0, 0, 0] # (X, Y, Z, W)
 
         # Attempt to retrieve the name of a goal preset from parameter server
-        self.goal_name = rospy.get_param("/goal_name", None)
+        self.goal_name = rospy.get_param("/goal/name", None)
         if self.goal_name is not None:
             rospy.loginfo("Using goal name from parameter server")
         else:
@@ -45,18 +45,18 @@ class GoalHaptics():
             rospy.loginfo("Using default goal name")
 
         # Attempt to retrieve ideal goal pose from parameter server
-        self.goal_transform_dict = rospy.get_param("/goal_transform", None)
+        self.goal_transform_dict = rospy.get_param("/goal/transform", None)
         if self.goal_transform_dict is not None:
             rospy.loginfo("Using goal transform from parameter server")
             # Retrieve translation and quaternion from the goal transform dict
             goal_transform = self.goal_transform_dict[self.goal_name]
-            self.goal_translation = [goal_transform['translation']['x'], 
-                                    goal_transform['translation']['y'], 
-                                    goal_transform['translation']['z']]
-            self.goal_quaternion = [goal_transform['rotation']['x'], 
-                                    goal_transform['rotation']['y'], 
-                                    goal_transform['rotation']['z'], 
-                                    goal_transform['rotation']['w'],]
+            self.goal_position = [goal_transform['position']['x'], 
+                                    goal_transform['position']['y'], 
+                                    goal_transform['position']['z']]
+            self.goal_orientation = [goal_transform['orientation']['x'], 
+                                    goal_transform['orientation']['y'], 
+                                    goal_transform['orientation']['z'], 
+                                    goal_transform['orientation']['w'],]
         else:
             rospy.loginfo("Using default goal transform")
 
@@ -81,12 +81,12 @@ class GoalHaptics():
         
         # Calculate final - initial translation
         translation_as_list = [transform.transform.translation.x, transform.transform.translation.y, transform.transform.translation.z]
-        translation_to_goal = np.subtract(self.goal_translation, translation_as_list)
+        translation_to_goal = np.subtract(self.goal_position, translation_as_list)
         translation_to_goal_magnitude = np.linalg.norm(translation_to_goal)
 
         # Calculate final - initial rotation
         rotation_as_quat = [transform.transform.rotation.x, transform.transform.rotation.y, transform.transform.rotation.z, transform.transform.rotation.w]
-        rotation_to_goal = R.concatenate((R.from_quat(self.goal_quaternion), R.from_quat(rotation_as_quat).inv()))
+        rotation_to_goal = R.concatenate((R.from_quat(self.goal_orientation), R.from_quat(rotation_as_quat).inv()))
         rotation_to_goal_magnitude = rotation_to_goal.magnitude()
         
         # Calculate a cost for the current pose, as a function of distance to goal in translation and rotation

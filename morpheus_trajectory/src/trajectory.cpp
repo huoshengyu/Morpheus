@@ -1,4 +1,5 @@
 #include <ros/ros.h>
+#include <XmlRpcValue.h>
 #include <std_msgs/String.h>
 #include <std_msgs/Float64.h>
 #include <geometry_msgs/Point.h>
@@ -18,6 +19,9 @@
 static const std::string ROBOT_DESCRIPTION =
     "robot_description";  // name of the robot description (a param name, so it can be changed externally)
 
+static const std::string GOAL_NAME_DEFAULT =
+    "keyhole"; // name of the scene associated with the goal pose
+
 namespace trajectory
 {
 
@@ -31,7 +35,7 @@ class TrajectoryNode
         ros::Publisher g_marker_array_publisher;
         ros::Publisher g_trajectory_publisher;
         visualization_msgs::MarkerArray g_trajectory_marker_array;
-        // moveit_visual_tools::MoveItVisualToolsPtr visual_tools_;
+        moveit_visual_tools::MoveItVisualToolsPtr visual_tools_;
 
         // std::shared_ptr<moveit_cpp::PlanningComponent> g_planning_components;
         // std::shared_ptr<moveit_cpp::PlanningComponent::PlanRequestParameters> g_plan_request_parameters;
@@ -41,6 +45,9 @@ class TrajectoryNode
         std::shared_ptr<robot_trajectory::RobotTrajectory> g_trajectory;
         Eigen::Affine3d g_nearest;
         geometry_msgs::PoseStamped g_target;
+        moveit_msgs::OrientationConstraint g_constraint;
+
+        std::string g_goal_name;
 
         TrajectoryNode(int argc, char** argv)
         {
@@ -93,9 +100,6 @@ class TrajectoryNode
             
             // Instantiate a move group interface so a trajectory can be generated
             g_move_group_interface = std::make_shared<moveit::planning_interface::MoveGroupInterface>(PLANNING_GROUP);
-            
-            const moveit::core::JointModelGroup* joint_model_group =
-                g_move_group_interface->getCurrentState()->getJointModelGroup(PLANNING_GROUP);
 
             // Set plan request parameters to select planning pipeline etc
             /*
@@ -163,7 +167,6 @@ class TrajectoryNode
             // Create trajectory publisher
             g_trajectory_publisher = nh.advertise<std_msgs::String>("trajectory", 10);
             
-            
             // Create a marker array publisher for publishing shapes to Rviz
             g_marker_array_publisher = nh.advertise<visualization_msgs::MarkerArray>("visualization_marker_array", 100);
             
@@ -174,26 +177,74 @@ class TrajectoryNode
             g_target.pose.position.x = 0.4;
             g_target.pose.position.y = -0.2;
             g_target.pose.position.z = 1.0;
-            g_target.pose.orientation.x = 0.0;
-            g_target.pose.orientation.y = 0.0;
-            g_target.pose.orientation.z = 0.0;
-            g_target.pose.orientation.w = 0.0;
+            g_target.pose.orientation.x = 0.5;
+            g_target.pose.orientation.y = -0.5;
+            g_target.pose.orientation.z = -0.5;
+            g_target.pose.orientation.w = -0.5;
+            // Get target vector from ros server, if possible
+            if (ros::param::get("/goal/name", g_goal_name))
+            {
+                ROS_INFO("Using GOAL_NAME from parameter server");
+            }
+            else
+            {
+                g_goal_name = GOAL_NAME_DEFAULT;
+                ROS_INFO("Using GOAL_NAME_DEFAULT");
+            }
+            if (ros::param::has("/goal/transform/" + g_goal_name))
+            {
+                ros::param::get("/goal/transform/" + g_goal_name + "/position/x", g_target.pose.position.x);
+                ros::param::get("/goal/transform/" + g_goal_name + "/position/y", g_target.pose.position.y);
+                ros::param::get("/goal/transform/" + g_goal_name + "/position/z", g_target.pose.position.z);
+                ros::param::get("/goal/transform/" + g_goal_name + "/orientation/x", g_target.pose.orientation.x);
+                ros::param::get("/goal/transform/" + g_goal_name + "/orientation/y", g_target.pose.orientation.y);
+                ros::param::get("/goal/transform/" + g_goal_name + "/orientation/z", g_target.pose.orientation.z);
+                ros::param::get("/goal/transform/" + g_goal_name + "/orientation/w", g_target.pose.orientation.w);
+                ROS_INFO("Using GOAL_TRANSFORM from parameter server");
+            }
+            else
+            {
+                ROS_INFO("Using GOAL_TRANSFORM_DEFAULT");
+            }
 
-            // Get the current robot state once, so that it does not vary between objects
-            robot_state::RobotStatePtr robot_state = g_move_group_interface->getCurrentState();
+            // Generate constraints for trajectory planning
+            moveit_msgs::OrientationConstraint g_constraint;
+            g_constraint.link_name = "tcp_link";
+            g_constraint.header.frame_id = "world";
+            g_constraint.orientation.w = 1.0;
+            g_constraint.absolute_x_axis_tolerance = 0.1;
+            g_constraint.absolute_y_axis_tolerance = 0.1;
+            g_constraint.absolute_z_axis_tolerance = 0.1;
+            g_constraint.weight = 1.0;
+
+
+            // Get robot model from the current planning scene
             const robot_model::RobotModelConstPtr robot_model = g_planning_scene_monitor->getRobotModel();
+
+            // Get the current robot state once so that it does not vary over time
+            // A LockedPlanningSceneRO is used to avoid modifying the planning scene.
+            // Alternatively, the robot state can be set from a given joint state or from a given pose (using IK)
+            robot_state::RobotStatePtr robot_state(
+                new moveit::core::RobotState(planning_scene_monitor::LockedPlanningSceneRO(g_planning_scene_monitor)->getCurrentState()));
+
+            // Create a joint model group for tracking the current robot pose and planning group
+            const moveit::core::JointModelGroup* joint_model_group =
+                robot_state->getJointModelGroup(PLANNING_GROUP);
+            
+            // Set planning parameters
             g_move_group_interface->setPlanningTime(60);
-            // g_move_group_interface->setPoseTarget(g_target, "tcp_link");
-            g_move_group_interface->setPositionTarget(0.2, 0.2, 0.8, "tcp_link");
+            g_move_group_interface->setPoseTarget(g_target, "tcp_link");
+            // g_move_group_interface->setPositionTarget(0.2, 0.2, 0.8, "tcp_link");
             g_move_group_interface->setStartState(*robot_state);
+            
+            // Create plan
             bool success = (g_move_group_interface->plan(g_plan) == moveit::core::MoveItErrorCode::SUCCESS);
             g_trajectory = std::make_shared<robot_trajectory::RobotTrajectory>(robot_model, joint_model_group);
             g_trajectory->setRobotTrajectoryMsg(*robot_state, g_plan.start_state_, g_plan.trajectory_);
             //planning_interface::MotionPlanResponse plan = getPlan(g_target);
 
-
             // Instantiate visual tools for visualizing markers in Rviz
-            // visual_tools_ = std::make_shared<moveit_visual_tools::MoveItVisualTools>(node_, "world", "/moveit_visual_tools");
+            visual_tools_ = std::make_shared<moveit_visual_tools::MoveItVisualTools>("/world", "visualization_marker_array", g_planning_scene_monitor);
 
             // Add callback which dictates behavior after each scene update
             // planning_scene_monitor->addUpdateCallback
