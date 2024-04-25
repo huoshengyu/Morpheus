@@ -45,6 +45,7 @@ class TrajectoryNode
         std::shared_ptr<robot_trajectory::RobotTrajectory> g_trajectory;
         Eigen::Affine3d g_nearest;
         double g_distance;
+        Eigen::Affine3d g_forward;
         geometry_msgs::PoseStamped g_target;
         moveit_msgs::OrientationConstraint g_constraint;
 
@@ -273,9 +274,10 @@ class TrajectoryNode
                 auto transform_deque = getTransforms(waypoints);
                 current_state.updateLinkTransforms();
                 Eigen::Affine3d tcp_transform = current_state.getGlobalLinkTransform("tcp_link");
-                std::pair<Eigen::Affine3d, double> pair = getNearestTransform(transform_deque, tcp_transform);
-                g_nearest = pair.first;
-                g_distance = pair.second;
+                std::tuple<Eigen::Affine3d, double, Eigen::Affine3d> tf_tuple = getNearestTransform(transform_deque, tcp_transform);
+                g_nearest = std::get<0>(tf_tuple);
+                g_distance = std::get<1>(tf_tuple);
+                g_forward = std::get<2>(tf_tuple);
                 publishTrajectory(transform_deque);
                 visualizeTrajectory(transform_deque);
 
@@ -391,9 +393,10 @@ class TrajectoryNode
 
         // Calculate transform on trajectory transform_deque nearest to a transform P
         // Return a pair of the transform and its translational distance from P
-        std::pair<Eigen::Affine3d, double> getNearestTransform(std::deque<Eigen::Affine3d> transform_deque, Eigen::Affine3d P)
+        std::tuple<Eigen::Affine3d, double, Eigen::Affine3d> getNearestTransform(std::deque<Eigen::Affine3d> transform_deque, Eigen::Affine3d P)
         {
             // Instantiate loop variables
+            int best_index;
             double min_distance = std::numeric_limits<double>::infinity();
             Eigen::Vector3d translation;
             double interpolation_param;
@@ -412,6 +415,7 @@ class TrajectoryNode
                 // If closest segment yet, replace best
                 if (this_distance < min_distance)
                 {
+                    best_index = i;
                     min_distance = this_distance;
                     translation = pair.first;
                     interpolation_param = pair.second;
@@ -429,14 +433,28 @@ class TrajectoryNode
             nearest.linear() = Ar.slerp(interpolation_param, Br).toRotationMatrix();
             // Add back the translation component
             nearest.translation() = translation;
+
+            // Find a point forward of the nearest point by 1 waypoint's distance
+            Eigen::Affine3d forward;
+            if (best_index >= transform_deque.size())
+            {
+                forward = transform_deque.back();
+            }
+            else
+            {
+                Eigen::Vector3d At = transform_deque[best_index - 1].translation();
+                Eigen::Vector3d Bt = transform_deque[best_index].translation();
+                forward.translation() = interpolation_param * Bt + (1 - interpolation_param) * At;
+                Eigen::Quaternion<double> Ar(transform_deque[best_index - 1].linear());
+                Eigen::Quaternion<double> Br(transform_deque[best_index].linear());
+                forward.linear() = Ar.slerp(interpolation_param, Br).toRotationMatrix();
+            }
             
             // Find distance between P and nearest
             // double distance = (nearest.translation() - Pt).norm();
 
-            // Package result into pair
-            std::pair<Eigen::Affine3d, double> out;
-            out.first = nearest;
-            out.second = min_distance;
+            // Package result into vector
+            auto out = std::make_tuple(nearest, min_distance, forward);
             return out;
         }
 
@@ -616,6 +634,47 @@ class TrajectoryNode
             mk.color = tcp_color; // Color specified above
             mk.lifetime = ros::Duration(1); // Remain for 1 second or until updated
             markers.markers.push_back(mk); // Add to MarkerArray markers
+
+            //// Visualize the tcp --> forward transform
+            
+            // Set a different color for the tcp --> forward transform
+            std_msgs::ColorRGBA forward_color;
+            forward_color.r = 1.0;
+            forward_color.g = 0.0;
+            forward_color.b = 0.0;
+            forward_color.a = 0.5;
+
+            // Add a marker for the tcp --> forward transform
+            Eigen::Vector3d forward_translation = g_forward.translation();
+            geometry_msgs::Point forward_point;
+            forward_point.x = forward_translation[0];
+            forward_point.y = forward_translation[1];
+            forward_point.z = forward_translation[2];
+
+            std::vector<geometry_msgs::Point> points_forward;
+            points_forward.push_back(tcp_point);
+            points_forward.push_back(forward_point);
+
+            std::string ns_name_forward = "forward_marker"; // String name
+            if (ns_counts.find(ns_name_forward) == ns_counts.end())
+                ns_counts[ns_name_forward] = 0;
+            else
+                ns_counts[ns_name_forward]++;
+            visualization_msgs::Marker mk_forward; // Instantiate marker
+            mk_forward.header.stamp = ros::Time::now(); // Timestamp
+            mk_forward.header.frame_id = "world"; // Reference frame id
+            mk_forward.ns = ns_name_forward; // String name
+            mk_forward.id = ns_counts[ns_name_forward]; // Unique number id
+            mk_forward.type = visualization_msgs::Marker::ARROW; // Arrow marker shape
+            mk_forward.action = visualization_msgs::Marker::ADD; // Add shape to Rviz
+            mk_forward.points = points_forward; // Start and end points of arrow
+            mk_forward.scale.x = 0.01; // Arrow shaft diameter
+            mk_forward.scale.y = 0.015; // Arrow head diameter
+            mk_forward.scale.z = 0.015; // Arrow head length
+            mk_forward.color = forward_color; // Color specified above
+            mk_forward.lifetime = ros::Duration(1); // Remain for 1 second or until updated
+            markers.markers.push_back(mk_forward); // Add to MarkerArray markers
+
 
             //// Update markers to be published ////
             publishMarkers(markers);
