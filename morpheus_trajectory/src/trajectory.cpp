@@ -34,6 +34,7 @@ class TrajectoryNode
 
         ros::Publisher g_marker_array_publisher;
         ros::Publisher g_trajectory_publisher;
+        ros::Publisher g_forward_publisher;
         visualization_msgs::MarkerArray g_trajectory_marker_array;
         moveit_visual_tools::MoveItVisualToolsPtr visual_tools_;
 
@@ -44,7 +45,6 @@ class TrajectoryNode
         moveit::planning_interface::MoveGroupInterface::Plan g_plan;
         std::shared_ptr<robot_trajectory::RobotTrajectory> g_trajectory;
         Eigen::Affine3d g_nearest;
-        double g_distance;
         Eigen::Affine3d g_forward;
         geometry_msgs::PoseStamped g_target;
         moveit_msgs::OrientationConstraint g_constraint;
@@ -274,10 +274,9 @@ class TrajectoryNode
                 auto transform_deque = getTransforms(waypoints);
                 current_state.updateLinkTransforms();
                 Eigen::Affine3d tcp_transform = current_state.getGlobalLinkTransform("tcp_link");
-                std::tuple<Eigen::Affine3d, double, Eigen::Affine3d> tf_tuple = getNearestTransform(transform_deque, tcp_transform);
-                g_nearest = std::get<0>(tf_tuple);
-                g_distance = std::get<1>(tf_tuple);
-                g_forward = std::get<2>(tf_tuple);
+                std::vector<Eigen::Affine3d> transform_vector = getNearestTransform(transform_deque, tcp_transform);
+                g_nearest = transform_vector[0];
+                g_forward = transform_vector[1];
                 publishTrajectory(transform_deque);
                 visualizeTrajectory(transform_deque);
 
@@ -393,7 +392,7 @@ class TrajectoryNode
 
         // Calculate transform on trajectory transform_deque nearest to a transform P
         // Return a pair of the transform and its translational distance from P
-        std::tuple<Eigen::Affine3d, double, Eigen::Affine3d> getNearestTransform(std::deque<Eigen::Affine3d> transform_deque, Eigen::Affine3d P)
+        std::vector<Eigen::Affine3d> getNearestTransform(std::deque<Eigen::Affine3d> transform_deque, Eigen::Affine3d P)
         {
             // Instantiate loop variables
             int best_index;
@@ -403,14 +402,14 @@ class TrajectoryNode
             Eigen::Affine3d A;
             Eigen::Affine3d B;
             // Loop over transform_deque to find where the trajectory is nearest to P
-            for (int i = 1; i <= transform_deque.size(); i++)
+            for (int i = 1; i < transform_deque.size(); i++)
             {
                 // Use loop to walk through the deque, trying every consecutive segment AB
                 Eigen::Affine3d A_loop = transform_deque[i-1];
                 Eigen::Affine3d B_loop = transform_deque[i];
 
                 // Find where this segment AB is nearest to P
-                std::pair<Eigen::Vector3d, double> pair = getNearestTranslation(A, B, P);
+                std::pair<Eigen::Vector3d, double> pair = getNearestTranslation(A_loop, B_loop, P);
                 double this_distance = pair.first.norm();
                 // If closest segment yet, replace best
                 if (this_distance < min_distance)
@@ -425,36 +424,29 @@ class TrajectoryNode
             }
 
             // Include rotations when calcuating the full interpolated transform
-            Eigen::Quaternion<double> Ar(A.linear());
-            Eigen::Quaternion<double> Br(B.linear());
-            Eigen::Quaternion<double> Pr(P.linear());
-            Eigen::Affine3d nearest;
-            // Interpolate the rotation component
-            nearest.linear() = Ar.slerp(interpolation_param, Br).toRotationMatrix();
-            // Add back the translation component
-            nearest.translation() = translation;
+            Eigen::Affine3d ABinterp = getInterpolatedTransform(A, B, interpolation_param);
+            // Find the relative translation from P to ABinterp
+            Eigen::Affine3d nearest = getRelativeTransform(P, ABinterp);
 
-            // Find a point forward of the nearest point by 1 waypoint's distance
+            // Find the vector from P to a point forward of the nearest point by 1 waypoint's distance
+            ROS_INFO_STREAM(std::to_string(interpolation_param));
             Eigen::Affine3d forward;
-            if (best_index >= transform_deque.size())
+            // Get the next waypoint along the trajectory
+            int C_index = best_index+1;
+            if ((C_index + 1) > transform_deque.size())
             {
-                forward = transform_deque.back();
+                C_index = best_index;
             }
-            else
-            {
-                Eigen::Vector3d At = transform_deque[best_index - 1].translation();
-                Eigen::Vector3d Bt = transform_deque[best_index].translation();
-                forward.translation() = interpolation_param * Bt + (1 - interpolation_param) * At;
-                Eigen::Quaternion<double> Ar(transform_deque[best_index - 1].linear());
-                Eigen::Quaternion<double> Br(transform_deque[best_index].linear());
-                forward.linear() = Ar.slerp(interpolation_param, Br).toRotationMatrix();
-            }
-            
-            // Find distance between P and nearest
-            // double distance = (nearest.translation() - Pt).norm();
+            Eigen::Affine3d C = transform_deque[C_index];
+            // Interpolate the forward point along the trajectory
+            Eigen::Affine3d BCinterp = getInterpolatedTransform(B, C, interpolation_param);
+            // Find the relative translation from P to BCinterp
+            forward = getRelativeTransform(P, BCinterp);
 
             // Package result into vector
-            auto out = std::make_tuple(nearest, min_distance, forward);
+            std::vector<Eigen::Affine3d> out;
+            out.push_back(nearest);
+            out.push_back(forward);
             return out;
         }
 
@@ -478,11 +470,39 @@ class TrajectoryNode
                 interpolation_param = 1;
             }
 
-            Eigen::Vector3d translation = Pt - (interpolation_param * ABt + At);
+            Eigen::Vector3d translation = (interpolation_param * ABt + At) - Pt;
             std::pair<Eigen::Vector3d, double> out;
             out.first = translation;
             out.second = interpolation_param;
             return out;
+        }
+
+        Eigen::Affine3d getInterpolatedTransform(Eigen::Affine3d A, Eigen::Affine3d B, double interpolation_param)
+        {
+            Eigen::Affine3d interp;
+            // Use translations for calculating the interpolated translation
+            Eigen::Vector3d At(A.translation());
+            Eigen::Vector3d Bt(B.translation());
+            interp.translation() = interpolation_param * Bt + (1 - interpolation_param) * At;
+            // Use Eigen's slerp for calculating the interpolated rotation
+            Eigen::Quaterniond Ar(A.linear());
+            Eigen::Quaterniond Br(B.linear());
+            interp.linear() = Ar.slerp(interpolation_param, Br).toRotationMatrix();
+            return interp;
+        }
+
+        Eigen::Affine3d getRelativeTransform(Eigen::Affine3d A, Eigen::Affine3d B)
+        {
+            Eigen::Affine3d R;
+            // Use translations for calculating difference of translations
+            Eigen::Vector3d At(A.translation());
+            Eigen::Vector3d Bt(B.translation());
+            R.translation() = Bt - At;
+            // Invert to calculate relative rotation, since RA = B --> R = B(A^-1)
+            Eigen::Quaterniond Ar(A.linear());
+            Eigen::Quaterniond Br(B.linear());
+            R.linear() = (Br * (Ar.inverse())).toRotationMatrix();
+            return R;
         }
 
         void publishTrajectory(std::deque<Eigen::Affine3d> transform_deque)
@@ -539,10 +559,10 @@ class TrajectoryNode
             visualization_msgs::MarkerArray markers;
             std::map<std::string, unsigned> ns_counts;
 
-            // Loop over transform_deque to find where the trajectory is nearest to P
+            // Loop over transform_deque to visualize each segment on the trajectory
             for (int i = 1; i < transform_deque.size(); i++)
             {
-                // Use loop to walk through the deque, trying every consecutive segment AB
+                // Use loop to walk through the deque, visualizing every consecutive segment AB
                 Eigen::Affine3d transform_A = transform_deque[i-1];
                 Eigen::Vector3d translation_A = transform_A.translation();
                 geometry_msgs::Point point_A;
@@ -595,7 +615,6 @@ class TrajectoryNode
 
             // Add a marker for the tcp -> Trajectory transform
             auto current_state = g_planning_scene_monitor->getPlanningScene()->getCurrentState();
-            current_state.updateLinkTransforms();
             Eigen::Vector3d tcp_translation = current_state.getGlobalLinkTransform("tcp_link").translation();
             Eigen::Vector3d nearest_translation = g_nearest.translation();
             geometry_msgs::Point tcp_point;
@@ -603,12 +622,12 @@ class TrajectoryNode
             tcp_point.y = tcp_translation[1];
             tcp_point.z = tcp_translation[2];
             geometry_msgs::Point nearest_point;
-            nearest_point.x = tcp_translation[0] - nearest_translation[0];
-            nearest_point.y = tcp_translation[1] - nearest_translation[1];
-            nearest_point.z = tcp_translation[2] - nearest_translation[2];
+            nearest_point.x = tcp_translation[0] + nearest_translation[0];
+            nearest_point.y = tcp_translation[1] + nearest_translation[1];
+            nearest_point.z = tcp_translation[2] + nearest_translation[2];
 
             std::stringstream ss;
-            ss << nearest_translation[0] << " " << nearest_translation[1] << " " << nearest_translation[2] << " " << g_distance;
+            ss << nearest_translation[0] << " " << nearest_translation[1] << " " << nearest_translation[2];
             ROS_INFO_STREAM(ss.str());
 
             std::vector<geometry_msgs::Point> points;
@@ -647,9 +666,9 @@ class TrajectoryNode
             // Add a marker for the tcp --> forward transform
             Eigen::Vector3d forward_translation = g_forward.translation();
             geometry_msgs::Point forward_point;
-            forward_point.x = forward_translation[0];
-            forward_point.y = forward_translation[1];
-            forward_point.z = forward_translation[2];
+            forward_point.x = tcp_translation[0] + forward_translation[0];
+            forward_point.y = tcp_translation[1] + forward_translation[1];
+            forward_point.z = tcp_translation[2] + forward_translation[2];
 
             std::vector<geometry_msgs::Point> points_forward;
             points_forward.push_back(tcp_point);
