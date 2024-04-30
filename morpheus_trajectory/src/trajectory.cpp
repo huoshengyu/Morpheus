@@ -1,5 +1,4 @@
 #include <ros/ros.h>
-#include <XmlRpcValue.h>
 #include <std_msgs/String.h>
 #include <std_msgs/Float64.h>
 #include <geometry_msgs/Point.h>
@@ -34,7 +33,10 @@ class TrajectoryNode
 
         ros::Publisher g_marker_array_publisher;
         ros::Publisher g_trajectory_publisher;
-        ros::Publisher g_forward_publisher;
+        ros::Publisher g_nearest_distance_publisher;
+        ros::Publisher g_nearest_direction_publisher;
+        ros::Publisher g_forward_distance_publisher;
+        ros::Publisher g_forward_direction_publisher;
         visualization_msgs::MarkerArray g_trajectory_marker_array;
         moveit_visual_tools::MoveItVisualToolsPtr visual_tools_;
 
@@ -166,9 +168,15 @@ class TrajectoryNode
             allowed_collision_matrix.setEntry("teapot", false); // Register collisions involving teapot
             */
 
-            // Create trajectory publisher
-            g_trajectory_publisher = nh.advertise<std_msgs::String>("trajectory", 10);
+            // Create trajectory msg publisher
+            g_trajectory_publisher = nh.advertise<std_msgs::String>("trajectory/msg", 0);
             
+            // Create guidance vector publishers
+            g_nearest_distance_publisher = nh.advertise<std_msgs::Float64>("trajectory/nearest/distance", 0);
+            g_nearest_direction_publisher = nh.advertise<geometry_msgs::Vector3>("trajectory/nearest/direction", 0);
+            g_forward_distance_publisher = nh.advertise<std_msgs::Float64>("trajectory/forward/distance", 0);
+            g_forward_direction_publisher = nh.advertise<geometry_msgs::Vector3>("trajectory/forward/direction", 0);
+
             // Create a marker array publisher for publishing shapes to Rviz
             g_marker_array_publisher = nh.advertise<visualization_msgs::MarkerArray>("visualization_marker_array", 100);
             
@@ -267,16 +275,23 @@ class TrajectoryNode
                 // publishCollision();
                 // visualizeCollision(g_c_res.contacts);
                 
+                // Retrieve and update state once. Avoid updating in functions below to maintain sync.
                 auto current_state = g_planning_scene_monitor->getPlanningScene()->getCurrentState();
+                current_state.updateLinkTransforms();
 
+                // Plan trajectory
                 // auto plan = g_planning_components->getLastMotionPlanResponse();
                 auto waypoints = getWaypoints(*g_trajectory);
                 auto transform_deque = getTransforms(waypoints);
-                current_state.updateLinkTransforms();
+
+                // Find relative transforms to nearest and forward sections of trajectory
                 Eigen::Affine3d tcp_transform = current_state.getGlobalLinkTransform("tcp_link");
                 std::vector<Eigen::Affine3d> transform_vector = getNearestTransform(transform_deque, tcp_transform);
                 g_nearest = transform_vector[0];
                 g_forward = transform_vector[1];
+
+                // Publish and visualize
+                publishVectors(g_nearest.translation(), g_forward.translation());
                 publishTrajectory(transform_deque);
                 visualizeTrajectory(transform_deque);
 
@@ -503,6 +518,45 @@ class TrajectoryNode
             Eigen::Quaterniond Br(B.linear());
             R.linear() = (Br * (Ar.inverse())).toRotationMatrix();
             return R;
+        }
+
+        void publishVectors(Eigen::Vector3d nearest, Eigen::Vector3d forward)
+        {
+            // Calculate euclidean norm of nearest
+            double nearest_dot_product = 0;
+            for (int i = 0; i < nearest.size(); i++)
+            {
+                nearest_dot_product += nearest[i] * nearest[i];
+            }
+            double nearest_distance = std::sqrt(nearest_dot_product);
+            std_msgs::Float64 nearest_distance_msg;
+            nearest_distance_msg.data = nearest_distance;
+            // Calculate normalized vector of nearest
+            geometry_msgs::Vector3 nearest_direction_msg;
+            nearest_direction_msg.x = nearest[0] / nearest_distance;
+            nearest_direction_msg.y = nearest[1] / nearest_distance;
+            nearest_direction_msg.z = nearest[2] / nearest_distance;
+
+            // Calculate euclidean norm of forward
+            double forward_dot_product = 0;
+            for (int i = 0; i < forward.size(); i++)
+            {
+                forward_dot_product += forward[i] * forward[i];
+            }
+            double forward_distance = std::sqrt(forward_dot_product);
+            std_msgs::Float64 forward_distance_msg;
+            forward_distance_msg.data = forward_distance;
+            // Calculate normalized vector of forward
+            geometry_msgs::Vector3 forward_direction_msg;
+            forward_direction_msg.x = forward[0] / forward_distance;
+            forward_direction_msg.y = forward[1] / forward_distance;
+            forward_direction_msg.z = forward[2] / forward_distance;
+
+            // Publish
+            g_nearest_distance_publisher.publish(nearest_distance_msg);
+            g_nearest_direction_publisher.publish(nearest_direction_msg);
+            g_forward_distance_publisher.publish(forward_distance_msg);
+            g_forward_direction_publisher.publish(forward_direction_msg);
         }
 
         void publishTrajectory(std::deque<Eigen::Affine3d> transform_deque)
