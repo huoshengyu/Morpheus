@@ -4,7 +4,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    # command: tail -F anything # Use this for logging if needed
+    command: tail -F /dev/null # Entrypoint. /dev/null discards print
     environment:
       # Display X Server GUI.
       - DISPLAY
