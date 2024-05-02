@@ -36,6 +36,10 @@ class GoalHaptics():
         self.goal_position = [0, 0, 0] # (x, y, z) 
         self.goal_orientation = [0, 0, 0, 0] # (X, Y, Z, W)
 
+        self.goal_position_weights = [0.25, 0.25, 0.25]
+        self.goal_orientation_weights = [0.0, 0.0, 0.0]
+        self.cost = None
+
         # Attempt to retrieve the name of a goal preset from parameter server
         self.goal_name = rospy.get_param("/goal/name", None)
         if self.goal_name is not None:
@@ -49,7 +53,7 @@ class GoalHaptics():
         if self.goal_transform_dict is not None:
             rospy.loginfo("Using goal transform from parameter server")
             # Retrieve translation and quaternion from the goal transform dict
-            goal_transform = self.goal_transform_dict[self.goal_name]
+            goal_transform = self.goal_transform_dict[self.goal_name]['goal_pose']
             self.goal_position = [goal_transform['position']['x'], 
                                     goal_transform['position']['y'], 
                                     goal_transform['position']['z']]
@@ -60,9 +64,20 @@ class GoalHaptics():
         else:
             rospy.loginfo("Using default goal transform")
 
-        self.translation_weight = 0.25
-        self.rotation_weight = 0.0
-        self.cost = None
+        # Attempt to retrieve goal pose weights from parameter server    
+        if self.goal_transform_dict is not None:
+            rospy.loginfo("Using goal transform from parameter server")
+            # Retrieve translation and quaternion from the goal transform dict
+            goal_transform = self.goal_transform_dict[self.goal_name]['goal_pose']
+            self.goal_position_weights = [goal_transform['position_weights']['x'], 
+                                    goal_transform['position_weights']['y'], 
+                                    goal_transform['position_weights']['z']]
+            self.goal_orientation_weights = [goal_transform['orientation_weights']['x'], 
+                                    goal_transform['orientation_weights']['y'], 
+                                    goal_transform['orientation_weights']['z'], 
+                                    goal_transform['orientation_weights']['w']]
+        else:
+            rospy.loginfo("Using default goal transform")
 
         self.force_feedback_msg = None
         self.force_feedback_msg_mutex = Lock()
@@ -90,7 +105,8 @@ class GoalHaptics():
         rotation_to_goal_magnitude = rotation_to_goal.magnitude()
         
         # Calculate a cost for the current pose, as a function of distance to goal in translation and rotation
-        self.cost = np.sum(self.translation_weight * translation_to_goal_magnitude + self.rotation_weight * rotation_to_goal_magnitude)
+        self.cost = (np.sum(np.multiply(self.goal_position_weights, translation_to_goal)) + 
+                    np.sum(np.multiply(self.goal_orientation_weights, rotation_to_goal.as_quat())))
 
     def publish(self):
         if self.cost is not None:

@@ -49,6 +49,7 @@ class TrajectoryNode
         Eigen::Affine3d g_nearest;
         Eigen::Affine3d g_forward;
         geometry_msgs::PoseStamped g_target;
+        geometry_msgs::PoseStamped g_weights;
         moveit_msgs::OrientationConstraint g_constraint;
 
         std::string g_goal_name;
@@ -63,60 +64,11 @@ class TrajectoryNode
             // Joints to plan for, from srdf file
             static const std::string PLANNING_GROUP = "arm";
 
-            // Prep moveit_cpp_ptr to allow planning
-            // Prep options for moveit_cpp_ptr
-            /*
-            moveit_cpp::MoveItCpp::Options options(nh);
-
-            moveit_cpp::MoveItCpp::PlanningSceneMonitorOptions psm_options;
-            psm_options.name = "trajectory_monitor";
-            psm_options.robot_description = ROBOT_DESCRIPTION;
-            psm_options.joint_state_topic = "/joint_states";
-            psm_options.attached_collision_object_topic = "/attached_collision_object";
-            psm_options.monitored_planning_scene_topic = "/planning_scene";
-            psm_options.publish_planning_scene_topic = "/move_group/monitored_planning_scene";
-            options.planning_scene_monitor_options = psm_options;
-
-            moveit_cpp::MoveItCpp::PlanningPipelineOptions ppl_options;
-            ppl_options.pipeline_names.push_back("ompl");
-            ppl_options.parent_namespace = "/move_group";
-            options.planning_pipeline_options = ppl_options;
-            */
-            // auto moveit_cpp_ptr = std::make_shared<moveit_cpp::MoveItCpp>(options, nh);
-            // moveit_cpp_ptr->getPlanningSceneMonitorNonConst()->providePlanningSceneService();
-            
-            // Create a RobotModelLoader to load the robot's URDF and SRDF
-            // robot_model_loader::RobotModelLoader robot_model_loader("robot_description");
-            // robot_model::RobotModelPtr robot_model = robot_model_loader.getModel();
-
-            // Create a PlanningScene object and set the robot model
-            // planning_scene::PlanningScenePtr planning_scene(new planning_scene::PlanningScene(robot_model));
-
-            // Create a PlanningSceneMonitor around the PlanningScene
-            // planning_scene_monitor::PlanningSceneMonitorPtr planning_scene_monitor(
-            //     new planning_scene_monitor::PlanningSceneMonitor("robot_description"));
-
             // Retrieve preexisting PlanningSceneMonitor, if possible
             g_planning_scene_monitor = std::make_shared<planning_scene_monitor::PlanningSceneMonitor>(ROBOT_DESCRIPTION);
-            // g_planning_scene_monitor = moveit_cpp_ptr->getPlanningSceneMonitorNonConst();
-            // Instantiate planning components so a trajectory can be generated for comparison
-            // g_planning_components = std::make_shared<moveit_cpp::PlanningComponent>(PLANNING_GROUP, nh);
             
             // Instantiate a move group interface so a trajectory can be generated
             g_move_group_interface = std::make_shared<moveit::planning_interface::MoveGroupInterface>(PLANNING_GROUP);
-
-            // Set plan request parameters to select planning pipeline etc
-            /*
-            g_plan_request_parameters->max_acceleration_scaling_factor = 0.1;
-            g_plan_request_parameters->max_velocity_scaling_factor = 0.1;
-            g_plan_request_parameters->planner_id = "MotionPlanning";
-            g_plan_request_parameters->planning_attempts = 10;
-            g_plan_request_parameters->planning_pipeline = "MotionPlanning";
-            g_plan_request_parameters->planning_time = 5;
-            */
-
-            // Set update callback
-            // g_planning_scene_monitor->addUpdateCallback(planningSceneMonitorCallback);
 
             // Ensure the PlanningSceneMonitor is ready
             if (g_planning_scene_monitor->requestPlanningSceneState("/get_planning_scene"))
@@ -128,9 +80,6 @@ class TrajectoryNode
                 ROS_ERROR("Failed to set up Planning Scene Monitor.");
             }
 
-            // Request the PlanningScene itself and change collision detection engine to Bullet
-            // planning_scene::PlanningScenePtr planning_scene;
-            // Get read/write pointer to planning_scene
             try
             {   
                 // Change the PlanningScene's collision detector to Bullet
@@ -145,7 +94,6 @@ class TrajectoryNode
                 else
                 {
                     ROS_INFO("Collision detector incorrect");
-                    // ROS_INFO(g_planning_scene_monitor->getPlanningScene()->getActiveCollisionDetectorName());
                     std::string collision_detector_name = g_planning_scene_monitor->getPlanningScene()->getActiveCollisionDetectorName();
                     throw collision_detector_name;
                 }
@@ -159,14 +107,6 @@ class TrajectoryNode
             g_planning_scene_monitor->startSceneMonitor("/move_group/monitored_planning_scene"); // Get scene updates from topic
             g_planning_scene_monitor->startWorldGeometryMonitor();
             g_planning_scene_monitor->startStateMonitor("/joint_states");
-            
-            /*
-            // Edit the allowed collision matrix to focus only on robot-obstacle collisions
-            collision_detection::AllowedCollisionMatrix allowed_collision_matrix = 
-                g_planning_scene_monitor->getPlanningScene().getAllowedCollisionMatrix();
-            allowed_collision_matrix.setEntry(true); // Allow all collisions
-            allowed_collision_matrix.setEntry("teapot", false); // Register collisions involving teapot
-            */
 
             // Create trajectory msg publisher
             g_trajectory_publisher = nh.advertise<std_msgs::String>("trajectory/msg", 0);
@@ -191,32 +131,17 @@ class TrajectoryNode
             g_target.pose.orientation.y = -0.5;
             g_target.pose.orientation.z = -0.5;
             g_target.pose.orientation.w = -0.5;
-            // Get target vector from ros server, if possible
-            if (ros::param::get("/goal/name", g_goal_name))
-            {
-                ROS_INFO("Using GOAL_NAME from parameter server");
-            }
-            else
-            {
-                g_goal_name = GOAL_NAME_DEFAULT;
-                ROS_INFO("Using GOAL_NAME_DEFAULT");
-            }
-            if (ros::param::has("/goal/transform/" + g_goal_name))
-            {
-                ros::param::get("/goal/transform/" + g_goal_name + "/position/x", g_target.pose.position.x);
-                ros::param::get("/goal/transform/" + g_goal_name + "/position/y", g_target.pose.position.y);
-                ros::param::get("/goal/transform/" + g_goal_name + "/position/z", g_target.pose.position.z);
-                ros::param::get("/goal/transform/" + g_goal_name + "/orientation/x", g_target.pose.orientation.x);
-                ros::param::get("/goal/transform/" + g_goal_name + "/orientation/y", g_target.pose.orientation.y);
-                ros::param::get("/goal/transform/" + g_goal_name + "/orientation/z", g_target.pose.orientation.z);
-                ros::param::get("/goal/transform/" + g_goal_name + "/orientation/w", g_target.pose.orientation.w);
-                ROS_INFO("Using GOAL_TRANSFORM from parameter server");
-            }
-            else
-            {
-                ROS_INFO("Using GOAL_TRANSFORM_DEFAULT");
-            }
-
+            // Generate weights for trajectory planning
+            geometry_msgs::PoseStamped g_weights;
+            g_weights.header.stamp = ros::Time::now();
+            g_weights.header.frame_id = "world";
+            g_weights.pose.position.x = 0.0;
+            g_weights.pose.position.y = 1.0;
+            g_weights.pose.position.z = 0.0;
+            g_weights.pose.orientation.x = 0.0;
+            g_weights.pose.orientation.y = 0.0;
+            g_weights.pose.orientation.z = 0.0;
+            g_weights.pose.orientation.w = 0.0;
             // Generate constraints for trajectory planning
             moveit_msgs::OrientationConstraint g_constraint;
             g_constraint.link_name = "tcp_link";
@@ -227,6 +152,42 @@ class TrajectoryNode
             g_constraint.absolute_z_axis_tolerance = 0.1;
             g_constraint.weight = 1.0;
 
+            // Get target vector from ros server, if possible
+            if (ros::param::get("/goal/name", g_goal_name))
+            {
+                ROS_INFO("Using GOAL_NAME from parameter server");
+            }
+            else
+            {
+                g_goal_name = GOAL_NAME_DEFAULT;
+                ROS_INFO("Using GOAL_NAME_DEFAULT");
+            }
+            // Get goal transform and associated parameters from parameter server
+            if (ros::param::has("/goal/transform/" + g_goal_name))
+            {
+                // Get goal transform from parameter server
+                ros::param::get("/goal/transform/" + g_goal_name + "/goal_pose/position/x", g_target.pose.position.x);
+                ros::param::get("/goal/transform/" + g_goal_name + "/goal_pose/position/y", g_target.pose.position.y);
+                ros::param::get("/goal/transform/" + g_goal_name + "/goal_pose/position/z", g_target.pose.position.z);
+                ros::param::get("/goal/transform/" + g_goal_name + "/goal_pose/orientation/x", g_target.pose.orientation.x);
+                ros::param::get("/goal/transform/" + g_goal_name + "/goal_pose/orientation/y", g_target.pose.orientation.y);
+                ros::param::get("/goal/transform/" + g_goal_name + "/goal_pose/orientation/z", g_target.pose.orientation.z);
+                ros::param::get("/goal/transform/" + g_goal_name + "/goal_pose/orientation/w", g_target.pose.orientation.w);
+                // Get goal weights from parameter server
+                ros::param::get("/goal/transform/" + g_goal_name + "/goal_pose/position_weights/x", g_weights.pose.position.x);
+                ros::param::get("/goal/transform/" + g_goal_name + "/goal_pose/position_weights/y", g_weights.pose.position.y);
+                ros::param::get("/goal/transform/" + g_goal_name + "/goal_pose/position_weights/z", g_weights.pose.position.z);
+                ros::param::get("/goal/transform/" + g_goal_name + "/goal_pose/orientation_weights/x", g_weights.pose.orientation.x);
+                ros::param::get("/goal/transform/" + g_goal_name + "/goal_pose/orientation_weights/y", g_weights.pose.orientation.y);
+                ros::param::get("/goal/transform/" + g_goal_name + "/goal_pose/orientation_weights/z", g_weights.pose.orientation.z);
+                ros::param::get("/goal/transform/" + g_goal_name + "/goal_pose/orientation_weights/w", g_weights.pose.orientation.w);
+
+                ROS_INFO("Using GOAL_TRANSFORM from parameter server");
+            }
+            else
+            {
+                ROS_INFO("Using GOAL_TRANSFORM_DEFAULT");
+            }
 
             // Get robot model from the current planning scene
             const robot_model::RobotModelConstPtr robot_model = g_planning_scene_monitor->getRobotModel();
@@ -244,7 +205,6 @@ class TrajectoryNode
             // Set planning parameters
             g_move_group_interface->setPlanningTime(60);
             g_move_group_interface->setPoseTarget(g_target, "tcp_link");
-            // g_move_group_interface->setPositionTarget(0.2, 0.2, 0.8, "tcp_link");
             g_move_group_interface->setStartState(*robot_state);
             
             // Create plan
@@ -256,11 +216,6 @@ class TrajectoryNode
             // Instantiate visual tools for visualizing markers in Rviz
             visual_tools_ = std::make_shared<moveit_visual_tools::MoveItVisualTools>("/world", "visualization_marker_array", g_planning_scene_monitor);
 
-            // Add callback which dictates behavior after each scene update
-            // planning_scene_monitor->addUpdateCallback
-            
-            // Get a list of all links in the robot so we can check them for collisions
-
             spin();
             // ros::shutdown();
         }
@@ -270,11 +225,7 @@ class TrajectoryNode
             // Loop collision requests and publish at specified rate
             ros::Rate loop_rate(10);
             while (ros::ok())
-            {
-                // updateCollision();
-                // publishCollision();
-                // visualizeCollision(g_c_res.contacts);
-                
+            {   
                 // Retrieve and update state once. Avoid updating in functions below to maintain sync.
                 auto current_state = g_planning_scene_monitor->getPlanningScene()->getCurrentState();
                 current_state.updateLinkTransforms();
@@ -295,14 +246,6 @@ class TrajectoryNode
                 publishTrajectory(transform_deque);
                 visualizeTrajectory(transform_deque);
 
-                // Update the nearest plan point
-
-
-                // Get all contact vectors which correspond to robot<->obstacle pairs
-                //for (int i : contact_map)
-                //{
-
-                //}
                 loop_rate.sleep();
             }
 
@@ -326,23 +269,6 @@ class TrajectoryNode
 
             return pose;
         }
-
-        // Plan trajectories for comparison
-        /*
-        planning_interface::MotionPlanResponse getPlan(geometry_msgs::PoseStamped target_pose)
-        {
-            // Use current state as starting pose
-            g_planning_components->setStartStateToCurrentState();
-
-            // Set tcp_link (middle of gripper) to target the target pose
-            g_planning_components->setGoal(target_pose, "tcp_link");
-
-            // Generate plan
-            auto plan = g_planning_components->plan(*g_plan_request_parameters); // plan is a planning_interface::MotionPlanResponse
-
-            return plan;
-        }
-        */
 
         // Get waypoints from plan
         std::deque<moveit::core::RobotState> getWaypoints(planning_interface::MotionPlanResponse& plan) // returns a std::deque< robot_state::RobotStatePtr >
