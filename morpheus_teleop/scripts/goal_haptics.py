@@ -33,51 +33,52 @@ class GoalHaptics():
         self.tf_buffer = tf2_ros.Buffer()
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
         
-        self.goal_position = [0, 0, 0] # (x, y, z) 
-        self.goal_orientation = [0, 0, 0, 0] # (X, Y, Z, W)
+        self.goal_pose_list = [] # (x, y, z, Xr, Yr, Zr, W)
 
-        self.goal_position_weights = [0.25, 0.25, 0.25]
-        self.goal_orientation_weights = [0.0, 0.0, 0.0]
+        self.goal_weight_list = []
         self.cost = None
 
-        # Attempt to retrieve the name of a goal preset from parameter server
-        self.goal_name = rospy.get_param("/goal/name", None)
-        if self.goal_name is not None:
-            rospy.loginfo("Using goal name from parameter server")
-        else:
-            self.goal_name = "keyhole"
-            rospy.loginfo("Using default goal name")
-
         # Attempt to retrieve ideal goal pose from parameter server
-        self.goal_transform_dict = rospy.get_param("/goal/transform", None)
-        if self.goal_transform_dict is not None:
-            rospy.loginfo("Using goal transform from parameter server")
-            # Retrieve translation and quaternion from the goal transform dict
-            goal_transform = self.goal_transform_dict[self.goal_name]['goal_pose']
-            self.goal_position = [goal_transform['position']['x'], 
-                                    goal_transform['position']['y'], 
-                                    goal_transform['position']['z']]
-            self.goal_orientation = [goal_transform['orientation']['x'], 
-                                    goal_transform['orientation']['y'], 
-                                    goal_transform['orientation']['z'], 
-                                    goal_transform['orientation']['w'],]
-        else:
-            rospy.loginfo("Using default goal transform")
+        self.goal_dict = rospy.get_param("/goal", None)
 
-        # Attempt to retrieve goal pose weights from parameter server    
-        if self.goal_transform_dict is not None:
-            rospy.loginfo("Using goal transform from parameter server")
-            # Retrieve translation and quaternion from the goal transform dict
-            goal_transform = self.goal_transform_dict[self.goal_name]['goal_pose']
-            self.goal_position_weights = [goal_transform['position_weights']['x'], 
-                                    goal_transform['position_weights']['y'], 
-                                    goal_transform['position_weights']['z']]
-            self.goal_orientation_weights = [goal_transform['orientation_weights']['x'], 
-                                    goal_transform['orientation_weights']['y'], 
-                                    goal_transform['orientation_weights']['z'], 
-                                    goal_transform['orientation_weights']['w']]
+        # Attempt to retrieve a list of goal presets from parameter server
+        self.goal_name_list = rospy.get_param("/goal/name_vector", None)
+        if self.goal_name_list is not None:
+            rospy.loginfo("Using goal name list from parameter server")
         else:
-            rospy.loginfo("Using default goal transform")
+            self.goal_name_list = ["keyhole"]
+            rospy.loginfo("Using default goal name list")
+
+        # Retrieve details for all named poses
+        for name in self.goal_name_list:
+            goal_scene = rospy.get_param("/goal/" + name, None)
+            if goal_scene is not None:
+                rospy.loginfo("Using goal transform from parameter server")
+                # Retrieve translation and quaternion from the goal transform dict
+                goal_pose = goal_scene['goal_pose']
+                self.goal_pose_list.append([goal_pose['position']['x'], 
+                                        goal_pose['position']['y'], 
+                                        goal_pose['position']['z'],
+                                        goal_pose['orientation']['x'], 
+                                        goal_pose['orientation']['y'], 
+                                        goal_pose['orientation']['z'], 
+                                        goal_pose['orientation']['w']])
+            else:
+                rospy.loginfo("Failed to retrieve goal transform")
+
+            # Attempt to retrieve goal pose weights from parameter server    
+            if self.goal_scene is not None:
+                rospy.loginfo("Using goal weights from parameter server")
+                # Retrieve translation and quaternion from the goal transform dict
+                self.goal_weight_list.append([goal_scene['position_weights']['x'], 
+                                        goal_scene['position_weights']['y'], 
+                                        goal_scene['position_weights']['z'],
+                                        goal_scene['orientation_weights']['x'], 
+                                        goal_scene['orientation_weights']['y'], 
+                                        goal_scene['orientation_weights']['z'], 
+                                        goal_scene['orientation_weights']['w']])
+            else:
+                rospy.loginfo("Failed to retrieve goal weights")
 
         self.force_feedback_msg = None
         self.force_feedback_msg_mutex = Lock()
@@ -93,20 +94,13 @@ class GoalHaptics():
                 transform = self.tf_buffer.lookup_transform("world", "tcp_link", rospy.Time(0), rospy.Duration(5.0))
             except:
                 rospy.loginfo("Waiting for tcp_link transform")
+        end_effector_pose = [transform.transform.translation.x, transform.transform.translation.y, transform.transform.translation.z,
+                             transform.transform.rotation.x, transform.transform.rotation.y, transform.transform.rotation.z, transform.transform.rotation.w]
         
-        # Calculate final - initial translation
-        translation_as_list = [transform.transform.translation.x, transform.transform.translation.y, transform.transform.translation.z]
-        translation_to_goal = np.subtract(self.goal_position, translation_as_list)
-        translation_to_goal_magnitude = np.linalg.norm(translation_to_goal)
-
-        # Calculate final - initial rotation
-        rotation_as_quat = [transform.transform.rotation.x, transform.transform.rotation.y, transform.transform.rotation.z, transform.transform.rotation.w]
-        rotation_to_goal = R.concatenate((R.from_quat(self.goal_orientation), R.from_quat(rotation_as_quat).inv()))
-        rotation_to_goal_magnitude = rotation_to_goal.magnitude()
+        cost_list = [self.get_cost(end_effector_pose, self.goal_pose_list[i], self.goal_weight_list[i]) for i in range(len(self.goal_pose_list))]
         
         # Calculate a cost for the current pose, as a function of distance to goal in translation and rotation
-        self.cost = (np.sum(np.multiply(self.goal_position_weights, translation_to_goal)) + 
-                    np.sum(np.multiply(self.goal_orientation_weights, rotation_to_goal.as_quat())))
+        self.cost = min(cost_list)
 
     def publish(self):
         if self.cost is not None:
@@ -146,6 +140,18 @@ class GoalHaptics():
             self.joy_feedback_pub.publish(self.joy_feedback_array_msg)
             # Publish message to goal haptics topic (change message if non-joystick haptic device needs to convey different info)
             self.goal_haptics_pub.publish(self.joy_feedback_array_msg)
+
+    def get_cost(self, end_effector_pose, goal_pose, weights = [1, 1, 1, 1, 1, 1, 1]):
+        # Calculate final - initial translation
+        translation_to_goal = np.subtract(goal_pose[:3], end_effector_pose[:3])
+
+        # Calculate final - initial rotation
+        rotation_to_goal = R.concatenate((R.from_quat(goal_pose[3:]), R.from_quat(end_effector_pose[3:]).inv())).as_quat()
+        
+        # Calculate a cost for the current pose, as a function of distance to goal in translation and rotation
+        cost = (np.sum(np.multiply(weights[:3], translation_to_goal)) + 
+                np.sum(np.multiply(weights[3:], rotation_to_goal)))
+        return cost
 
     def loop_once(self):
         if self.joy_msg is not None:
