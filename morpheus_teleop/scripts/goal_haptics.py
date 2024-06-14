@@ -6,6 +6,7 @@ import tf2_ros
 import geometry_msgs.msg   
 import sensor_msgs.msg 
 import control_msgs.msg
+import std_msgs.msg
 from threading import Lock
 from copy import deepcopy
 from collections import deque
@@ -19,9 +20,11 @@ class GoalHaptics():
     def __init__(self):
         joy_feedback_topic = rospy.get_param("~joy_feedback_topic", "/joy/set_feedback")
         goal_haptics_topic = rospy.get_param("~goal_haptics_topic", "/goal/haptics")
+        goal_cost_topic = rospy.get_param("~goal_haptics_cost_topic", "/goal/cost")
 
-        self.joy_feedback_pub = rospy.Publisher(joy_feedback_topic, sensor_msgs.msg.JoyFeedbackArray, queue_size=5)
-        self.goal_haptics_pub = rospy.Publisher(goal_haptics_topic, sensor_msgs.msg.JoyFeedbackArray, queue_size=5)
+        self.joy_feedback_pub = rospy.Publisher(joy_feedback_topic, sensor_msgs.msg.JoyFeedbackArray, queue_size=0)
+        self.goal_haptics_pub = rospy.Publisher(goal_haptics_topic, sensor_msgs.msg.JoyFeedbackArray, queue_size=0)
+        self.goal_cost_pub = rospy.Publisher(goal_cost_topic, std_msgs.msg.Float64, queue_size=0)
         self.joy_sub = rospy.Subscriber("/joy", sensor_msgs.msg.Joy, self.callback)
 
         self.joy_msg = None
@@ -140,6 +143,7 @@ class GoalHaptics():
             self.joy_feedback_pub.publish(self.joy_feedback_array_msg)
             # Publish message to goal haptics topic (change message if non-joystick haptic device needs to convey different info)
             self.goal_haptics_pub.publish(self.joy_feedback_array_msg)
+            self.goal_cost_pub.publish(self.cost)
 
     def get_cost(self, end_effector_pose, goal_pose, weights = [1, 1, 1, 1, 1, 1, 1]):
         # Calculate final - initial translation
