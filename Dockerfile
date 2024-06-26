@@ -1,31 +1,84 @@
-FROM thbarkouki/homestri-ur:minimal-v1.0.3
+FROM nvidia/cudagl:11.1.1-base-ubuntu20.04 as base
 
 SHELL ["/bin/bash", "-c"]
 
-WORKDIR /root/catkin_ws
+# Install git and wget
+RUN apt-get update && apt-get install git wget -y
 
-# Install git
-RUN apt-get update && apt-get install git -y
+# Install Miniconda
+RUN wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda3.sh
+RUN bash ~/miniconda3.sh -b -p ~/miniconda3
+RUN rm ~/miniconda3.sh
 
-# # Install python dependencies
-# RUN pip3 install \ 
-#     package1 \
-RUN pip3 install \
-      numpy \
-      numpy-quaternion \
-      scipy 
+RUN export PATH=~/miniconda3/bin:$PATH
 
-RUN sudo apt-get update && sudo apt-get install python3-tk -y
+# Minimal setup
+ENV ROS_DISTRO noetic
+ARG DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install --no-install-recommends -y \
+    locales \
+    lsb-release \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+RUN dpkg-reconfigure locales
 
-# # Install ROS dependencies
-# RUN apt-get update && apt-get install --no-install-recommends -y \
-#     package2 \
-#     && rm -rf /var/lib/apt/lists/*
-RUN apt-get install ros-noetic-teleop-twist-keyboard --no-install-recommends -y \
-#     && moveit_visual_tools \
+# Install ROS Noetic Desktop Full
+RUN sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list'
+RUN curl -s https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | apt-key add -
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ros-noetic-desktop-full \
     && rm -rf /var/lib/apt/lists/*
 
-COPY ./ ./src/morpheus
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3-rosdep \
+    python3-rosinstall \
+    python3-vcstools \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Initialize rosdep
+RUN rosdep init \
+ && rosdep fix-permissions \
+ && rosdep update --rosdistro $ROS_DISTRO
+
+# source setup.bash on startup
+RUN echo "source /opt/ros/noetic/setup.bash" >> ~/.bashrc
+
+FROM base as dev
+
+# Set the working directory in the container
+WORKDIR /root/catkin_ws
+
+# Install submodules
+RUN git submodule add https://github.com/huoshengyu/gello_software
+RUN git submodule add https://github.com/tammerb/HOMESTRI-UR5e-Robotiq2f85/tree/minimal
+
+# Install general dependencies
+RUN apt-get update && apt-get install --no-install-recommends -y \
+    python3-pip \
+    python3-catkin-tools \
+    ros-noetic-teleop-twist-keyboard \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install python dependencies
+RUN pip3 install \ 
+    pyserial \
+    pymodbus===2.1.0 \
+    numpy \
+    numpy-quaternion \
+    scipy 
+
+# Install ROS dependencies
+RUN apt-get update && apt-get install --no-install-recommends -y \
+    ros-noetic-moveit \
+    ros-noetic-teleop-twist-keyboard \
+    python3-tk \
+    && rm -rf /var/lib/apt/lists/*
+
+# Source the workspace setup files on container startup
+RUN echo "source /root/catkin_ws/devel/setup.bash" >> ~/.bashrc
+
+COPY ./ ./src
 
 # General rosdep install (not necessary?)
 RUN source /opt/ros/noetic/setup.bash \
@@ -38,22 +91,4 @@ RUN source /opt/ros/noetic/setup.bash \
     && rm -rf /var/lib/apt/lists/*
 
 # Build the ROS workspace
-RUN source /opt/ros/noetic/setup.bash
 RUN catkin build -s
-RUN source /root/catkin_ws/devel/setup.bash
-
-# Installation for ros_pybullet_interface
-# RUN git clone -b main https://github.com/ros-pybullet/ros_pybullet_interface.git /root/catkin_ws/src/ros_pybullet_interface
-# RUN source /root/catkin_ws/devel/setup.bash
-# RUN sudo apt update
-# RUN cd /root/catkin_ws/src/morpheus_teleop/
-# RUN bash install.sh 
-# Might need to run catkin build -s -j1 to avoid crash
-
-# ros_pybullet_interface citenote for BibTeX
-# @article{Mower2022,
-#   author = {Mower, Christopher E. and Stouraitis, Theodoros and Moura, João and Rauch, Christian and Yan, Lei and Behabadi, Nazanin Zamani and Gienger, Michael and Vercauteren, Tom and Bergeles, Christos and Vijayakumar, Sethu},
-#   title = {ROS-PyBullet Interface: A Framework for Reliable Contact Simulation and Human-Robot Interaction},
-#   journal = {[to appear] Proceedings of the Conference on Robot Learning},
-#   year = {2022},
-# }
