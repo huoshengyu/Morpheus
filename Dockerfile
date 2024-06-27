@@ -49,15 +49,11 @@ FROM base as dev
 # Set the working directory in the container
 WORKDIR /root/catkin_ws
 
-# Install submodules
-RUN git submodule add https://github.com/huoshengyu/gello_software
-RUN git submodule add https://github.com/tammerb/HOMESTRI-UR5e-Robotiq2f85/tree/minimal
-
 # Install general dependencies
 RUN apt-get update && apt-get install --no-install-recommends -y \
     python3-pip \
     python3-catkin-tools \
-    ros-noetic-teleop-twist-keyboard \
+    python3-zipp \
     && rm -rf /var/lib/apt/lists/*
 
 # Install python dependencies
@@ -67,10 +63,13 @@ RUN pip3 install \
     numpy \
     numpy-quaternion \
     scipy 
+RUN python3 -m pip install PyQt6
 
 # Install ROS dependencies
 RUN apt-get update && apt-get install --no-install-recommends -y \
     ros-noetic-moveit \
+    ros-noetic-cartesian_controllers \
+    ros-noetic-cartesian-control-msgs \
     ros-noetic-teleop-twist-keyboard \
     python3-tk \
     && rm -rf /var/lib/apt/lists/*
@@ -78,7 +77,12 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
 # Source the workspace setup files on container startup
 RUN echo "source /root/catkin_ws/devel/setup.bash" >> ~/.bashrc
 
-COPY ./ ./src
+# Copy the morpheus repo
+COPY ./ ./src/morpheus
+
+# Ensure submodules are up to date
+RUN git submodule init \
+    && git submodule update
 
 # General rosdep install (not necessary?)
 RUN source /opt/ros/noetic/setup.bash \
@@ -91,4 +95,5 @@ RUN source /opt/ros/noetic/setup.bash \
     && rm -rf /var/lib/apt/lists/*
 
 # Build the ROS workspace
-RUN catkin build -s
+RUN source /opt/ros/noetic/setup.bash \
+    catkin build -s
