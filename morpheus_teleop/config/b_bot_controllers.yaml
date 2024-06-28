@@ -167,10 +167,15 @@ robot_status_controller:
   handle_name: industrial_robot_status_handle
   publish_rate: 10
 
+joint_group_pos_controller:
+  type: position_controllers/JointGroupPositionController
+  joints: *robot_joints
+  pid: {p: 1.0, i: 0.001, d: 0.1}
+
 effort_joint_group_pos_controller:
   type: effort_controllers/JointGroupPositionController
   joints: *robot_joints
-  pid: {p: 1.0, i: 0.01, d: 0.1}
+  pid: {p: 1.0, i: 0.001, d: 0.1}
 
 motion_control_handle:
   type: "cartesian_controllers/MotionControlHandle"
