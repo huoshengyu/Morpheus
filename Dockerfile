@@ -78,7 +78,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy the morpheus repo
-COPY ./ ./src/morpheus
+COPY ./ ./src/
 
 # General rosdep install (not necessary?)
 RUN source /opt/ros/noetic/setup.bash \
@@ -91,5 +91,5 @@ RUN source /opt/ros/noetic/setup.bash \
     && rm -rf /var/lib/apt/lists/*
 
 # Build the ROS workspace
-RUN source /opt/ros/noetic/setup.bash \
-    catkin build -s
+# RUN source /opt/ros/noetic/setup.bash \
+#     catkin build -s

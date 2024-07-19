@@ -17,7 +17,7 @@ services:
       # Grant display access to X Server.
       - /tmp/.X11-unix:/tmp/.X11-unix
       - "/dev:/dev"
-      - .:/root/catkin_ws/src/morpheus
+      - .:/root/catkin_ws/src
     deploy:
       resources:
         reservations:
