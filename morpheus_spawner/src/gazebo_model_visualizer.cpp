@@ -157,10 +157,3 @@ class VisualizerNode
         }
 
 };
-
-int main(int argc, char** argv)
-{
-    VisualizerNode visualizer_node(argc, argv);
-    visualizer_node.spin();
-    return 0;
-}
