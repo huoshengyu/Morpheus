@@ -49,6 +49,8 @@ FROM base as dev
 # Set the working directory in the container
 WORKDIR /root/catkin_ws
 
+# Source the workspace setup files on container startup
+
 # Install general dependencies
 RUN apt-get update && apt-get install --no-install-recommends -y \
     python3-pip \
@@ -62,27 +64,21 @@ RUN pip3 install \
     pymodbus===2.1.0 \
     numpy \
     numpy-quaternion \
-    scipy 
-RUN python3 -m pip install PyQt6
+    scipy
+RUN python3 -m pip install pip setuptools --upgrade && pip3 install PyQt6
+
+RUN echo "source /root/catkin_ws/devel/setup.bash" >> ~/.bashrc
 
 # Install ROS dependencies
 RUN apt-get update && apt-get install --no-install-recommends -y \
     ros-noetic-moveit \
-    ros-noetic-cartesian_controllers \
     ros-noetic-cartesian-control-msgs \
     ros-noetic-teleop-twist-keyboard \
     python3-tk \
     && rm -rf /var/lib/apt/lists/*
 
-# Source the workspace setup files on container startup
-RUN echo "source /root/catkin_ws/devel/setup.bash" >> ~/.bashrc
-
 # Copy the morpheus repo
 COPY ./ ./src/morpheus
-
-# Ensure submodules are up to date
-RUN git submodule init \
-    && git submodule update
 
 # General rosdep install (not necessary?)
 RUN source /opt/ros/noetic/setup.bash \
