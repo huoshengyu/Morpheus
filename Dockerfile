@@ -49,8 +49,6 @@ FROM base as dev
 # Set the working directory in the container
 WORKDIR /root/catkin_ws
 
-# Source the workspace setup files on container startup
-
 # Install general dependencies
 RUN apt-get update && apt-get install --no-install-recommends -y \
     python3-pip \
@@ -65,9 +63,13 @@ RUN pip3 install \
     numpy \
     numpy-quaternion \
     scipy
-RUN python3 -m pip install pip setuptools --upgrade && pip3 install PyQt6
+RUN python3 -m pip3 install pip setuptools --upgrade && pip3 install PyQt6
 
+# Source the workspace setup files on container startup
 RUN echo "source /root/catkin_ws/devel/setup.bash" >> ~/.bashrc
+
+# Allow "python" to execute python3
+RUN echo "alias python=python3" >> ~/.bashrc
 
 # Install ROS dependencies
 RUN apt-get update && apt-get install --no-install-recommends -y \
