@@ -57,7 +57,9 @@ moveit_msgs::CollisionObject createCollisionObject(std::string mesh_path,
   moveit_msgs::CollisionObject collision_object;
 
   // Import mesh.
+  ROS_INFO_STREAM("Creating mesh from " << mesh_path);
   shapes::Mesh* mesh = shapes::createMeshFromResource(mesh_path);
+  ROS_INFO_STREAM("Mesh loading done");
   shapes::ShapeMsg shape_msg;
   shapes::constructMsgFromShape(mesh, shape_msg);
   shape_msgs::Mesh shape_msgs_mesh;

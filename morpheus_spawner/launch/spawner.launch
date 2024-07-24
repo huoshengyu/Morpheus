@@ -1,10 +1,9 @@
 <launch>
-    <arg name="mesh_path" default="$(find morpheus_teleop)/urdf/macros/dragon_simple.xacro"/>
+    <arg name="mesh_path" default="file://$(find morpheus_teleop)/meshes/components/collision/teapot.obj"/>
     <arg name="world_pose" default="-x -0.1 -y 0.8528 -z 0.91915 -R 1.57079633 -P 0.0 -Y 0" doc="Pose to spawn the robot at"/>
 
     <node name="morpheus_spawner" pkg="morpheus_spawner" type="morpheus_spawner"
         args="-mesh_path $(arg mesh_path) $(arg world_pose)" 
-        launch-prefix="xterm -e gdb --args"
         respawn="false" output="screen"/>
 
 </launch>
