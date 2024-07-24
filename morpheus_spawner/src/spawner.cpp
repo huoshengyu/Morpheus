@@ -49,6 +49,9 @@
 #include "geometric_shapes/mesh_operations.h"
 #include "geometric_shapes/shape_operations.h"
 
+// Eigen
+#include <Eigen/Geometry>
+
 moveit_msgs::CollisionObject createCollisionObject(std::string mesh_path, 
                                                   std::vector<double> position,
                                                   std::vector<double> orientation)
@@ -57,9 +60,26 @@ moveit_msgs::CollisionObject createCollisionObject(std::string mesh_path,
   moveit_msgs::CollisionObject collision_object;
 
   // Import mesh.
+  const Eigen::Vector3d scale(0.0393700787, 0.0393700787, 0.0393700787); // mm/inch
   ROS_INFO_STREAM("Creating mesh from " << mesh_path);
-  shapes::Mesh* mesh = shapes::createMeshFromResource(mesh_path);
+  shapes::Mesh* mesh = shapes::createMeshFromResource(mesh_path, scale);
   ROS_INFO_STREAM("Mesh loading done");
+
+  // find the center of the mesh
+  int vertex_count = mesh->vertex_count;
+  double sx = 0.0, sy = 0.0, sz = 0.0;
+  for (unsigned int i = 0; i < vertex_count; ++i)
+  {
+    unsigned int i3 = i * 3;
+    sx += mesh->vertices[i3];
+    sy += mesh->vertices[i3 + 1];
+    sz += mesh->vertices[i3 + 2];
+  }
+  sx /= (double)vertex_count;
+  sy /= (double)vertex_count;
+  sz /= (double)vertex_count;
+
+  // mesh->scaleAndPadd(0.1, 0.0); // Scale correction
   shapes::ShapeMsg shape_msg;
   shapes::constructMsgFromShape(mesh, shape_msg);
   shape_msgs::Mesh shape_msgs_mesh;
@@ -73,11 +93,11 @@ moveit_msgs::CollisionObject createCollisionObject(std::string mesh_path,
   collision_object.meshes.resize(1);
   collision_object.meshes[0] = shape_msgs_mesh;
 
-  // Define the pose of the table.
+  // Define the pose of the mesh.
   collision_object.mesh_poses.resize(1);
-  collision_object.mesh_poses[0].position.x = position[0];
-  collision_object.mesh_poses[0].position.y = position[1];
-  collision_object.mesh_poses[0].position.z = position[2];
+  collision_object.mesh_poses[0].position.x = position[0] - sx;
+  collision_object.mesh_poses[0].position.y = position[1] - sy;
+  collision_object.mesh_poses[0].position.z = position[2] - sz;
 
   // collision_object.operation = collision_object.ADD;
 
