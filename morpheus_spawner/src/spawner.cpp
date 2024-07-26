@@ -94,10 +94,12 @@ moveit_msgs::CollisionObject createCollisionObject(std::string mesh_path,
   collision_object.meshes[0] = shape_msgs_mesh;
 
   // Define the pose of the mesh.
-  collision_object.mesh_poses.resize(1);
-  collision_object.mesh_poses[0].position.x = position[0] - sx;
-  collision_object.mesh_poses[0].position.y = position[1] - sy;
-  collision_object.mesh_poses[0].position.z = position[2] - sz;
+  collision_object.pose.position.x = position[0] - sx;
+  collision_object.pose.position.y = position[1] - sy;
+  collision_object.pose.position.z = position[2] - sz;
+  collision_object.pose.orientation.x = orientation[0];
+  collision_object.pose.orientation.y = orientation[1];
+  collision_object.pose.orientation.z = orientation[2];
 
   // collision_object.operation = collision_object.ADD;
 
@@ -113,6 +115,24 @@ moveit_msgs::CollisionObject addCollisionObject(moveit::planning_interface::Plan
 {
   moveit_msgs::CollisionObject collision_object = createCollisionObject(mesh_path, position, orientation);
   
+  ROS_INFO_STREAM("Spawning object");
+  std::stringstream position_ss;
+  position_ss << "Position:";
+  for (double val : position)
+  {
+    position_ss << " ";
+    position_ss << std::to_string(val);
+  }
+  ROS_INFO_STREAM(position_ss.str());
+  std::stringstream orientation_ss;
+  orientation_ss << "Quaternion:";
+  for (double val : orientation)
+  {
+    orientation_ss << " ";
+    orientation_ss << std::to_string(val);
+  }
+  ROS_INFO_STREAM(orientation_ss.str());
+
   collision_object.operation = collision_object.ADD;
   planning_scene_interface.applyCollisionObject(collision_object);
   
@@ -130,8 +150,10 @@ int main(int argc, char** argv)
   std::string mesh_path;
   std::vector<double> position;
   position.resize(3);
+  // std::fill(position.begin(), position.end(), 0);
   std::vector<double> orientation;
   orientation.resize(3);
+  // std::fill(orientation.begin(), orientation.end(), 0);
   for (int i = 0; i < arguments.size(); i++) {
     std::string s = arguments[i];
     if (s == "-mesh_path") {
@@ -157,10 +179,22 @@ int main(int argc, char** argv)
     }
   }
 
+  // Convert euler angles to quaternion
+  Eigen::Quaternionf quaternion;
+  quaternion = Eigen::AngleAxisf(orientation[0], Eigen::Vector3f::UnitX())
+        * Eigen::AngleAxisf(orientation[1], Eigen::Vector3f::UnitY())
+        * Eigen::AngleAxisf(orientation[2], Eigen::Vector3f::UnitZ());
+  std::vector<double> quaternion_vec;
+  for (int i = 0; i < quaternion.coeffs().size(); i++)
+  {
+    double val = quaternion.coeffs()[i];
+    quaternion_vec.push_back(val);
+  }
+
   ros::WallDuration(1.0).sleep();
   moveit::planning_interface::PlanningSceneInterface planning_scene_interface;
 
-  addCollisionObject(planning_scene_interface, mesh_path, position, orientation);
+  addCollisionObject(planning_scene_interface, mesh_path, position, quaternion_vec);
 
   // Wait a bit for ROS things to initialize
   ros::WallDuration(1.0).sleep();
