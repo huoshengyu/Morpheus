@@ -118,7 +118,7 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-# include
+  include
   ${catkin_INCLUDE_DIRS}
 )
 
@@ -135,7 +135,7 @@ include_directories(
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-add_executable(${PROJECT_NAME} src/gazebo_model_visualizer.cpp src/pick_place_spawner.cpp src/spawner.cpp)
+add_executable(${PROJECT_NAME} src/gazebo_model_visualizer.cpp src/pick_place_spawner.cpp src/collision_object.cpp src/attached_collision_object.cpp src/spawner.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
