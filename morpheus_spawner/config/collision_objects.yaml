@@ -1,0 +1,11 @@
+dragon:
+  mesh_path: "file://$(find morpheus_teleop)/meshes/components/collision/dragon_simple.obj"
+  position:
+    x: -0.1
+    y: 0.8528
+    z: 0.91915
+  quaternion:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+    w: 0.0
