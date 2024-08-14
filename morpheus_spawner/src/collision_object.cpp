@@ -56,16 +56,17 @@
 #include "collision_object.h"
 
 moveit_msgs::CollisionObject createCollisionObject(std::string mesh_path, 
-                                                  std::vector<double> position,
-                                                  std::vector<double> quaternion)
+                                                  std::vector<double> scale = {1, 1, 1},
+                                                  std::vector<double> position = {0, 0, 0},
+                                                  std::vector<double> quaternion = {0, 0, 0, 1})
 {
   // Create a collision object.
   moveit_msgs::CollisionObject collision_object;
 
   // Import mesh.
-  const Eigen::Vector3d scale(0.0393700787, 0.0393700787, 0.0393700787); // mm/inch
+  const Eigen::Vector3d scale_eigen(scale[0], scale[1], scale[2]); // mm/inch
   ROS_INFO_STREAM("Creating mesh from " << mesh_path);
-  shapes::Mesh* mesh = shapes::createMeshFromResource(mesh_path, scale);
+  shapes::Mesh* mesh = shapes::createMeshFromResource(mesh_path, scale_eigen);
   ROS_INFO_STREAM("Mesh loading done");
 
   // find the center of the mesh
@@ -109,12 +110,46 @@ moveit_msgs::CollisionObject createCollisionObject(std::string mesh_path,
   return collision_object;
 }
 
+// Second implementation to handle map type inputs
+moveit_msgs::CollisionObject createCollisionObject(std::string mesh_path, 
+                                                  std::map<std::string, double> scale = {{"x", 1}, {"y", 1}, {"z", 1}},
+                                                  std::map<std::string, double> position = {{"x", 0}, {"y", 0}, {"z", 0}},
+                                                  std::map<std::string, double> quaternion = {{"x", 0}, {"y", 0}, {"z", 0}, {"w", 1}})
+{
+  // Reformat maps as vectors
+  std::vector<double> scale_vec = {scale["x"], scale["y"], scale["z"]};
+  std::vector<double> position_vec = {position["x"], position["y"], position["z"]};
+  std::vector<double> quaternion_vec = {quaternion["x"], quaternion["y"], quaternion["z"], quaternion["w"]};
+
+  // Call the vector-based implementation
+  moveit_msgs::CollisionObject collision_object = createCollisionObject(mesh_path, scale_vec, position_vec, quaternion_vec);
+
+  // Note: message still needs to be published to correct topic after this
+  return collision_object;
+}
+
 moveit_msgs::CollisionObject addCollisionObject(moveit::planning_interface::PlanningSceneInterface planning_scene_interface,
                                                   std::string mesh_path, 
-                                                  std::vector<double> position,
-                                                  std::vector<double> quaternion)
+                                                  std::vector<double> scale = {1, 1, 1},
+                                                  std::vector<double> position = {0, 0, 0},
+                                                  std::vector<double> quaternion = {0, 0, 0, 1})
 {
-  moveit_msgs::CollisionObject collision_object = createCollisionObject(mesh_path, position, quaternion);
+  moveit_msgs::CollisionObject collision_object = createCollisionObject(mesh_path, scale, position, quaternion);
+
+  collision_object.operation = collision_object.ADD;
+  planning_scene_interface.applyCollisionObject(collision_object);
+  
+  return collision_object;
+}
+
+// Second implementation to handle map type inputs
+moveit_msgs::CollisionObject addCollisionObject(moveit::planning_interface::PlanningSceneInterface planning_scene_interface,
+                                                  std::string mesh_path, 
+                                                  std::map<std::string, double> scale = {{"x", 1}, {"y", 1}, {"z", 1}},
+                                                  std::map<std::string, double> position = {{"x", 0}, {"y", 0}, {"z", 0}},
+                                                  std::map<std::string, double> quaternion = {{"x", 0}, {"y", 0}, {"z", 0}, {"w", 0}})
+{
+  moveit_msgs::CollisionObject collision_object = createCollisionObject(mesh_path, scale, position, quaternion);
 
   collision_object.operation = collision_object.ADD;
   planning_scene_interface.applyCollisionObject(collision_object);

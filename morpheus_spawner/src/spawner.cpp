@@ -1,5 +1,7 @@
 // ROS
 #include <ros/ros.h>
+#include <ros/package.h>
+#include <std_msgs/String.h>
 
 // MoveIt
 #include <moveit/planning_scene_interface/planning_scene_interface.h>
@@ -33,15 +35,15 @@ class SpawnerNode
     ros::Publisher g_attached_collision_object_publisher;
     std::vector<moveit_msgs::AttachedCollisionObject> g_attached_collision_object_vector;
 
-    ros::Subscriber g_collision_object_subscriber;
-
     ros::Publisher g_planning_scene_diff_publisher;
+
+    ros::Subscriber g_spawner_subscriber;
 
     ros::ServiceServer g_spawner_service;
 
     SpawnerNode(int argc, char** argv)
     {
-      // Init node handle
+      // Instantiate node handle
       ros::NodeHandle nh;
       ros::AsyncSpinner spinner(1);
       spinner.start();
@@ -49,32 +51,34 @@ class SpawnerNode
       // Joints to plan for, from srdf file
       static const std::string PLANNING_GROUP = "arm";
       
-      
       // Instantiate a move group interface so objects can be attached
       g_move_group_interface = std::make_shared<moveit::planning_interface::MoveGroupInterface>(PLANNING_GROUP);
 
+      // Move group interface does not need further instantiating
+
       // Instantiate publisher for attached collision objects (unattached collision objects are added by the planning scene interface)
-      g_attached_collision_object_publisher = nh.advertise<moveit_msgs::AttachedCollisionObject>("/planning_scene/attached_collision_objects", 0);
-    
-      // Instantiate a move group interface so objects can be attached
-      g_move_group_interface = std::make_shared<moveit::planning_interface::MoveGroupInterface>(PLANNING_GROUP);
+      g_collision_object_publisher = nh.advertise<moveit_msgs::CollisionObject>("/collision_object", 0);
 
       // Instantiate publisher for attached collision objects (unattached collision objects are added by the planning scene interface)
       g_attached_collision_object_publisher = nh.advertise<moveit_msgs::AttachedCollisionObject>("/planning_scene/attached_collision_objects", 0);
     
       // Instantiate planning scene diff publisher
-      g_planning_scene_diff_publisher = nh.advertise<moveit_msgs::PlanningScene>("planning_scene", 1);
+      g_planning_scene_diff_publisher = nh.advertise<moveit_msgs::PlanningScene>("planning_scene", 0);
 
-      // Instantiate collision object spawner service;
-      g_spawner_service = nh.advertiseService("spawner", spawner_service);
+      // Instantiate a subscriber to receive names of object presets to spawn
+      g_spawner_subscriber = nh.subscribe<std_msgs::String>("/spawner/spawn_queue", 1, &SpawnerNode::spawner_subscriber_callback, this);
+
+      // Instantiate collision object spawner service
+      g_spawner_service = nh.advertiseService("spawner", &SpawnerNode::spawner_service_callback, this);
       
       // Debug printouts
       ROS_INFO_STREAM("SpawnerNode ready");
     }
 
-    moveit_msgs::CollisionObject createCollisionObject(std::string mesh_path, 
-          std::vector<double> position,
-          std::vector<double> quaternion)
+    moveit_msgs::CollisionObject create(std::string mesh_path, 
+          std::vector<double> scale = {1, 1, 1},
+          std::vector<double> position = {0, 0, 0},
+          std::vector<double> quaternion = {0, 0, 0, 1})
     {
       // Debug printouts
       ROS_INFO_STREAM("Creating object");
@@ -98,6 +102,7 @@ class SpawnerNode
       // Create collision object
       moveit_msgs::CollisionObject collision_object =
         createCollisionObject(mesh_path,
+                              scale,
                               position,
                               quaternion);
 
@@ -111,6 +116,23 @@ class SpawnerNode
       g_attached_collision_object_vector.push_back(attached_collision_object);
 
       ROS_INFO_STREAM("Creating object complete");
+
+      return collision_object;
+    }
+
+    // Second implementation for map type inputs
+    moveit_msgs::CollisionObject create(std::string mesh_path, 
+          std::map<std::string, double> scale = {{"x", 1}, {"y", 1}, {"z", 1}},
+          std::map<std::string, double> position = {{"x", 0}, {"y", 0}, {"z", 0}},
+          std::map<std::string, double> quaternion = {{"x", 0}, {"y", 0}, {"z", 0}, {"w", 0}})
+    {
+      // Reformat maps as vectors
+      std::vector<double> scale_vec = {scale["x"], scale["y"], scale["z"]};
+      std::vector<double> position_vec = {position["x"], position["y"], position["z"]};
+      std::vector<double> quaternion_vec = {quaternion["x"], quaternion["y"], quaternion["z"], quaternion["w"]};
+
+      // Call the vector-based implementation
+      moveit_msgs::CollisionObject collision_object = create(mesh_path, scale_vec, position_vec, quaternion_vec);
 
       return collision_object;
     }
@@ -134,7 +156,25 @@ class SpawnerNode
 
       // Debug printouts
       ROS_INFO_STREAM("Spawning object complete");
-    }    
+    }
+
+    void spawn(moveit_msgs::CollisionObject collision_object)
+    {
+      // Debug printouts
+      ROS_INFO_STREAM("Spawning object");
+
+      // Specify that object is to be added
+      collision_object.operation = collision_object.ADD;
+
+      // Publish planning scene diff
+      moveit_msgs::PlanningScene planning_scene;
+      planning_scene.world.collision_objects.push_back(collision_object);
+      planning_scene.is_diff = true;
+      g_planning_scene_diff_publisher.publish(planning_scene);
+
+      // Debug printouts
+      ROS_INFO_STREAM("Spawning object complete");
+    }
 
     void despawn(int index = 0)
     {
@@ -219,22 +259,102 @@ class SpawnerNode
       return;
     }
 
-  private:
-    // Define the service call function
-    static bool spawner_service(morpheus_spawner::SpawnerService::Request &req,
-                                                 morpheus_spawner::SpawnerService::Response &res)
+    // Spin node to continue handling services
+    void spin()
     {
-      std::string mesh_param = req.preset_name.append("/mesh_path");
-      std::string mesh_path = "";
-      ros::param::get(mesh_param, mesh_path);
-      // TODO
-      res.success = true;
-      return true;
+      ros::spin();
     }
+
+    // Define the subscriber callback function
+    void spawner_subscriber_callback(std_msgs::String msg)
+    {
+      // Get name of the param which holds the mesh path
+      std::string mesh_param = msg.data.append("/mesh_path");
+      // Instantiate a string to hold the mesh path
+      std::string mesh_path = "";
+      // Retrieve the mesh path from param
+      ros::param::get(mesh_param, mesh_path);
+      // Specify that the path is relative to the morpheus_teleop package
+      mesh_path = "file://" + ros::package::getPath("morpheus_teleop") + mesh_path;
+
+      // Get the name of the param which holds the scale
+      std::string scale_param = msg.data.append("/scale");
+      // Instantiate a map to hold the scale
+      std::map<std::string, double> scale_map;
+      //Retrieve the scale from param
+      ros::param::get(scale_param, scale_map);
+
+      // Get the names of the params holding the object's coordinates
+      std::string pos_param = msg.data.append("/position");
+      std::string quat_param = msg.data.append("/quaternion");
+      // Instantiate maps to hold the coordinates
+      std::map<std::string, double> pos_map, quat_map;
+      // Retrieve the coordinates from param
+      ros::param::get(pos_param, pos_map);
+      ros::param::get(quat_param, quat_map);
+      // Convert maps to vectors (unnecessary since collision_object.cpp now supports maps as well as vectors as input)
+      // std::vector<double> pos_vector = {pos_map["x"], pos_map["y"], pos_map["z"]};
+      // std::vector<double> quat_vector = {quat_map["x"], quat_map["y"], quat_map["z"], quat_map["w"]};
+
+      // Create the collision object (and save it to g_collision_object_vector, g_attached_collision_object_vector)
+      moveit_msgs::CollisionObject collision_object = create(mesh_path, scale_map, pos_map, quat_map);
+      
+      // Spawn the created object
+      spawn(g_collision_object_vector.size() - 1);
+    }
+
+    // Define the service call function
+    bool spawner_service_callback(morpheus_spawner::SpawnerService::Request &req,
+                                  morpheus_spawner::SpawnerService::Response &res)
+    {
+      // Set response/output to false in case failure occurs along the way
+      res.success = false;
+
+      // Get name of the param which holds the mesh path
+      std::string mesh_param = req.preset_name.append("/mesh_path");
+      // Instantiate a string to hold the mesh path
+      std::string mesh_path = "";
+      // Retrieve the mesh path from param
+      ros::param::get(mesh_param, mesh_path);
+      // Specify that the path is relative to the morpheus_teleop package
+      mesh_path = "file://" + ros::package::getPath("morpheus_teleop") + mesh_path;
+
+      // Get the name of the param which holds the scale
+      std::string scale_param = req.preset_name.append("/scale");
+      // Instantiate a map to hold the scale
+      std::map<std::string, double> scale_map;
+      //Retrieve the scale from param
+      ros::param::get(scale_param, scale_map);
+
+      // Get the names of the params holding the object's coordinates
+      std::string pos_param = req.preset_name.append("/position");
+      std::string quat_param = req.preset_name.append("/quaternion");
+      // Instantiate maps to hold the coordinates
+      std::map<std::string, double> pos_map, quat_map;
+      // Retrieve the coordinates from param
+      ros::param::get(pos_param, pos_map);
+      ros::param::get(quat_param, quat_map);
+      // Convert maps to vectors (unnecessary since collision_object.cpp now supports maps as well as vectors as input)
+      // std::vector<double> pos_vector = {pos_map["x"], pos_map["y"], pos_map["z"]};
+      // std::vector<double> quat_vector = {quat_map["x"], quat_map["y"], quat_map["z"], quat_map["w"]};
+
+      // Create the collision object (and save it to g_collision_object_vector, g_attached_collision_object_vector)
+      moveit_msgs::CollisionObject collision_object = create(mesh_path, scale_map, pos_map, quat_map);
+
+      // Spawn the created object
+      spawn(g_collision_object_vector.size() - 1);
+
+      // Set response/output to true and exit
+      res.success = true;
+      return res.success;
+    }
+
+  private:
+    
 };
 
 std::vector<double> eulerToQuaternion(std::vector<double> euler)
-{
+{ 
   // Convert euler angles to quaternion
   Eigen::Quaternionf quaternion_eigen;
   quaternion_eigen = Eigen::AngleAxisf(euler[0], Eigen::Vector3f::UnitX())
@@ -252,10 +372,9 @@ std::vector<double> eulerToQuaternion(std::vector<double> euler)
 
 int main(int argc, char** argv)
 {
-
   // Start ROS node
   ros::init(argc, argv, "morpheus_spawner");
-
+  
   // Parse arguments
   std::vector<std::string> arguments(argv, argv + argc);
   std::string mesh_path;
@@ -265,9 +384,11 @@ int main(int argc, char** argv)
   std::vector<double> euler;
   euler.resize(3);
   // std::fill(euler.begin(), euler.end(), 0);
-  std::string mode = "spawn";
+  std::string mode = "none";
+  int index = 0;
   for (int i = 0; i < arguments.size(); i++) {
     std::string s = arguments[i];
+    ROS_INFO_STREAM(s);
     if (s == "-mesh_path") {
       mesh_path = arguments[i+1];
     }
@@ -290,10 +411,10 @@ int main(int argc, char** argv)
       euler[2] = std::stod(arguments[i+1]);
     }
     if (s == "-mode") {
-      mode = std::stod(arguments[i+1]);
+      mode = arguments[i+1];
     }
     if (s == "-index") {
-      mode = std::stod(arguments[i+1]);
+      index = std::stoi(arguments[i+1]);
     }
   }
 
@@ -301,21 +422,23 @@ int main(int argc, char** argv)
 
   SpawnerNode spawner_node(argc, argv);
 
+  std::vector<double> scale = {0.0254, 0.0254, 0.0254};
+
   if (mode == "spawn") {
-    moveit_msgs::CollisionObject collision_object = spawner_node.createCollisionObject(mesh_path, position, quaternion);
-    spawner_node.spawn();
+    moveit_msgs::CollisionObject collision_object = spawner_node.create(mesh_path, scale=scale, position=position, quaternion=quaternion);
+    spawner_node.spawn(spawner_node.g_collision_object_vector.size() - 1);
   }
   if (mode == "despawn") {
-    spawner_node.despawn();
+    spawner_node.despawn(spawner_node.g_collision_object_vector.size() - 1);
   }
   if (mode == "attach") {
-    spawner_node.attach();
+    spawner_node.attach(spawner_node.g_collision_object_vector.size() - 1);
   }
   if (mode == "detach") {
-    spawner_node.detach();
+    spawner_node.detach(spawner_node.g_collision_object_vector.size() - 1);
   }
 
-  // ros::spin();
+  spawner_node.spin();
 
   return 0;
 }
