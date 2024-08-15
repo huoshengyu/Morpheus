@@ -7,14 +7,14 @@ import rospy
 
 from morpheus_spawner.srv import *
 
-def spawner_service_client(preset_name = "dragon"):
+def attacher_service_client(index = 0, operation = 0):
     # Make sure the spawner service is running first
-    rospy.wait_for_service("spawner")
+    rospy.wait_for_service("attacher")
     # Attempt to call the spawner service and print whether it succeeded
     try:
-        spawner = rospy.ServiceProxy("spawner", SpawnerService)
-        req = SpawnerServiceRequest(preset_name)
-        res = spawner(req)
+        attacher = rospy.ServiceProxy("attacher", AttacherService)
+        req = AttacherServiceRequest(index = index, operation = operation)
+        res = attacher(req)
         return True
     # Notify and exit if the call fails
     except rospy.ServiceException as e:
@@ -22,17 +22,18 @@ def spawner_service_client(preset_name = "dragon"):
     return
 
 def usage():
-    return "%s [preset_name]"%sys.argv[0]
+    return "%s [index, operation]"%sys.argv[0]
 
 if __name__ == "__main__":
     # Check command line argument count, retrieve name of collision_object.yaml entry
-    if len(sys.argv) == 2:
-        preset_name = str(sys.argv[1])
+    if len(sys.argv) == 3:
+        index = int(sys.argv[1])
+        operation = int(sys.argv[2])
     # If command line args incorrect, print a reminder and exit
     else:
         print(usage())
         sys.exit(1)
     # Print input
-    print("Requesting preset named %s"%(preset_name))
+    print("Requesting index %s, operation %s"%(index, operation))
     # Call
-    spawner_service_client(preset_name)
+    attacher_service_client(index, operation)

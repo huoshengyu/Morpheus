@@ -22,6 +22,7 @@
 #include "collision_object.h"
 #include "attached_collision_object.h"
 #include "morpheus_spawner/SpawnerService.h"
+#include "morpheus_spawner/AttacherService.h"
 
 class SpawnerNode
 {
@@ -40,6 +41,7 @@ class SpawnerNode
     ros::Subscriber g_spawner_subscriber;
 
     ros::ServiceServer g_spawner_service;
+    ros::ServiceServer g_attacher_service;
 
     SpawnerNode(int argc, char** argv)
     {
@@ -71,6 +73,9 @@ class SpawnerNode
       // Instantiate collision object spawner service
       g_spawner_service = nh.advertiseService("spawner", &SpawnerNode::spawner_service_callback, this);
       
+      // Instantiate collision object attacher service
+      g_attacher_service = nh.advertiseService("attacher", &SpawnerNode::attacher_service_callback, this);
+
       // Debug printouts
       ROS_INFO_STREAM("SpawnerNode ready");
     }
@@ -124,7 +129,7 @@ class SpawnerNode
     moveit_msgs::CollisionObject create(std::string mesh_path, 
           std::map<std::string, double> scale = {{"x", 1}, {"y", 1}, {"z", 1}},
           std::map<std::string, double> position = {{"x", 0}, {"y", 0}, {"z", 0}},
-          std::map<std::string, double> quaternion = {{"x", 0}, {"y", 0}, {"z", 0}, {"w", 0}})
+          std::map<std::string, double> quaternion = {{"x", 0}, {"y", 0}, {"z", 0}, {"w", 1}})
     {
       // Reformat maps as vectors
       std::vector<double> scale_vec = {scale["x"], scale["y"], scale["z"]};
@@ -137,27 +142,6 @@ class SpawnerNode
       return collision_object;
     }
 
-    void spawn(int index = 0)
-    {
-      // Debug printouts
-      ROS_INFO_STREAM("Spawning object");
-
-      // Select collision object to spawn
-      moveit_msgs::CollisionObject collision_object = g_collision_object_vector[index];
-
-      // Specify that object is to be added
-      collision_object.operation = collision_object.ADD;
-
-      // Publish planning scene diff
-      moveit_msgs::PlanningScene planning_scene;
-      planning_scene.world.collision_objects.push_back(collision_object);
-      planning_scene.is_diff = true;
-      g_planning_scene_diff_publisher.publish(planning_scene);
-
-      // Debug printouts
-      ROS_INFO_STREAM("Spawning object complete");
-    }
-
     void spawn(moveit_msgs::CollisionObject collision_object)
     {
       // Debug printouts
@@ -167,99 +151,132 @@ class SpawnerNode
       collision_object.operation = collision_object.ADD;
 
       // Publish planning scene diff
-      moveit_msgs::PlanningScene planning_scene;
-      planning_scene.world.collision_objects.push_back(collision_object);
-      planning_scene.is_diff = true;
-      g_planning_scene_diff_publisher.publish(planning_scene);
+      publish(collision_object);
 
       // Debug printouts
       ROS_INFO_STREAM("Spawning object complete");
     }
 
-    void despawn(int index = 0)
+    void spawn(int index = 0)
+    {
+      // Select collision object to spawn
+      moveit_msgs::CollisionObject collision_object = g_collision_object_vector[index];
+
+      // Call version of spawn() that uses specific collision object
+      spawn(collision_object);
+    }
+
+    void despawn(moveit_msgs::CollisionObject collision_object)
     {
       // Debug printouts
       ROS_INFO_STREAM("Despawning object");
-
-      // Select collision object to despawn
-      moveit_msgs::CollisionObject collision_object = g_collision_object_vector[index];
 
       // Specify that object is to be removed
       collision_object.operation = collision_object.REMOVE;
 
       // Publish planning scene diff
-      moveit_msgs::PlanningScene planning_scene;
-      planning_scene.world.collision_objects.push_back(collision_object);
-      planning_scene.is_diff = true;
-      g_planning_scene_diff_publisher.publish(planning_scene);
+      publish(collision_object);
 
       // Debug printouts
       ROS_INFO_STREAM("Despawning object complete");
     }
 
-    void attach(int index = 0)
+    void despawn(int index = 0)
+    {
+      // Select collision object to despawn
+      moveit_msgs::CollisionObject collision_object = g_collision_object_vector[index];
+
+      // Call version of despawn() that uses specific collision object
+      despawn(collision_object);
+    }
+
+    void attach(moveit_msgs::CollisionObject collision_object, moveit_msgs::AttachedCollisionObject attached_collision_object)
     {
       // Debug printouts
       ROS_INFO_STREAM("Attaching object");
-
-      // Select collision object to attach
-      moveit_msgs::CollisionObject collision_object = g_collision_object_vector[index];
-      // Select attached collision object
-      moveit_msgs::AttachedCollisionObject attached_collision_object = g_attached_collision_object_vector[index];
       
       // Specify that original object is to be removed, and the attached version added
       collision_object.operation = collision_object.REMOVE;
       attached_collision_object.object.operation = attached_collision_object.object.ADD;
-
-      // Save collision object to vector
-      g_attached_collision_object_vector.push_back(attached_collision_object);
       
       // Publish planning scene diff
-      moveit_msgs::PlanningScene planning_scene;
-      planning_scene.world.collision_objects.clear();
-      planning_scene.world.collision_objects.push_back(collision_object);
-      planning_scene.robot_state.attached_collision_objects.push_back(attached_collision_object);
-      planning_scene.is_diff = true;
-      g_planning_scene_diff_publisher.publish(planning_scene);
+      publish(collision_object, attached_collision_object);
 
       // Debug printouts
       ROS_INFO_STREAM("Attaching object complete");
     }
 
-    void detach(int index = 0, std::string link_name = "camera_link")
+    void attach(int index = 0)
     {
-      // Debug printouts
-      ROS_INFO_STREAM("Detaching object");
-
-      // Select collision object to detach
+      // Select collision object to attach
       moveit_msgs::CollisionObject collision_object = g_collision_object_vector[index];
       // Select attached collision object
       moveit_msgs::AttachedCollisionObject attached_collision_object = g_attached_collision_object_vector[index];
+      
+      // Call version of attach() that uses specific collision object
+      attach(collision_object, attached_collision_object);
+    }
+
+    void detach(moveit_msgs::CollisionObject collision_object, moveit_msgs::AttachedCollisionObject attached_collision_object, std::string link_name = "camera_link")
+    {
+      // Debug printouts
+      ROS_INFO_STREAM("Detaching object");
       
       // Specify that original object is to be added, and the attached version removed
       collision_object.operation = collision_object.ADD;
       attached_collision_object.object.operation = attached_collision_object.object.REMOVE;
       
       // Publish planning scene diff
-      moveit_msgs::PlanningScene planning_scene;
-      planning_scene.world.collision_objects.clear();
-      planning_scene.world.collision_objects.push_back(collision_object);
-      planning_scene.robot_state.attached_collision_objects.push_back(attached_collision_object);
-      planning_scene.is_diff = true;
-      g_planning_scene_diff_publisher.publish(planning_scene);
+      publish(collision_object, attached_collision_object);
 
       // Debug printouts
       ROS_INFO_STREAM("Detaching object complete");
     }
 
+    void detach(int index = 0, std::string link_name = "camera_link")
+    {
+      // Select collision object to detach
+      moveit_msgs::CollisionObject collision_object = g_collision_object_vector[index];
+      // Select attached collision object
+      moveit_msgs::AttachedCollisionObject attached_collision_object = g_attached_collision_object_vector[index];
+      
+      // Call version of detach() that uses specific collision object
+      detach(collision_object, attached_collision_object);
+    }
+
     // Publish an incoming collision object message without edits
     void publish(moveit_msgs::CollisionObject collision_object)
     {
-      // g_attached_collision_object_publisher.publish(collision_object);
-      return;
+      // Publish planning scene diff
+      moveit_msgs::PlanningScene planning_scene;
+      planning_scene.world.collision_objects.push_back(collision_object);
+      planning_scene.is_diff = true;
+      planning_scene.robot_state.is_diff = true;
+      g_planning_scene_diff_publisher.publish(planning_scene);
     }
 
-    // Spin node to continue handling services
+    void publish(moveit_msgs::CollisionObject collision_object, moveit_msgs::AttachedCollisionObject attached_collision_object)
+    {
+      // Publish planning scene diff
+      moveit_msgs::PlanningScene planning_scene;
+      planning_scene.world.collision_objects.push_back(collision_object);
+      planning_scene.robot_state.attached_collision_objects.push_back(attached_collision_object);
+      planning_scene.is_diff = true;
+      planning_scene.robot_state.is_diff = true;
+      g_planning_scene_diff_publisher.publish(planning_scene);
+    }
+
+    void publish(moveit_msgs::AttachedCollisionObject attached_collision_object)
+    {
+      // Publish planning scene diff
+      moveit_msgs::PlanningScene planning_scene;
+      planning_scene.robot_state.attached_collision_objects.push_back(attached_collision_object);
+      planning_scene.is_diff = true;
+      planning_scene.robot_state.is_diff = true;
+      g_planning_scene_diff_publisher.publish(planning_scene);
+    }
+
+    // Spin node to continue handling services (should usually be called from main())
     void spin()
     {
       ros::spin();
@@ -328,9 +345,6 @@ class SpawnerNode
     bool spawner_service_callback(morpheus_spawner::SpawnerService::Request &req,
                                   morpheus_spawner::SpawnerService::Response &res)
     {
-      // Set response/output to false in case failure occurs along the way
-      res.success = false;
-
       // Instantiate a string to hold the mesh path
       std::string mesh_path = "";
       // Instantiate a map to hold the scale
@@ -347,8 +361,34 @@ class SpawnerNode
       spawn(g_collision_object_vector.size() - 1);
 
       // Set response/output to true and exit
-      res.success = true;
-      return res.success;
+      res.attached_collision_object = g_attached_collision_object_vector.back();
+      return true;
+    }
+
+    // Define the service call function
+    bool attacher_service_callback(morpheus_spawner::AttacherService::Request &req,
+                                  morpheus_spawner::AttacherService::Response &res)
+    {
+      // Retrieve desired collision object by index
+      moveit_msgs::CollisionObject collision_object = g_collision_object_vector[req.index];
+      moveit_msgs::AttachedCollisionObject attached_collision_object = g_attached_collision_object_vector[req.index];
+
+      // Set desired operation
+      attached_collision_object.object.operation = req.operation;
+      // Add collision object if removing attached collision object. Remove otherwise.
+      if (req.operation == attached_collision_object.object.REMOVE)
+      {
+        collision_object.operation = collision_object.ADD;
+      }
+      else
+      {
+        collision_object.operation = collision_object.REMOVE;
+      }
+
+      // Publish planning scene diff
+      publish(collision_object, attached_collision_object);
+
+      return true;
     }
 
   private:
