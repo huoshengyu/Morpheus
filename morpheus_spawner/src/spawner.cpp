@@ -57,13 +57,13 @@ class SpawnerNode
       // Move group interface does not need further instantiating
 
       // Instantiate publisher for attached collision objects (unattached collision objects are added by the planning scene interface)
-      g_collision_object_publisher = nh.advertise<moveit_msgs::CollisionObject>("/collision_object", 0);
+      g_collision_object_publisher = nh.advertise<moveit_msgs::CollisionObject>("/collision_object", 1);
 
       // Instantiate publisher for attached collision objects (unattached collision objects are added by the planning scene interface)
-      g_attached_collision_object_publisher = nh.advertise<moveit_msgs::AttachedCollisionObject>("/planning_scene/attached_collision_objects", 0);
+      g_attached_collision_object_publisher = nh.advertise<moveit_msgs::AttachedCollisionObject>("/planning_scene/attached_collision_objects", 1);
     
       // Instantiate planning scene diff publisher
-      g_planning_scene_diff_publisher = nh.advertise<moveit_msgs::PlanningScene>("planning_scene", 0);
+      g_planning_scene_diff_publisher = nh.advertise<moveit_msgs::PlanningScene>("planning_scene", 1);
 
       // Instantiate a subscriber to receive names of object presets to spawn
       g_spawner_subscriber = nh.subscribe<std_msgs::String>("/spawner/spawn_queue", 1, &SpawnerNode::spawner_subscriber_callback, this);
@@ -265,36 +265,57 @@ class SpawnerNode
       ros::spin();
     }
 
-    // Define the subscriber callback function
-    void spawner_subscriber_callback(std_msgs::String msg)
+    // Define function to retrieve a set of rosparams from under a preset name
+    void get_preset_params(std::string preset_name,
+                            std::string &mesh_path,
+                            std::map<std::string, double> &scale_map,
+                            std::map<std::string, double> &pos_map,
+                            std::map<std::string, double> &quat_map)
     {
+      // Namespace containing collision object preset params
+      std::string prefix = "/collision_object_presets/";
+      // Get full path of preset
+      std::string preset_path = prefix + preset_name;
+
       // Get name of the param which holds the mesh path
-      std::string mesh_param = msg.data.append("/mesh_path");
-      // Instantiate a string to hold the mesh path
-      std::string mesh_path = "";
+      std::string mesh_param = preset_path + "/mesh_path";
       // Retrieve the mesh path from param
       ros::param::get(mesh_param, mesh_path);
       // Specify that the path is relative to the morpheus_teleop package
+      ROS_INFO_STREAM("Requesting mesh param: " + mesh_param);
       mesh_path = "file://" + ros::package::getPath("morpheus_teleop") + mesh_path;
+      ROS_INFO_STREAM("Mesh path: " + mesh_path);
 
       // Get the name of the param which holds the scale
-      std::string scale_param = msg.data.append("/scale");
-      // Instantiate a map to hold the scale
-      std::map<std::string, double> scale_map;
+      std::string scale_param = preset_path + "/scale";
       //Retrieve the scale from param
+      ROS_INFO_STREAM("Requesting scale param: " + scale_param);
       ros::param::get(scale_param, scale_map);
+      ROS_INFO_STREAM("Scale map: {{x, " + std::to_string(scale_map["x"]) + "}, {y, " + std::to_string(scale_map["y"]) + "}, {z, " + std::to_string(scale_map["z"]) + "}}");
 
       // Get the names of the params holding the object's coordinates
-      std::string pos_param = msg.data.append("/position");
-      std::string quat_param = msg.data.append("/quaternion");
+      std::string pos_param = preset_path + "/position";
+      std::string quat_param = preset_path + "/quaternion";
+      // Retrieve the coordinates from param
+      ROS_INFO_STREAM("Requesting position param: " + pos_param);
+      ros::param::get(pos_param, pos_map);
+      ROS_INFO_STREAM("Position map: {{x, " + std::to_string(pos_map["x"]) + "}, {y, " + std::to_string(pos_map["y"]) + "}, {z, " + std::to_string(pos_map["z"]) + "}}");
+      ROS_INFO_STREAM("Requesting quaternion param: " + quat_param);
+      ros::param::get(quat_param, quat_map);
+      ROS_INFO_STREAM("Quaternion map: {{x, " + std::to_string(quat_map["x"]) + "}, {y, " + std::to_string(quat_map["y"]) + "}, {z, " + std::to_string(quat_map["z"]) + "}, {w, " + std::to_string(quat_map["w"]) + "}}");
+    }
+
+    // Define the subscriber callback function
+    void spawner_subscriber_callback(std_msgs::String msg)
+    {
+      // Instantiate a string to hold the mesh path
+      std::string mesh_path = "";
+      // Instantiate a map to hold the scale
+      std::map<std::string, double> scale_map;
       // Instantiate maps to hold the coordinates
       std::map<std::string, double> pos_map, quat_map;
-      // Retrieve the coordinates from param
-      ros::param::get(pos_param, pos_map);
-      ros::param::get(quat_param, quat_map);
-      // Convert maps to vectors (unnecessary since collision_object.cpp now supports maps as well as vectors as input)
-      // std::vector<double> pos_vector = {pos_map["x"], pos_map["y"], pos_map["z"]};
-      // std::vector<double> quat_vector = {quat_map["x"], quat_map["y"], quat_map["z"], quat_map["w"]};
+
+      get_preset_params(msg.data, mesh_path, scale_map, pos_map, quat_map);
 
       // Create the collision object (and save it to g_collision_object_vector, g_attached_collision_object_vector)
       moveit_msgs::CollisionObject collision_object = create(mesh_path, scale_map, pos_map, quat_map);
@@ -310,33 +331,14 @@ class SpawnerNode
       // Set response/output to false in case failure occurs along the way
       res.success = false;
 
-      // Get name of the param which holds the mesh path
-      std::string mesh_param = req.preset_name.append("/mesh_path");
       // Instantiate a string to hold the mesh path
       std::string mesh_path = "";
-      // Retrieve the mesh path from param
-      ros::param::get(mesh_param, mesh_path);
-      // Specify that the path is relative to the morpheus_teleop package
-      mesh_path = "file://" + ros::package::getPath("morpheus_teleop") + mesh_path;
-
-      // Get the name of the param which holds the scale
-      std::string scale_param = req.preset_name.append("/scale");
       // Instantiate a map to hold the scale
       std::map<std::string, double> scale_map;
-      //Retrieve the scale from param
-      ros::param::get(scale_param, scale_map);
-
-      // Get the names of the params holding the object's coordinates
-      std::string pos_param = req.preset_name.append("/position");
-      std::string quat_param = req.preset_name.append("/quaternion");
       // Instantiate maps to hold the coordinates
       std::map<std::string, double> pos_map, quat_map;
-      // Retrieve the coordinates from param
-      ros::param::get(pos_param, pos_map);
-      ros::param::get(quat_param, quat_map);
-      // Convert maps to vectors (unnecessary since collision_object.cpp now supports maps as well as vectors as input)
-      // std::vector<double> pos_vector = {pos_map["x"], pos_map["y"], pos_map["z"]};
-      // std::vector<double> quat_vector = {quat_map["x"], quat_map["y"], quat_map["z"], quat_map["w"]};
+
+      get_preset_params(req.preset_name, mesh_path, scale_map, pos_map, quat_map);
 
       // Create the collision object (and save it to g_collision_object_vector, g_attached_collision_object_vector)
       moveit_msgs::CollisionObject collision_object = create(mesh_path, scale_map, pos_map, quat_map);
