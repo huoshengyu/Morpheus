@@ -57,17 +57,20 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install python dependencies
-RUN pip3 install \ 
+RUN pip install pip --upgrade
+RUN pip install \ 
     pyserial \
     pymodbus===2.1.0 \
     numpy \
     numpy-quaternion \
     scipy
-RUN pip3 install six --upgrade
-RUN pip3 install setuptools --upgrade && pip3 install PyQt6
+RUN pip install six --upgrade
+RUN pip install setuptools --upgrade && pip install PyQt6
 
 # Source the workspace setup files on container startup
 RUN echo "source /root/catkin_ws/devel/setup.bash" >> ~/.bashrc
+# source ros setup files on startup
+RUN echo "source /opt/ros/noetic/setup.bash" >> ~/.bashrc
 
 # Allow "python" to execute python3
 RUN echo "alias python=python3" >> ~/.bashrc
@@ -95,4 +98,4 @@ RUN source /opt/ros/noetic/setup.bash \
 
 # Build the ROS workspace
 # RUN source /opt/ros/noetic/setup.bash \
-#     catkin build -s
+#     catkin build
