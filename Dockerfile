@@ -63,7 +63,8 @@ RUN pip3 install \
     numpy \
     numpy-quaternion \
     scipy
-RUN python3 -m pip3 install pip setuptools --upgrade && pip3 install PyQt6
+RUN pip3 install six --upgrade
+RUN pip3 install setuptools --upgrade && pip3 install PyQt6
 
 # Source the workspace setup files on container startup
 RUN echo "source /root/catkin_ws/devel/setup.bash" >> ~/.bashrc
