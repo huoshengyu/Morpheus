@@ -41,13 +41,34 @@ RUN rosdep init \
  && rosdep fix-permissions \
  && rosdep update --rosdistro $ROS_DISTRO
 
-# source setup.bash on startup
+# source ros setup files on startup
 RUN echo "source /opt/ros/noetic/setup.bash" >> ~/.bashrc
 
 FROM base as dev
 
+# Install ROS dependencies
+RUN apt-get update && apt-get install --no-install-recommends -y \
+    ros-noetic-moveit \
+    ros-noetic-cartesian-control-msgs \
+    ros-noetic-teleop-twist-keyboard \
+    python3-tk \
+    && rm -rf /var/lib/apt/lists/*
+
 # Set the working directory in the container
 WORKDIR /root/catkin_ws
+
+# Copy the morpheus repo
+COPY ./ ./src/
+
+# General rosdep install (not necessary?)
+RUN source /opt/ros/noetic/setup.bash \
+    && apt-get update \
+    && rosdep update \
+    && rosdep install -q -y \
+      --from-paths ./src \
+      --ignore-src \
+      --rosdistro noetic \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install general dependencies
 RUN apt-get update && apt-get install --no-install-recommends -y \
@@ -70,35 +91,12 @@ RUN pip install setuptools --upgrade && pip install PyQt6
 
 # Source the workspace setup files on container startup
 RUN echo "source /root/catkin_ws/devel/setup.bash" >> ~/.bashrc
-# source ros setup files on startup
-RUN echo "source /opt/ros/noetic/setup.bash" >> ~/.bashrc
 
 # Allow "python" to execute python3
 RUN echo "alias python=python3" >> ~/.bashrc
 
 # Configure display access
 RUN echo "export LIBGL_ALWAYS_INDIRECT=1" >> ~/.bashrc
-
-# Install ROS dependencies
-RUN apt-get update && apt-get install --no-install-recommends -y \
-    ros-noetic-moveit \
-    ros-noetic-cartesian-control-msgs \
-    ros-noetic-teleop-twist-keyboard \
-    python3-tk \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy the morpheus repo
-COPY ./ ./src/
-
-# General rosdep install (not necessary?)
-RUN source /opt/ros/noetic/setup.bash \
-    && apt-get update \
-    && rosdep update \
-    && rosdep install -q -y \
-      --from-paths ./src \
-      --ignore-src \
-      --rosdistro noetic \
-    && rm -rf /var/lib/apt/lists/*
 
 # Build the ROS workspace
 # RUN source /opt/ros/noetic/setup.bash \
