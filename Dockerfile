@@ -64,6 +64,7 @@ RUN pip install \
     numpy \
     numpy-quaternion \
     scipy
+RUN pip install importlib_metadata --upgrade
 RUN pip install six --upgrade
 RUN pip install setuptools --upgrade && pip install PyQt6
 
@@ -74,6 +75,9 @@ RUN echo "source /opt/ros/noetic/setup.bash" >> ~/.bashrc
 
 # Allow "python" to execute python3
 RUN echo "alias python=python3" >> ~/.bashrc
+
+# Configure display access
+RUN echo "export LIBGL_ALWAYS_INDIRECT=1" >> ~/.bashrc
 
 # Install ROS dependencies
 RUN apt-get update && apt-get install --no-install-recommends -y \
