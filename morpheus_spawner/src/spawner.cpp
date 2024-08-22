@@ -31,7 +31,6 @@ class SpawnerNode
     moveit::planning_interface::PlanningSceneInterface g_planning_scene_interface;
 
     ros::Publisher g_collision_object_publisher; // Unnecessary, as objects can be spawned via the planning scene interface
-    std::vector<moveit_msgs::CollisionObject> g_collision_object_vector;
 
     ros::Publisher g_attached_collision_object_publisher;
     std::vector<moveit_msgs::AttachedCollisionObject> g_attached_collision_object_vector;
@@ -117,7 +116,6 @@ class SpawnerNode
                                       "camera_link");
 
       // Save both versions of object to vector
-      g_collision_object_vector.push_back(collision_object);
       g_attached_collision_object_vector.push_back(attached_collision_object);
 
       ROS_INFO_STREAM("Creating object complete");
@@ -147,11 +145,13 @@ class SpawnerNode
       // Debug printouts
       ROS_INFO_STREAM("Spawning object");
 
-      // Specify that object is to be added
-      collision_object.operation = collision_object.ADD;
+      // Create vector of objects to be added
+      std::vector<moveit_msgs::CollisionObject> collision_object_vector;
+      collision_object_vector.push_back(collision_object);
 
       // Publish planning scene diff
-      publish(collision_object);
+      g_planning_scene_interface.addCollisionObjects(collision_object_vector);
+      //publish(collision_object);
 
       // Debug printouts
       ROS_INFO_STREAM("Spawning object complete");
@@ -160,7 +160,7 @@ class SpawnerNode
     void spawn(int index = 0)
     {
       // Select collision object to spawn
-      moveit_msgs::CollisionObject collision_object = g_collision_object_vector[index];
+      moveit_msgs::CollisionObject collision_object = g_attached_collision_object_vector[index].object;
 
       // Call version of spawn() that uses specific collision object
       spawn(collision_object);
@@ -171,11 +171,13 @@ class SpawnerNode
       // Debug printouts
       ROS_INFO_STREAM("Despawning object");
 
-      // Specify that object is to be removed
-      collision_object.operation = collision_object.REMOVE;
+      // Create vector of ids to be removed
+      std::vector<std::string> object_ids;
+      object_ids.push_back(collision_object.id);
 
       // Publish planning scene diff
-      publish(collision_object);
+      g_planning_scene_interface.removeCollisionObjects(object_ids);
+      //publish(collision_object);
 
       // Debug printouts
       ROS_INFO_STREAM("Despawning object complete");
@@ -184,50 +186,52 @@ class SpawnerNode
     void despawn(int index = 0)
     {
       // Select collision object to despawn
-      moveit_msgs::CollisionObject collision_object = g_collision_object_vector[index];
+      moveit_msgs::CollisionObject collision_object = g_attached_collision_object_vector[index].object;
 
       // Call version of despawn() that uses specific collision object
       despawn(collision_object);
     }
 
-    void attach(moveit_msgs::CollisionObject collision_object, moveit_msgs::AttachedCollisionObject attached_collision_object)
+    void attach(moveit_msgs::AttachedCollisionObject attached_collision_object, std::string link_name = "camera_link")
     {
       // Debug printouts
       ROS_INFO_STREAM("Attaching object");
       
-      // Specify that original object is to be removed, and the attached version added
-      collision_object.operation = collision_object.REMOVE;
-      attached_collision_object.object.operation = attached_collision_object.object.ADD;
+      // Instantiate message strictly for attaching object, to avoid resetting whole object
+      moveit_msgs::AttachedCollisionObject attach_object;
+      attach_object.object.id = attached_collision_object.object.id;
+      attach_object.link_name = link_name;
+      attach_object.object.operation = attached_collision_object.object.ADD;
       
       // Publish planning scene diff
-      publish(collision_object, attached_collision_object);
+      publish(attach_object);
 
       // Debug printouts
       ROS_INFO_STREAM("Attaching object complete");
     }
 
-    void attach(int index = 0)
+    void attach(int index = 0, std::string link_name = "camera_link")
     {
-      // Select collision object to attach
-      moveit_msgs::CollisionObject collision_object = g_collision_object_vector[index];
       // Select attached collision object
       moveit_msgs::AttachedCollisionObject attached_collision_object = g_attached_collision_object_vector[index];
       
       // Call version of attach() that uses specific collision object
-      attach(collision_object, attached_collision_object);
+      attach(attached_collision_object);
     }
 
-    void detach(moveit_msgs::CollisionObject collision_object, moveit_msgs::AttachedCollisionObject attached_collision_object, std::string link_name = "camera_link")
+    void detach(moveit_msgs::AttachedCollisionObject attached_collision_object, std::string link_name = "camera_link")
     {
       // Debug printouts
       ROS_INFO_STREAM("Detaching object");
       
-      // Specify that original object is to be added, and the attached version removed
-      collision_object.operation = collision_object.ADD;
-      attached_collision_object.object.operation = attached_collision_object.object.REMOVE;
+      // Instantiate message strictly for detaching object, to avoid resetting whole object
+      moveit_msgs::AttachedCollisionObject detach_object;
+      detach_object.object.id = attached_collision_object.object.id;
+      detach_object.link_name = link_name;
+      detach_object.object.operation = attached_collision_object.object.REMOVE;
       
       // Publish planning scene diff
-      publish(collision_object, attached_collision_object);
+      publish(detach_object);
 
       // Debug printouts
       ROS_INFO_STREAM("Detaching object complete");
@@ -235,13 +239,11 @@ class SpawnerNode
 
     void detach(int index = 0, std::string link_name = "camera_link")
     {
-      // Select collision object to detach
-      moveit_msgs::CollisionObject collision_object = g_collision_object_vector[index];
       // Select attached collision object
       moveit_msgs::AttachedCollisionObject attached_collision_object = g_attached_collision_object_vector[index];
       
       // Call version of detach() that uses specific collision object
-      detach(collision_object, attached_collision_object);
+      detach(attached_collision_object);
     }
 
     // Publish an incoming collision object message without edits
@@ -334,11 +336,11 @@ class SpawnerNode
 
       get_preset_params(msg.data, mesh_path, scale_map, pos_map, quat_map);
 
-      // Create the collision object (and save it to g_collision_object_vector, g_attached_collision_object_vector)
+      // Create the collision object (and save it to g_attached_collision_object_vector)
       moveit_msgs::CollisionObject collision_object = create(mesh_path, scale_map, pos_map, quat_map);
       
       // Spawn the created object
-      spawn(g_collision_object_vector.size() - 1);
+      spawn(g_attached_collision_object_vector.size() - 1);
     }
 
     // Define the service call function
@@ -354,11 +356,11 @@ class SpawnerNode
 
       get_preset_params(req.preset_name, mesh_path, scale_map, pos_map, quat_map);
 
-      // Create the collision object (and save it to g_collision_object_vector, g_attached_collision_object_vector)
+      // Create the collision object (and save it to g_attached_collision_object_vector)
       moveit_msgs::CollisionObject collision_object = create(mesh_path, scale_map, pos_map, quat_map);
 
       // Spawn the created object
-      spawn(g_collision_object_vector.size() - 1);
+      spawn(g_attached_collision_object_vector.size() - 1);
 
       // Set response/output to true and exit
       res.attached_collision_object = g_attached_collision_object_vector.back();
@@ -369,25 +371,16 @@ class SpawnerNode
     bool attacher_service_callback(morpheus_spawner::AttacherService::Request &req,
                                   morpheus_spawner::AttacherService::Response &res)
     {
-      // Retrieve desired collision object by index
-      moveit_msgs::CollisionObject collision_object = g_collision_object_vector[req.index];
-      moveit_msgs::AttachedCollisionObject attached_collision_object = g_attached_collision_object_vector[req.index];
-
-      // Set desired operation
-      attached_collision_object.object.operation = req.operation;
-      // Add collision object if removing attached collision object. Remove otherwise.
-      if (req.operation == attached_collision_object.object.REMOVE)
+      // If req.operation == collision_object.ADD, then attach
+      if (req.operation == 0)
       {
-        collision_object.operation = collision_object.ADD;
+        attach(req.index);
       }
-      else
+      // If req.operation == collision_object.REMOVE, then detach
+      else if (req.operation == 1)
       {
-        collision_object.operation = collision_object.REMOVE;
+        detach(req.index);
       }
-
-      // Publish planning scene diff
-      publish(collision_object, attached_collision_object);
-
       return true;
     }
 
@@ -468,16 +461,16 @@ int main(int argc, char** argv)
 
   if (mode == "spawn") {
     moveit_msgs::CollisionObject collision_object = spawner_node.create(mesh_path, scale=scale, position=position, quaternion=quaternion);
-    spawner_node.spawn(spawner_node.g_collision_object_vector.size() - 1);
+    spawner_node.spawn(spawner_node.g_attached_collision_object_vector.size() - 1);
   }
   if (mode == "despawn") {
-    spawner_node.despawn(spawner_node.g_collision_object_vector.size() - 1);
+    spawner_node.despawn(spawner_node.g_attached_collision_object_vector.size() - 1);
   }
   if (mode == "attach") {
-    spawner_node.attach(spawner_node.g_collision_object_vector.size() - 1);
+    spawner_node.attach(spawner_node.g_attached_collision_object_vector.size() - 1);
   }
   if (mode == "detach") {
-    spawner_node.detach(spawner_node.g_collision_object_vector.size() - 1);
+    spawner_node.detach(spawner_node.g_attached_collision_object_vector.size() - 1);
   }
 
   spawner_node.spin();

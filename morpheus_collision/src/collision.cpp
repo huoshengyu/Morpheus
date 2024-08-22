@@ -1,26 +1,34 @@
+// General
 #include <algorithm>
 
+// ROS
 #include <ros/ros.h>
-#include <std_msgs/String.h>
-#include <std_msgs/Float64.h>
-#include <geometry_msgs/Point.h>
-#include <visualization_msgs/Marker.h>
+
+// Moveit
 #include <moveit/moveit_cpp/moveit_cpp.h>
 #include <moveit/planning_scene_monitor/planning_scene_monitor.h>
+#include <moveit/planning_scene_interface/planning_scene_interface.h>
+#include <moveit/move_group_interface/move_group_interface.h>
 #include <moveit/collision_detection_bullet/collision_env_bullet.h>
 #include <moveit/collision_detection_bullet/collision_detector_allocator_bullet.h>
 #include <moveit/collision_detection/collision_tools.h>
 #include <moveit/robot_model_loader/robot_model_loader.h>
 #include <moveit/robot_model/robot_model.h>
 #include <moveit_visual_tools/moveit_visual_tools.h>
+
+// Messages
+#include <std_msgs/String.h>
+#include <std_msgs/Float64.h>
+#include <geometry_msgs/Point.h>
+#include <visualization_msgs/Marker.h>
 #include <morpheus_msgs/ContactMap.h>
 
-// name of the robot description (a param name, so it can be changed externally)
+// Name of the robot description (a param name, so it can be changed externally)
 static const std::string ROBOT_DESCRIPTION =
     "robot_description";
 
 // Set of names of links included in the robot for collision detection (a param name, so it can be changed externally)
-static const std::vector<std::string> A_BOT_LINK_VECTOR_DEFAULT
+static const std::vector<std::string> ROBOT_LINK_VECTOR_DEFAULT
 {
     "shoulder_link",
     "upper_arm_link",
@@ -44,7 +52,9 @@ static const std::vector<std::string> A_BOT_LINK_VECTOR_DEFAULT
     "right_outer_finger",
     "right_inner_finger",
     "right_inner_finger_pad",
-    "right_inner_knuckle"
+    "right_inner_knuckle",
+    "quick_changer",
+    "angle_bracket"
 };
 
 // Set of names of links excluded from the obstacles for collision detection (a param name, so it can be changed externally)
@@ -56,6 +66,10 @@ static const std::vector<std::string> ALLOWED_COLLISION_VECTOR_DEFAULT
     "simple_pedestal"
 };
 
+// Names of groups in srdf which encompass the robot itself (and not the environment)
+static const std::string ARM_GROUP = "arm";
+static const std::string GRIPPER_GROUP = "gripper";
+
 namespace collision
 {
 
@@ -65,6 +79,7 @@ class CollisionNode
 {
     public:
         std::shared_ptr<planning_scene_monitor::PlanningSceneMonitor> g_planning_scene_monitor;
+        moveit::planning_interface::PlanningSceneInterface g_planning_scene_interface;
         ros::Publisher g_contactmap_string_publisher;
         ros::Publisher g_contactmap_msg_publisher;
         ros::Publisher g_nearest_contact_publisher;
@@ -79,13 +94,16 @@ class CollisionNode
         // moveit_visual_tools::MoveItVisualToolsPtr visual_tools_;
         std::vector<collision_detection::Contact>::size_type g_max_markers = 10;
 
-        std::vector<std::string> A_BOT_LINK_VECTOR;
+        std::vector<std::string> g_robot_link_vector_minimal;
         std::vector<std::string> ALLOWED_COLLISION_VECTOR;
-
+        std::vector<std::string> g_robot_link_vector;
+        
+        std::shared_ptr<moveit::planning_interface::MoveGroupInterface> g_arm_interface;
+        std::shared_ptr<moveit::planning_interface::MoveGroupInterface> g_gripper_interface;
+        
         CollisionNode(int argc, char** argv)
         {
             // Initialize ROS node
-            ros::init(argc, argv, "collision");
             ros::NodeHandle nh;
             ros::AsyncSpinner spinner(0);
             spinner.start();
@@ -101,15 +119,19 @@ class CollisionNode
             // planning_scene_monitor::PlanningSceneMonitorPtr planning_scene_monitor(
             //     new planning_scene_monitor::PlanningSceneMonitor("robot_description"));
 
+            // Start move group interfaces for retrieving robot links
+            g_arm_interface = std::make_shared<moveit::planning_interface::MoveGroupInterface>(ARM_GROUP);
+            g_gripper_interface = std::make_shared<moveit::planning_interface::MoveGroupInterface>(GRIPPER_GROUP);
+
             // Get robot and obstacle vectors from ros server, if possible
-            if (ros::param::get("/A_BOT_LINK_VECTOR", A_BOT_LINK_VECTOR))
+            if (ros::param::get("/ALL_ROBOT_LINK_VECTOR", g_robot_link_vector_minimal))
             {
-                ROS_INFO("Using A_BOT_LINK_VECTOR from parameter server");
+                ROS_INFO("Using ALL_ROBOT_LINK_VECTOR from parameter server");
             }
             else
             {
-                A_BOT_LINK_VECTOR = A_BOT_LINK_VECTOR_DEFAULT;
-                ROS_INFO("Using A_BOT_LINK_VECTOR_DEFAULT");
+                g_robot_link_vector_minimal = ROBOT_LINK_VECTOR_DEFAULT;
+                ROS_INFO("Using ROBOT_LINK_VECTOR_DEFAULT");
             }
             if (ros::param::get("/ALLOWED_COLLISION_VECTOR", ALLOWED_COLLISION_VECTOR))
             {
@@ -232,6 +254,10 @@ class CollisionNode
         {
             // Update the planning scene monitor, in case new collision objects have been added
             // g_planning_scene_monitor->requestPlanningSceneState("/get_planning_scene");
+            
+            // Update the list of robot links, in case new attached collision objects have been added
+            updateLinkVectors();
+
             // Update the collision result, based on the collision request
             g_c_res.clear();
             g_planning_scene_monitor->getPlanningScene()->checkCollision(g_c_req, g_c_res);
@@ -321,13 +347,13 @@ class CollisionNode
                 !(std::find(ALLOWED_COLLISION_VECTOR.begin(), ALLOWED_COLLISION_VECTOR.end(), pair.second) != ALLOWED_COLLISION_VECTOR.end()) and
                 (
                     (
-                        (std::find(A_BOT_LINK_VECTOR.begin(), A_BOT_LINK_VECTOR.end(), pair.first) != A_BOT_LINK_VECTOR.end()) and
-                        !(std::find(A_BOT_LINK_VECTOR.begin(), A_BOT_LINK_VECTOR.end(), pair.second) != A_BOT_LINK_VECTOR.end())
+                        (std::find(g_robot_link_vector.begin(), g_robot_link_vector.end(), pair.first) != g_robot_link_vector.end()) and
+                        !(std::find(g_robot_link_vector.begin(), g_robot_link_vector.end(), pair.second) != g_robot_link_vector.end())
                     )
                     or 
                     (
-                        !(std::find(A_BOT_LINK_VECTOR.begin(), A_BOT_LINK_VECTOR.end(), pair.first) != A_BOT_LINK_VECTOR.end()) and
-                        (std::find(A_BOT_LINK_VECTOR.begin(), A_BOT_LINK_VECTOR.end (), pair.second) != A_BOT_LINK_VECTOR.end())
+                        !(std::find(g_robot_link_vector.begin(), g_robot_link_vector.end(), pair.first) != g_robot_link_vector.end()) and
+                        (std::find(g_robot_link_vector.begin(), g_robot_link_vector.end (), pair.second) != g_robot_link_vector.end())
                     )
                 )
             )
@@ -338,6 +364,32 @@ class CollisionNode
             {
                 return false;
             }
+        }
+
+        void updateLinkVectors()
+        {
+            // Reset the robot link vector before updating
+            g_robot_link_vector.clear();
+
+            // Add in the link names which should refer to parts of the robot itself
+            g_robot_link_vector.insert(g_robot_link_vector.end(), g_robot_link_vector_minimal.begin(), g_robot_link_vector_minimal.end());
+
+            // Get all links in the robot arm
+            std::vector<std::string> arm_link_vector = g_arm_interface->getLinkNames();
+            g_robot_link_vector.insert(g_robot_link_vector.end(), arm_link_vector.begin(), arm_link_vector.end());
+
+            // Get all links in the robot gripper
+            std::vector<std::string> gripper_link_vector = g_gripper_interface->getLinkNames();
+            g_robot_link_vector.insert(g_robot_link_vector.end(), gripper_link_vector.begin(), gripper_link_vector.end());
+
+            // Get all attached collision objects currently attached to the robot
+            std::map<std::string, moveit_msgs::AttachedCollisionObject> attached_collision_object_map = g_planning_scene_interface.getAttachedObjects();
+            std::vector<std::string> attached_collision_object_vector;
+            for(auto const& key_value : attached_collision_object_map)
+            {
+                attached_collision_object_vector.push_back(key_value.first);
+            }
+            g_robot_link_vector.insert(g_robot_link_vector.end(), attached_collision_object_vector.begin(), attached_collision_object_vector.end());
         }
 
         std::string contactMapToString(collision_detection::CollisionResult::ContactMap contact_map)
@@ -396,8 +448,8 @@ class CollisionNode
         // If contact points from Obstacle to Robot, flip it
         collision_detection::Contact setContactDirection(collision_detection::Contact contact)
         {
-            if (!(std::find(A_BOT_LINK_VECTOR.begin(), A_BOT_LINK_VECTOR.end(), contact.body_name_1) != A_BOT_LINK_VECTOR.end()) and
-                (std::find(A_BOT_LINK_VECTOR.begin(), A_BOT_LINK_VECTOR.end(), contact.body_name_2) != A_BOT_LINK_VECTOR.end()))
+            if (!(std::find(g_robot_link_vector.begin(), g_robot_link_vector.end(), contact.body_name_1) != g_robot_link_vector.end()) and
+                (std::find(g_robot_link_vector.begin(), g_robot_link_vector.end(), contact.body_name_2) != g_robot_link_vector.end()))
             {
                 std::swap(contact.body_name_1, contact.body_name_2);
                 std::swap(contact.body_type_1, contact.body_type_2);
@@ -519,7 +571,7 @@ class CollisionNode
                 mk.scale.z = 0.02; // Arrow head length
                 mk.color = color; // Color specified above
                 // mk.lifetime = ros::Duration(); // Remain until deleted
-                mk.lifetime = ros::Duration(0.5); // Remain for 0.5 sec or until replaced
+                mk.lifetime = ros::Duration(1.0); // Remain for 0.5 sec or until replaced
                 markers.markers.push_back(mk); // Add to MarkerArray markers
             }
 
@@ -562,6 +614,7 @@ class CollisionNode
 
 int main(int argc, char** argv)
 {
+    ros::init(argc, argv, "collision");
     CollisionNode collision_node(argc, argv);
     collision_node.spin();
     return 0;
