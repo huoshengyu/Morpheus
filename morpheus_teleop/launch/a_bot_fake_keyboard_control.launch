@@ -9,7 +9,7 @@
     <arg name="xacro_path" default="$(find morpheus_teleop)/urdf/scenes/a_bot_keyhole_scene.xacro"/>
     <arg name="srdf_path" default="$(find morpheus_teleop)/srdf/scenes/a_bot_keyhole_scene.srdf"/>
 
-    <!-- launch a_bot-fake -->
+    <!-- launch a_bot_fake -->
     <include file="$(find morpheus_teleop)/launch/a_bot_fake.launch">
         <arg name="initial_joint_positions" value="$(arg initial_joint_positions)"/>
         <arg name="controllers" value="$(arg controllers)"/>

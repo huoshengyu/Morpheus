@@ -75,19 +75,21 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     python3-pip \
     python3-catkin-tools \
     python3-zipp \
+    python-is_python3 \
     && rm -rf /var/lib/apt/lists/*
 
 # Install python dependencies
-RUN pip install pip --upgrade
-RUN pip install \ 
+RUN pip install --upgrade pip
+RUN pip install --upgrade \ 
     pyserial \
     pymodbus===2.1.0 \
     numpy \
     numpy-quaternion \
     scipy
-RUN pip install importlib_metadata --upgrade
-RUN pip install six --upgrade
-RUN pip install setuptools --upgrade && pip install PyQt6
+RUN pip install --upgrade importlib_metadata
+RUN pip install --upgrade six
+RUN pip install --upgrade setuptools
+RUN pip install --upgrade PyQt6
 
 # Source the workspace setup files on container startup
 RUN echo "source /root/catkin_ws/devel/setup.bash" >> ~/.bashrc

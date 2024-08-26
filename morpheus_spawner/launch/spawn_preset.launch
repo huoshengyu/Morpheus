@@ -1,0 +1,9 @@
+<launch>
+    <arg name="preset_name" default="dragon"/>
+
+    <!-- Launch spawner_service_client (spawner node must already be running) -->
+    <node pkg="morpheus_spawner" type="spawner_service_client.py" name="spawner_service_client" output="screen" 
+        args="$(arg preset_name)"
+    />
+
+</launch>
