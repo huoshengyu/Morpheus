@@ -2,6 +2,7 @@
 #include <ros/ros.h>
 #include <ros/package.h>
 #include <std_msgs/String.h>
+#include <std_msgs/Int32.h>
 
 // MoveIt
 #include <moveit/planning_scene_interface/planning_scene_interface.h>
@@ -21,8 +22,10 @@
 // Import other files from module
 #include "collision_object.h"
 #include "attached_collision_object.h"
-#include "morpheus_spawner/SpawnerService.h"
-#include "morpheus_spawner/AttacherService.h"
+#include "morpheus_spawner/SpawnerMsgService.h"
+#include "morpheus_spawner/SpawnerPresetService.h"
+#include "morpheus_spawner/AttacherMsgService.h"
+#include "morpheus_spawner/AttacherIndexService.h"
 
 class SpawnerNode
 {
@@ -37,10 +40,15 @@ class SpawnerNode
 
     ros::Publisher g_planning_scene_diff_publisher;
 
-    ros::Subscriber g_spawner_subscriber;
+    ros::Subscriber g_spawner_msg_subscriber;
+    ros::Subscriber g_spawner_preset_subscriber;
+    ros::Subscriber g_attacher_msg_subscriber;
+    ros::Subscriber g_attacher_index_subscriber;
 
-    ros::ServiceServer g_spawner_service;
-    ros::ServiceServer g_attacher_service;
+    ros::ServiceServer g_spawner_msg_service;
+    ros::ServiceServer g_spawner_preset_service;
+    ros::ServiceServer g_attacher_msg_service;
+    ros::ServiceServer g_attacher_index_service;
 
     SpawnerNode(int argc, char** argv)
     {
@@ -58,22 +66,37 @@ class SpawnerNode
       // Move group interface does not need further instantiating
 
       // Instantiate publisher for attached collision objects (unattached collision objects are added by the planning scene interface)
-      g_collision_object_publisher = nh.advertise<moveit_msgs::CollisionObject>("/collision_object", 1);
+      g_collision_object_publisher = nh.advertise<moveit_msgs::CollisionObject>("collision_object", 1);
 
       // Instantiate publisher for attached collision objects (unattached collision objects are added by the planning scene interface)
-      g_attached_collision_object_publisher = nh.advertise<moveit_msgs::AttachedCollisionObject>("/planning_scene/attached_collision_objects", 1);
+      g_attached_collision_object_publisher = nh.advertise<moveit_msgs::AttachedCollisionObject>("attached_collision_object", 1);
     
       // Instantiate planning scene diff publisher
       g_planning_scene_diff_publisher = nh.advertise<moveit_msgs::PlanningScene>("planning_scene", 1);
 
-      // Instantiate a subscriber to receive names of object presets to spawn
-      g_spawner_subscriber = nh.subscribe<std_msgs::String>("/spawner/spawn_queue", 1, &SpawnerNode::spawner_subscriber_callback, this);
+      // Instantiate a subscriber to receive collision object messages to spawn
+      g_spawner_msg_subscriber = nh.subscribe<moveit_msgs::CollisionObject>("/spawner/spawner_msg_queue", 1, &SpawnerNode::spawner_msg_subscriber_callback, this);
 
-      // Instantiate collision object spawner service
-      g_spawner_service = nh.advertiseService("spawner", &SpawnerNode::spawner_service_callback, this);
+      // Instantiate a subscriber to receive names of object presets to spawn
+      g_spawner_preset_subscriber = nh.subscribe<std_msgs::String>("/spawner/spawner_preset_queue", 1, &SpawnerNode::spawner_preset_subscriber_callback, this);
+
+      // Instantiate a subscriber to receive indices of collision objects to attach/detach
+      g_attacher_msg_subscriber = nh.subscribe<moveit_msgs::AttachedCollisionObject>("/spawner/attacher_msg_queue", 1, &SpawnerNode::attacher_msg_subscriber_callback, this);
+
+      // Instantiate a subscriber to receive indices of collision objects to attach/detach
+      g_attacher_index_subscriber = nh.subscribe<moveit_msgs::CollisionObject>("/spawner/attacher_index_queue", 1, &SpawnerNode::attacher_index_subscriber_callback, this);
+
+      // Instantiate collision object message spawner service
+      g_spawner_msg_service = nh.advertiseService("spawner_msg", &SpawnerNode::spawner_msg_service_callback, this);
       
-      // Instantiate collision object attacher service
-      g_attacher_service = nh.advertiseService("attacher", &SpawnerNode::attacher_service_callback, this);
+      // Instantiate collision object preset spawner service
+      g_spawner_preset_service = nh.advertiseService("spawner_preset", &SpawnerNode::spawner_preset_service_callback, this);
+      
+      // Instantiate collision object message attacher service
+      g_attacher_msg_service = nh.advertiseService("attacher_msg", &SpawnerNode::attacher_msg_service_callback, this);
+      
+      // Instantiate collision object index attacher service
+      g_attacher_index_service = nh.advertiseService("attacher_index", &SpawnerNode::attacher_index_service_callback, this);
 
       // Debug printouts
       ROS_INFO_STREAM("SpawnerNode ready");
@@ -110,13 +133,8 @@ class SpawnerNode
                               position,
                               quaternion);
 
-      // Create attached collision object to keep indices matching
-      moveit_msgs::AttachedCollisionObject attached_collision_object =
-        createAttachedCollisionObject(collision_object,
-                                      "camera_link");
-
-      // Save both versions of object to vector
-      g_attached_collision_object_vector.push_back(attached_collision_object);
+      // Save the object so the node has a persistent object to recall by index
+      save(collision_object);
 
       ROS_INFO_STREAM("Creating object complete");
 
@@ -138,6 +156,17 @@ class SpawnerNode
       moveit_msgs::CollisionObject collision_object = create(mesh_path, scale_vec, position_vec, quaternion_vec);
 
       return collision_object;
+    }
+
+    void save(moveit_msgs::CollisionObject collision_object)
+    {
+      // Create attached collision object to be saved
+      moveit_msgs::AttachedCollisionObject attached_collision_object =
+        createAttachedCollisionObject(collision_object,
+                                      "camera_link");
+
+      // Save both versions of object to vector (attached object contains collision object)
+      g_attached_collision_object_vector.push_back(attached_collision_object);
     }
 
     void spawn(moveit_msgs::CollisionObject collision_object)
@@ -199,6 +228,7 @@ class SpawnerNode
       
       // Instantiate message strictly for attaching object, to avoid resetting whole object
       moveit_msgs::AttachedCollisionObject attach_object;
+      attach_object.object.header = attached_collision_object.object.header;
       attach_object.object.id = attached_collision_object.object.id;
       attach_object.link_name = link_name;
       attach_object.object.operation = attached_collision_object.object.ADD;
@@ -254,7 +284,9 @@ class SpawnerNode
       planning_scene.world.collision_objects.push_back(collision_object);
       planning_scene.is_diff = true;
       planning_scene.robot_state.is_diff = true;
-      g_planning_scene_diff_publisher.publish(planning_scene);
+      // g_planning_scene_diff_publisher.publish(planning_scene);
+
+      g_collision_object_publisher.publish(collision_object);
     }
 
     void publish(moveit_msgs::CollisionObject collision_object, moveit_msgs::AttachedCollisionObject attached_collision_object)
@@ -265,7 +297,10 @@ class SpawnerNode
       planning_scene.robot_state.attached_collision_objects.push_back(attached_collision_object);
       planning_scene.is_diff = true;
       planning_scene.robot_state.is_diff = true;
-      g_planning_scene_diff_publisher.publish(planning_scene);
+      // g_planning_scene_diff_publisher.publish(planning_scene);
+
+      g_collision_object_publisher.publish(collision_object);
+      g_attached_collision_object_publisher.publish(attached_collision_object);
     }
 
     void publish(moveit_msgs::AttachedCollisionObject attached_collision_object)
@@ -275,7 +310,9 @@ class SpawnerNode
       planning_scene.robot_state.attached_collision_objects.push_back(attached_collision_object);
       planning_scene.is_diff = true;
       planning_scene.robot_state.is_diff = true;
-      g_planning_scene_diff_publisher.publish(planning_scene);
+      // g_planning_scene_diff_publisher.publish(planning_scene);
+
+      g_attached_collision_object_publisher.publish(attached_collision_object);
     }
 
     // Spin node to continue handling services (should usually be called from main())
@@ -324,8 +361,18 @@ class SpawnerNode
       ROS_INFO_STREAM("Quaternion map: {{x, " + std::to_string(quat_map["x"]) + "}, {y, " + std::to_string(quat_map["y"]) + "}, {z, " + std::to_string(quat_map["z"]) + "}, {w, " + std::to_string(quat_map["w"]) + "}}");
     }
 
-    // Define the subscriber callback function
-    void spawner_subscriber_callback(std_msgs::String msg)
+    // Define the callback for spawning whole collision object messages
+    void spawner_msg_subscriber_callback(moveit_msgs::CollisionObject msg)
+    {
+      // Save the incoming collision object to g_attached_collision_object_vector
+      save(msg);
+
+      // Spawn the received object
+      spawn(g_attached_collision_object_vector.size() - 1);
+    }
+
+    // Define the callback for spawning preset objects by name
+    void spawner_preset_subscriber_callback(std_msgs::String msg)
     {
       // Instantiate a string to hold the mesh path
       std::string mesh_path = "";
@@ -343,9 +390,47 @@ class SpawnerNode
       spawn(g_attached_collision_object_vector.size() - 1);
     }
 
+    // Define the callback for processing whole attached collision object messages
+    void attacher_msg_subscriber_callback(moveit_msgs::AttachedCollisionObject msg)
+    {
+      // Just publish the message
+      publish(msg);
+    }
+
+    // Define the callback for attaching/detaching objects by index
+    void attacher_index_subscriber_callback(moveit_msgs::CollisionObject msg)
+    {
+      // Use a collision object message only for its id (as index) and operation
+      // If req.operation == collision_object.ADD, then attach
+      if (msg.operation == 0)
+      {
+        attach(std::stoi(msg.id));
+      }
+      // If req.operation == collision_object.REMOVE, then detach
+      else if (msg.operation == 1)
+      {
+        detach(std::stoi(msg.id));
+      }
+    }
+
     // Define the service call function
-    bool spawner_service_callback(morpheus_spawner::SpawnerService::Request &req,
-                                  morpheus_spawner::SpawnerService::Response &res)
+    bool spawner_msg_service_callback(morpheus_spawner::SpawnerMsgService::Request &req,
+                                  morpheus_spawner::SpawnerMsgService::Response &res)
+    {
+      // Save the incoming collision object to g_attached_collision_object_vector
+      save(req.data);
+
+      // Spawn the created object
+      spawn(g_attached_collision_object_vector.size() - 1);
+
+      // Return the processed attached collision object
+      res.data = g_attached_collision_object_vector.back();
+      return true;
+    }
+
+    // Define the service call function
+    bool spawner_preset_service_callback(morpheus_spawner::SpawnerPresetService::Request &req,
+                                  morpheus_spawner::SpawnerPresetService::Response &res)
     {
       // Instantiate a string to hold the mesh path
       std::string mesh_path = "";
@@ -362,14 +447,23 @@ class SpawnerNode
       // Spawn the created object
       spawn(g_attached_collision_object_vector.size() - 1);
 
-      // Set response/output to true and exit
-      res.attached_collision_object = g_attached_collision_object_vector.back();
+      // Return the processed attached collision object
+      res.data = g_attached_collision_object_vector.back();
       return true;
     }
 
     // Define the service call function
-    bool attacher_service_callback(morpheus_spawner::AttacherService::Request &req,
-                                  morpheus_spawner::AttacherService::Response &res)
+    bool attacher_msg_service_callback(morpheus_spawner::AttacherMsgService::Request &req,
+                                  morpheus_spawner::AttacherMsgService::Response &res)
+    {
+      // Just publish the message
+      publish(req.data);
+      return true;
+    }
+
+    // Define the service call function
+    bool attacher_index_service_callback(morpheus_spawner::AttacherIndexService::Request &req,
+                                  morpheus_spawner::AttacherIndexService::Response &res)
     {
       // If req.operation == collision_object.ADD, then attach
       if (req.operation == 0)

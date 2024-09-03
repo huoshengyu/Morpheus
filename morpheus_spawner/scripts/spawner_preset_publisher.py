@@ -4,27 +4,25 @@ from __future__ import print_function
 
 import sys
 import rospy
+import std_msgs
 
-from morpheus_spawner.srv import *
-
-def spawner_service_client(preset_name = "dragon"):
-    # Make sure the spawner service is running first
-    rospy.wait_for_service("spawner")
-    # Attempt to call the spawner service and print whether it succeeded
+def spawner_preset_publisher(preset_name = "dragon"):
+    # Attempt to call the spawner subscriber
     try:
-        spawner = rospy.ServiceProxy("spawner", SpawnerService)
-        req = SpawnerServiceRequest(preset_name)
-        res = spawner(req)
+        spawner_publisher = rospy.Publisher("/spawner/preset_spawn_queue", std_msgs.msg.String, queue_size=1)
+        spawner_publisher.publish(preset_name)
         return True
     # Notify and exit if the call fails
     except rospy.ServiceException as e:
-        print("Service call failed: %s"%e)
-    return
+        print("Publishing failed: %s"%e)
+    return False
 
 def usage():
     return "%s [preset_name]"%sys.argv[0]
 
 if __name__ == "__main__":
+    # Start node
+    rospy.init_node("spawner_preset_publisher")
     # Check command line argument count, retrieve name of collision_object.yaml entry
     if len(sys.argv) == 2:
         preset_name = str(sys.argv[1])
@@ -35,4 +33,5 @@ if __name__ == "__main__":
     # Print input
     print("Requesting preset named %s"%(preset_name))
     # Call
-    spawner_service_client(preset_name)
+    spawner_preset_publisher(preset_name)
+    print("Publishing done")

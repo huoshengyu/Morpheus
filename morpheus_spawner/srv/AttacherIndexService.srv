@@ -17,4 +17,4 @@ byte MOVE=3
 # Operation to be performed
 byte operation
 ---
-moveit_msgs/AttachedCollisionObject attached_collision_object
+moveit_msgs/AttachedCollisionObject data

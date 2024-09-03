@@ -7,13 +7,13 @@ import rospy
 
 from morpheus_spawner.srv import *
 
-def attacher_service_client(index = 0, operation = 0):
+def attacher_index_service_client(index = 0, operation = 0):
     # Make sure the spawner service is running first
-    rospy.wait_for_service("attacher")
+    rospy.wait_for_service("attacher_index")
     # Attempt to call the spawner service and print whether it succeeded
     try:
-        attacher = rospy.ServiceProxy("attacher", AttacherService)
-        req = AttacherServiceRequest(index = index, operation = operation)
+        attacher = rospy.ServiceProxy("attacher_index", AttacherIndexService)
+        req = AttacherIndexServiceRequest(index = index, operation = operation)
         res = attacher(req)
         return True
     # Notify and exit if the call fails
@@ -36,4 +36,4 @@ if __name__ == "__main__":
     # Print input
     print("Requesting index %s, operation %s"%(index, operation))
     # Call
-    attacher_service_client(index, operation)
+    attacher_index_service_client(index, operation)

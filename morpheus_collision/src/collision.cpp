@@ -143,7 +143,7 @@ class CollisionNode
                 ROS_INFO("Using ALLOWED_COLLISION_VECTOR_DEFAULT");
             }
 
-            // Retrieve preexisting PlanningSceneMonitor, if possible
+            // Instantiate PlanningSceneMonitor
             g_planning_scene_monitor = std::make_shared<planning_scene_monitor::PlanningSceneMonitor>(ROBOT_DESCRIPTION);
 
             // Set update callback
@@ -166,18 +166,18 @@ class CollisionNode
             {   
                 // Change the PlanningScene's collision detector to Bullet
                 // Bullet supports distance vectors, as well as distances to multiple obstacles
-                g_planning_scene_monitor->getPlanningScene()->setActiveCollisionDetector(collision_detection::CollisionDetectorAllocatorBullet::create(), 
+                planning_scene_monitor::LockedPlanningSceneRW(g_planning_scene_monitor)->setActiveCollisionDetector(collision_detection::CollisionDetectorAllocatorBullet::create(), 
                                                     true /* exclusive */);
                 
-                if (strcmp((g_planning_scene_monitor->getPlanningScene()->getActiveCollisionDetectorName()).c_str(), "Bullet") == 0)
+                if (strcmp((planning_scene_monitor::LockedPlanningSceneRO(g_planning_scene_monitor)->getActiveCollisionDetectorName()).c_str(), "Bullet") == 0)
                 {
                     ROS_INFO("Planning Scene is active and ready.");
                 }    
                 else
                 {
                     ROS_INFO("Collision detector incorrect");
-                    // ROS_INFO(g_planning_scene_monitor->getPlanningScene()->getActiveCollisionDetectorName());
-                    std::string collision_detector_name = g_planning_scene_monitor->getPlanningScene()->getActiveCollisionDetectorName();
+                    // ROS_INFO(planning_scene_monitor::LockedPlanningSceneRW(g_planning_scene_monitor)->getActiveCollisionDetectorName());
+                    std::string collision_detector_name = planning_scene_monitor::LockedPlanningSceneRO(g_planning_scene_monitor)->getActiveCollisionDetectorName();
                     throw collision_detector_name;
                 }
             }
@@ -187,9 +187,10 @@ class CollisionNode
             }
             
             // Start the PlanningSceneMonitor
-            g_planning_scene_monitor->startSceneMonitor("/move_group/monitored_planning_scene"); // Get scene updates from topic
-            g_planning_scene_monitor->startWorldGeometryMonitor();
-            g_planning_scene_monitor->startStateMonitor("/joint_states");
+            // g_planning_scene_monitor->startSceneMonitor("/move_group/monitored_planning_scene"); // Get scene updates from topic
+            g_planning_scene_monitor->startSceneMonitor("/planning_scene");
+            g_planning_scene_monitor->startWorldGeometryMonitor("/collision_object", "/planning_scene_world");
+            g_planning_scene_monitor->startStateMonitor("/joint_states", "/attached_collision_object");
 
             // Prepare collision result and request objects
             g_c_req.contacts = true;
@@ -200,7 +201,7 @@ class CollisionNode
             /*
             // Edit the allowed collision matrix to focus only on robot-obstacle collisions
             collision_detection::AllowedCollisionMatrix allowed_collision_matrix = 
-                g_planning_scene_monitor->getPlanningScene().getAllowedCollisionMatrix();
+                planning_scene_monitor::LockedPlanningSceneRW(g_planning_scene_monitor)->getAllowedCollisionMatrix();
             allowed_collision_matrix.setEntry(true); // Allow all collisions
             allowed_collision_matrix.setEntry("teapot", false); // Register collisions involving teapot
             */
@@ -255,12 +256,15 @@ class CollisionNode
             // Update the planning scene monitor, in case new collision objects have been added
             // g_planning_scene_monitor->requestPlanningSceneState("/get_planning_scene");
             
+            // Get locked planning scene to ensure scene does not change during update
+            planning_scene_monitor::LockedPlanningSceneRO locked_planning_scene(g_planning_scene_monitor);
+
             // Update the list of robot links, in case new attached collision objects have been added
-            updateLinkVectors();
+            updateLinkVectors(locked_planning_scene);
 
             // Update the collision result, based on the collision request
             g_c_res.clear();
-            g_planning_scene_monitor->getPlanningScene()->checkCollision(g_c_req, g_c_res);
+            locked_planning_scene->checkCollision(g_c_req, g_c_res);
             g_sorted_contacts = get_sorted_contacts();
 
 
@@ -366,7 +370,7 @@ class CollisionNode
             }
         }
 
-        void updateLinkVectors()
+        void updateLinkVectors(planning_scene_monitor::LockedPlanningSceneRO locked_planning_scene)
         {
             // Reset the robot link vector before updating
             g_robot_link_vector.clear();

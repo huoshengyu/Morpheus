@@ -61,8 +61,10 @@ find_package(catkin REQUIRED COMPONENTS
 ## Generate services in the 'srv' folder
 add_service_files(
   FILES
-  SpawnerService.srv
-  AttacherService.srv
+  SpawnerMsgService.srv
+  SpawnerPresetService.srv
+  AttacherMsgService.srv
+  AttacherIndexService.srv
 #  Service1.srv
 #  Service2.srv
 )
@@ -152,6 +154,10 @@ add_executable(${PROJECT_NAME} src/gazebo_model_visualizer.cpp src/pick_place_sp
 ## Add cmake target dependencies of the executable
 ## same as for the library above
 # add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(
+  morpheus_spawner_generate_messages
+  morpheus_spawner_generate_messages_cpp
+  morpheus_spawner_generate_messages_py)
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(${PROJECT_NAME}
