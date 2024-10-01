@@ -9,8 +9,9 @@
     <arg name="xacro_path" default="$(find morpheus_teleop)/urdf/scenes/b_bot_keyhole_scene.xacro"/>
     <arg name="srdf_path" default="$(find morpheus_teleop)/srdf/scenes/b_bot_scene.srdf"/>
 
-    <!-- launch b_bot_fake_xbox_control -->
-    <include file="$(find morpheus_teleop)/launch/b_bot_fake_xbox_control.launch">
+
+    <!-- launch b_bot_fake -->
+    <include file="$(find morpheus_teleop)/launch/b_bot_fake.launch">
         <arg name="initial_joint_positions" value="$(arg initial_joint_positions)"/>
         <arg name="controllers" value="$(arg controllers)"/>
         <arg name="stopped_controllers" value="$(arg stopped_controllers)"/>
@@ -21,10 +22,7 @@
         <arg name="srdf_path" value="$(arg srdf_path)"/>
     </include>
 
-    <!-- launch collision node -->
-    <include file="$(find morpheus_collision)/launch/collision.launch"/>
-
-    <!-- launch spawner node -->
-    <include file="$(find morpheus_spawner)/launch/spawner.launch"/>
+    <!-- launch xbox360_swap -->
+    <include file="$(find morpheus_teleop)/launch/xbox360_swap_fake.launch"/>
 
 </launch>

@@ -16,6 +16,9 @@ find_package(catkin REQUIRED COMPONENTS
   morpheus_msgs
   moveit_ros_planning_interface
   message_generation
+  tf2
+  tf2_eigen
+  eigen_conversions
 )
 
 ## System dependencies are found with CMake's conventions

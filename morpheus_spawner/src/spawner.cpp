@@ -5,6 +5,7 @@
 #include <std_msgs/Int32.h>
 
 // MoveIt
+#include <moveit/planning_scene_monitor/planning_scene_monitor.h>
 #include <moveit/planning_scene_interface/planning_scene_interface.h>
 #include <moveit/move_group_interface/move_group_interface.h>
 
@@ -18,6 +19,8 @@
 
 // Eigen
 #include <Eigen/Geometry>
+#include <tf2_eigen/tf2_eigen.h>
+#include <eigen_conversions/eigen_msg.h>
 
 // Import other files from module
 #include "collision_object.h"
@@ -27,9 +30,14 @@
 #include "morpheus_spawner/AttacherMsgService.h"
 #include "morpheus_spawner/AttacherIndexService.h"
 
+// Name of the robot description (a param name, so it can be changed externally)
+static const std::string ROBOT_DESCRIPTION =
+    "robot_description";
+
 class SpawnerNode
 {
   public:
+    std::shared_ptr<planning_scene_monitor::PlanningSceneMonitor> g_planning_scene_monitor;
     std::shared_ptr<moveit::planning_interface::MoveGroupInterface> g_move_group_interface;
     moveit::planning_interface::PlanningSceneInterface g_planning_scene_interface;
 
@@ -37,6 +45,9 @@ class SpawnerNode
 
     ros::Publisher g_attached_collision_object_publisher;
     std::vector<moveit_msgs::AttachedCollisionObject> g_attached_collision_object_vector;
+
+    ros::Publisher g_planning_scene_fake_publisher;
+    std::shared_ptr<planning_scene_monitor::PlanningSceneMonitor> g_planning_scene_fake_monitor;
 
     ros::Publisher g_planning_scene_diff_publisher;
 
@@ -59,11 +70,22 @@ class SpawnerNode
 
       // Joints to plan for, from srdf file
       static const std::string PLANNING_GROUP = "arm";
+            
+      // Instantiate PlanningSceneMonitor
+      g_planning_scene_monitor = std::make_shared<planning_scene_monitor::PlanningSceneMonitor>(ROBOT_DESCRIPTION);
+      g_planning_scene_fake_monitor = std::make_shared<planning_scene_monitor::PlanningSceneMonitor>(ROBOT_DESCRIPTION);
       
+      // Start the PlanningSceneMonitor
+      g_planning_scene_monitor->startSceneMonitor("/move_group/monitored_planning_scene"); // Get scene updates from topic
+      // g_planning_scene_monitor->startSceneMonitor("/planning_scene");
+      // g_planning_scene_monitor->startWorldGeometryMonitor("/collision_object", "/planning_scene_world");
+      // g_planning_scene_monitor->startStateMonitor("/joint_states", "/attached_collision_object");
+      g_planning_scene_monitor->requestPlanningSceneState();
+
       // Instantiate a move group interface so objects can be attached
       g_move_group_interface = std::make_shared<moveit::planning_interface::MoveGroupInterface>(PLANNING_GROUP);
 
-      // Move group interface does not need further instantiating
+      // Planning scene interface does not need further instantiating
 
       // Instantiate publisher for attached collision objects (unattached collision objects are added by the planning scene interface)
       g_collision_object_publisher = nh.advertise<moveit_msgs::CollisionObject>("collision_object", 1);
@@ -72,7 +94,10 @@ class SpawnerNode
       g_attached_collision_object_publisher = nh.advertise<moveit_msgs::AttachedCollisionObject>("attached_collision_object", 1);
     
       // Instantiate planning scene diff publisher
-      g_planning_scene_diff_publisher = nh.advertise<moveit_msgs::PlanningScene>("planning_scene", 1);
+      g_planning_scene_fake_publisher = nh.advertise<moveit_msgs::PlanningScene>("/planning_scene_fake", 1);
+
+      // Instantiate planning scene diff publisher
+      g_planning_scene_diff_publisher = nh.advertise<moveit_msgs::PlanningScene>("/planning_scene", 1);
 
       // Instantiate a subscriber to receive collision object messages to spawn
       g_spawner_msg_subscriber = nh.subscribe<moveit_msgs::CollisionObject>("/spawner/spawner_msg_queue", 1, &SpawnerNode::spawner_msg_subscriber_callback, this);
@@ -246,7 +271,52 @@ class SpawnerNode
       moveit_msgs::AttachedCollisionObject attached_collision_object = g_attached_collision_object_vector[index];
       
       // Call version of attach() that uses specific collision object
-      attach(attached_collision_object);
+      attach(attached_collision_object, link_name);
+    }
+
+    void attach_fake(moveit_msgs::AttachedCollisionObject attached_collision_object, std::string link_name = "camera_link")
+    {
+      // Stopgap soltution for attached collision object geometry being ignored by collision engine
+      // Marks collision object for continuous position updating
+      // Publishes objects so that collision node can track whether they are in robot or not
+
+      // Debug printouts
+      ROS_INFO_STREAM("Attaching object");
+
+      // Find relative transformation from link name to collision object (requires up to date planning scene state)
+      moveit_msgs::CollisionObject object;
+      planning_scene_monitor::LockedPlanningSceneRO(g_planning_scene_monitor)->getCollisionObjectMsg(object, attached_collision_object.object.id); // Get object from scene
+      Eigen::Affine3d object_transform;
+      tf::poseMsgToEigen(object.pose, object_transform);
+      Eigen::Affine3d link_transform = planning_scene_monitor::LockedPlanningSceneRO(g_planning_scene_monitor)->getCurrentState().getGlobalLinkTransform(link_name); // Get link pose
+      Eigen::Affine3d relative_transform = link_transform.inverse() * object_transform; // Concatenate inverse to get relative transform
+
+      // Convert eigen pose back to geometry_msgs::Pose
+      geometry_msgs::Pose relative_pose;
+      tf::poseEigenToMsg(relative_transform, relative_pose);
+
+      // Modify object to be in frame of attach link
+      moveit_msgs::AttachedCollisionObject attached_collision_object_fake;
+      attached_collision_object_fake.link_name = link_name;
+      attached_collision_object_fake.object = attached_collision_object.object;
+      attached_collision_object_fake.object.header.frame_id = link_name;
+      attached_collision_object_fake.object.pose = relative_pose;
+
+      // Save attached collision object for future updating of object position
+      attached_collision_object_fake.object.operation = attached_collision_object_fake.object.ADD;
+      planning_scene_monitor::LockedPlanningSceneRW(g_planning_scene_fake_monitor)->processAttachedCollisionObjectMsg(attached_collision_object_fake);
+
+      // Debug printouts
+      ROS_INFO_STREAM("Attaching object complete");
+    }
+
+    void attach_fake(int index = 0, std::string link_name = "camera_link")
+    {
+      // Select attached collision object
+      moveit_msgs::AttachedCollisionObject attached_collision_object = g_attached_collision_object_vector[index];
+      
+      // Call version of attach() that uses specific collision object
+      attach_fake(attached_collision_object, link_name);
     }
 
     void detach(moveit_msgs::AttachedCollisionObject attached_collision_object, std::string link_name = "camera_link")
@@ -276,6 +346,33 @@ class SpawnerNode
       detach(attached_collision_object);
     }
 
+    void detach_fake(moveit_msgs::AttachedCollisionObject attached_collision_object, std::string link_name = "camera_link")
+    {
+      // Debug printouts
+      ROS_INFO_STREAM("Detaching object");
+      
+      // Instantiate message strictly for detaching object, to avoid resetting whole object
+      moveit_msgs::AttachedCollisionObject detach_object;
+      detach_object.object.id = attached_collision_object.object.id;
+      detach_object.link_name = link_name;
+      detach_object.object.operation = attached_collision_object.object.REMOVE;
+
+      // Save attached collision object for future updating of object position
+      planning_scene_monitor::LockedPlanningSceneRW(g_planning_scene_fake_monitor)->processAttachedCollisionObjectMsg(detach_object);
+
+      // Debug printouts
+      ROS_INFO_STREAM("Detaching object complete");
+    }
+
+    void detach_fake(int index = 0, std::string link_name = "camera_link")
+    {
+      // Select attached collision object
+      moveit_msgs::AttachedCollisionObject attached_collision_object = g_attached_collision_object_vector[index];
+      
+      // Call version of detach() that uses specific collision object
+      detach_fake(attached_collision_object, link_name);
+    }
+
     // Publish an incoming collision object message without edits
     void publish(moveit_msgs::CollisionObject collision_object)
     {
@@ -284,9 +381,14 @@ class SpawnerNode
       planning_scene.world.collision_objects.push_back(collision_object);
       planning_scene.is_diff = true;
       planning_scene.robot_state.is_diff = true;
-      // g_planning_scene_diff_publisher.publish(planning_scene);
+      //g_planning_scene_diff_publisher.publish(planning_scene);
+      g_planning_scene_interface.applyPlanningScene(planning_scene);
 
-      g_collision_object_publisher.publish(collision_object);
+      // g_collision_object_publisher.publish(collision_object);
+
+      // Process message
+      // planning_scene_monitor::LockedPlanningSceneRW locked_planning_scene(g_planning_scene_monitor);
+      // locked_planning_scene->usePlanningSceneMsg(planning_scene);
     }
 
     void publish(moveit_msgs::CollisionObject collision_object, moveit_msgs::AttachedCollisionObject attached_collision_object)
@@ -298,27 +400,78 @@ class SpawnerNode
       planning_scene.is_diff = true;
       planning_scene.robot_state.is_diff = true;
       // g_planning_scene_diff_publisher.publish(planning_scene);
+      g_planning_scene_interface.applyPlanningScene(planning_scene);
 
-      g_collision_object_publisher.publish(collision_object);
-      g_attached_collision_object_publisher.publish(attached_collision_object);
+      // g_collision_object_publisher.publish(collision_object);
+      // g_attached_collision_object_publisher.publish(attached_collision_object);
+
+      // Process message
+      // planning_scene_monitor::LockedPlanningSceneRW locked_planning_scene(g_planning_scene_monitor);
+      // locked_planning_scene->usePlanningSceneMsg(planning_scene);
+      
     }
 
     void publish(moveit_msgs::AttachedCollisionObject attached_collision_object)
-    {
+    { 
       // Publish planning scene diff
       moveit_msgs::PlanningScene planning_scene;
       planning_scene.robot_state.attached_collision_objects.push_back(attached_collision_object);
       planning_scene.is_diff = true;
       planning_scene.robot_state.is_diff = true;
       // g_planning_scene_diff_publisher.publish(planning_scene);
+      g_planning_scene_interface.applyPlanningScene(planning_scene);
 
-      g_attached_collision_object_publisher.publish(attached_collision_object);
+      // g_attached_collision_object_publisher.publish(attached_collision_object);
+
+      // Process message
+      // planning_scene_monitor::LockedPlanningSceneRW locked_planning_scene(g_planning_scene_monitor);
+      // locked_planning_scene->usePlanningSceneMsg(planning_scene);
+    }
+
+    void update()
+    {
+      // Construct PlanningScene message from PlanningScene
+      moveit_msgs::PlanningScene planning_scene_fake_msg;
+      planning_scene_monitor::LockedPlanningSceneRO(g_planning_scene_fake_monitor)->getPlanningSceneMsg(planning_scene_fake_msg);
+
+      // Repeatedly update positions of fake attached objects
+      for (moveit_msgs::AttachedCollisionObject attached_object : planning_scene_fake_msg.robot_state.attached_collision_objects)
+      {
+        // Respawn object to reset its position
+        std::vector<moveit_msgs::CollisionObject> collision_object_vector;
+        collision_object_vector.push_back(attached_object.object);
+        g_planning_scene_interface.addCollisionObjects(collision_object_vector);
+      }
+
+      // Send planning scene message with list of fake attached objects
+      g_planning_scene_fake_publisher.publish(planning_scene_fake_msg);
     }
 
     // Spin node to continue handling services (should usually be called from main())
     void spin()
     {
-      ros::spin();
+      // Create asynchronous spinner so main thread can loop updates
+      ros::AsyncSpinner spinner(2); // Use 2 threads
+      spinner.start();
+
+      // Loop collision requests and publish at specified rate
+      ros::Rate loop_rate(15);
+      while (ros::ok())
+      {
+        std::exception_ptr eptr; // record exceptions in case handling is needed
+        try
+        {
+          update();
+        }
+        catch (...) 
+        {
+          eptr = std::current_exception(); // capture
+        }
+        loop_rate.sleep();
+      }
+
+      // Block node from closing before ros shutdown
+      // ros::waitForShutdown(); // Equivalent to while(ros::ok()), unnecessary
     }
 
     // Define function to retrieve a set of rosparams from under a preset name
@@ -404,12 +557,12 @@ class SpawnerNode
       // If req.operation == collision_object.ADD, then attach
       if (msg.operation == 0)
       {
-        attach(std::stoi(msg.id));
+        attach_fake(std::stoi(msg.id));
       }
       // If req.operation == collision_object.REMOVE, then detach
       else if (msg.operation == 1)
       {
-        detach(std::stoi(msg.id));
+        detach_fake(std::stoi(msg.id));
       }
     }
 
@@ -468,12 +621,12 @@ class SpawnerNode
       // If req.operation == collision_object.ADD, then attach
       if (req.operation == 0)
       {
-        attach(req.index);
+        attach_fake(req.index);
       }
       // If req.operation == collision_object.REMOVE, then detach
       else if (req.operation == 1)
       {
-        detach(req.index);
+        detach_fake(req.index);
       }
       return true;
     }
@@ -566,6 +719,66 @@ int main(int argc, char** argv)
   if (mode == "detach") {
     spawner_node.detach(spawner_node.g_attached_collision_object_vector.size() - 1);
   }
+
+  moveit_msgs::CollisionObject sphere_object;
+  sphere_object.header.frame_id = spawner_node.g_move_group_interface->getPlanningFrame();
+  sphere_object.id = "test_sphere";
+  shape_msgs::SolidPrimitive sphere_primitive;
+  sphere_primitive.type = sphere_primitive.SPHERE;
+  sphere_primitive.dimensions.resize(1);
+  sphere_primitive.dimensions[0] = 0.2;
+  sphere_object.primitives.resize(1);
+  sphere_object.primitives[0] = sphere_primitive;
+  sphere_object.pose.position.x = 0.0;
+  sphere_object.pose.position.y = 0.85;
+  sphere_object.pose.position.z = 0.95;
+  sphere_object.pose.orientation.w = 1.0;
+  sphere_object.operation = sphere_object.ADD;
+  //spawner_node.save(sphere_object);
+  //spawner_node.spawn(sphere_object);
+
+  moveit_msgs::CollisionObject mesh_object;
+  mesh_object.header.frame_id = spawner_node.g_move_group_interface->getPlanningFrame();
+  mesh_object.id = "test_mesh";
+  std::string test_mesh_path = "file:///root/catkin_ws/src/morpheus_teleop/meshes/components/collision/teapot.stl";
+  const Eigen::Vector3d scale_eigen(0.05, 0.05, 0.05); // mm/inch
+  shapes::Mesh* m = shapes::createMeshFromResource(test_mesh_path, scale_eigen);
+  shape_msgs::Mesh mesh;
+  shapes::ShapeMsg mesh_msg;
+  shapes::constructMsgFromShape(m, mesh_msg);
+  mesh = boost::get<shape_msgs::Mesh>(mesh_msg);
+
+  mesh_object.meshes.resize(2);
+  mesh_object.meshes[0] = mesh;
+  mesh_object.meshes[1] = mesh;
+
+  //mesh_object.primitives.resize(1);
+  //mesh_object.primitives[0] = sphere_primitive;
+
+  mesh_object.pose.position.x = 0.3;
+  mesh_object.pose.position.y = 0.35;
+  mesh_object.pose.position.z = 0.95;
+  mesh_object.pose.orientation.w = 1.0;
+  
+  mesh_object.mesh_poses.resize(2);
+  mesh_object.mesh_poses[0].position.z = 0.2;
+  mesh_object.mesh_poses[0].orientation.w = 1;
+  mesh_object.mesh_poses[1].position.z = -0.2;
+  mesh_object.mesh_poses[1].orientation.w = 1;
+
+  //mesh_object.primitive_poses.resize(1);
+  //mesh_object.primitive_poses[0].position.z = -0.2;
+  //mesh_object.primitive_poses[0].orientation.w = 1;
+
+  mesh_object.operation = mesh_object.ADD;
+  ROS_INFO_STREAM("Spawning object");
+  moveit_msgs::AttachedCollisionObject mesh_attach;
+  mesh_attach.object = mesh_object;
+  //spawner_node.save(mesh_object);
+  //spawner_node.spawn(mesh_object);
+  //spawner_node.attach(mesh_attach);
+
+  ROS_INFO_STREAM("Spawner Node spinning");
 
   spawner_node.spin();
 
