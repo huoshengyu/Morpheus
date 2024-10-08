@@ -75,7 +75,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     python3-pip \
     python3-catkin-tools \
     python3-zipp \
-    python-is_python3 \
+    python-is-python3 \
     && rm -rf /var/lib/apt/lists/*
 
 # Install python dependencies

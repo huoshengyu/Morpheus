@@ -6,9 +6,9 @@ collision_object_presets:
       y: 0.0254
       z: 0.0254
     position:
-      x: 0.1
-      y: 0.6528
-      z: 0.91915
+      x: 0.6
+      y: 0.2
+      z: 1.2
     quaternion:
       x: 0.0
       y: 0.0
