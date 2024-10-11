@@ -24,9 +24,7 @@ static const std::string ROBOT_DESCRIPTION =
 
 static const std::vector<std::string> GOAL_NAME_VECTOR_DEFAULT
 {
-    "keyhole_pickup", // name of the scene associated with the goal pose
-    "keyhole_start",
-    "keyhole_end"
+    "node2" // name of the scene associated with the goal pose
 };
 
 namespace trajectory

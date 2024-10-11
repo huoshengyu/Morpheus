@@ -36,6 +36,7 @@ gripper_action_controller:
 joint_group_pos_controller:
   type: position_controllers/JointGroupPositionController
   joints: *robot_joints
+  pid: {p: 0.01, i: 0.0001, d: 0.001}
 
 gripper_pos_controller:
   type: position_controllers/JointPositionController
