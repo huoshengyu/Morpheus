@@ -91,15 +91,16 @@ RUN pip install --upgrade six
 RUN pip install --upgrade setuptools
 RUN pip install --upgrade PyQt6
 
+RUN pip install -r ./gello_software/requirements.txt
+RUN pip install -e ./gello_software/.
+RUN pip install -e ./gello_software/third_party/DynamixelSDK/python/.
+
+# Build the ROS workspace
+RUN source /opt/ros/noetic/setup.bash \
+    catkin build
+
 # Source the workspace setup files on container startup
 RUN echo "source /root/catkin_ws/devel/setup.bash" >> ~/.bashrc
 
-# Allow "python" to execute python3
-RUN echo "alias python=python3" >> ~/.bashrc
-
 # Configure display access
 RUN echo "export LIBGL_ALWAYS_INDIRECT=1" >> ~/.bashrc
-
-# Build the ROS workspace
-# RUN source /opt/ros/noetic/setup.bash \
-#     catkin build
