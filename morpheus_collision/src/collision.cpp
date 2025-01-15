@@ -35,6 +35,11 @@
 #include <moveit_msgs/ApplyPlanningScene.h>
 #include <moveit/robot_state/attached_body.h>
 
+// Eigen
+#include <Eigen/Geometry>
+#include <tf2_eigen/tf2_eigen.h>
+#include <eigen_conversions/eigen_msg.h>
+
 // Name of the robot description (a param name, so it can be changed externally)
 static const std::string ROBOT_DESCRIPTION =
     "robot_description";
@@ -479,8 +484,8 @@ class CollisionNode
         // If contact points from Obstacle to Robot, flip it
         collision_detection::Contact setContactDirection(collision_detection::Contact contact)
         {
-            if (!(std::find(g_robot_link_vector.begin(), g_robot_link_vector.end(), contact.body_name_1) != g_robot_link_vector.end()) and
-                (std::find(g_robot_link_vector.begin(), g_robot_link_vector.end(), contact.body_name_2) != g_robot_link_vector.end()))
+            if ((contact.body_type_1 != ROBOT_LINK) and
+                (contact.body_type_2 == ROBOT_LINK))
             {
                 std::swap(contact.body_name_1, contact.body_name_2);
                 std::swap(contact.body_type_1, contact.body_type_2);
@@ -528,6 +533,55 @@ class CollisionNode
             ci.contact_body_2 = contact.body_name_2;
 
             return ci;
+        }
+
+        float contactToAxialDistance(collision_detection::Contact contact)
+        {
+            // NOTE: The returned quantity is the distance along the link's main axis
+            // given as a proportion of the total length of the link
+
+            // Ensure that the first body link is actually part of the robot
+            try
+            {
+                if (contact.body_type_1 != ROBOT_LINK)
+                {
+                    throw std::invalid_argument("Body_1 named " + contact.body_name_1 + " is not a ROBOT_LINK");
+                }
+            }
+            catch (const std::invalid_argument& e)
+            {
+                if (contact.body_type_2 != ROBOT_LINK)
+                {
+                    throw std::invalid_argument("... and Body_2 named " + contact.body_name_2 + " is not a ROBOT_LINK. Invalid contact for contactToAxialDistance().");
+                }
+                else
+                {
+                    ROS_INFO_STREAM("Body_2 named " + contact.body_name_2 + " is a ROBOT_LINK but Body_1 is not. Reversing contact...");
+                    contact = setContactDirection(contact);
+                }
+            }
+
+            // Get transformation matrix from model frame to link frame
+            Eigen::Affine3d link_tf = g_planning_scene_monitor->getStateMonitor()->getCurrentState()->getFrameTransform(contact.body_name_1);
+
+            // Get robot end of the contact vector as an Eigen object
+            Eigen::Vector3d contact_pos(contact.pos[0],contact.pos[0],contact.pos[0]);
+
+            // Transform the contact to the link frame
+            Eigen::Vector3d contact_pos_link_frame = link_tf * contact_pos;
+
+            // Get the contact position on the z axis, which should be length along the link
+            float contact_z = contact_pos_link_frame[2];
+
+            // Get the length of the link by finding the z_distance of the transform of the next link
+            moveit::LinkModel link_model = g_planning_scene_monitor->getStateMonitor()->getRobotModel()->getLinkModel(contact.body_name_1);
+            Eigen::Vector3d link_extent_vector = link_model.getShapeExtentsAtOrigin();
+            float link_extent_z = link_extent_vector[0];
+
+            // Get the distance of the contact along the length of the link as a proportion of the link length
+            // NOTE: This value does not necessarily fall within the [0,1] range
+            float proportion_z = contact_z / link_extent_z;
+            return proportion_z;
         }
 
         void visualize(collision_detection::CollisionResult::ContactMap contact_map)
