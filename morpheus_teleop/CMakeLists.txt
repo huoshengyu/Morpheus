@@ -11,6 +11,7 @@ find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   joy
   rospy
+  cartesian_controller_utilities
 )
 
 ## System dependencies are found with CMake's conventions

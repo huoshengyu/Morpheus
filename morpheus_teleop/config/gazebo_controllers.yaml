@@ -76,6 +76,10 @@ cartesian_force_controller:
   ft_sensor_ref_link: "wrist_3_link"
   joints: *robot_joints
 
+  command_interfaces:
+    #- position
+    - velocity
+
   solver:
     error_scale: 1.0
 

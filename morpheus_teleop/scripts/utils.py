@@ -8,7 +8,7 @@ import sensor_msgs.msg
 import control_msgs.msg
 import trajectory_msgs.msg
 
-from controller_manager_msgs.srv import SwitchController
+from controller_manager_msgs.srv import SwitchController, ListControllers
 
 from robotiq_2f_gripper_control.msg import Robotiq2FGripper_robot_output
 from onrobot_rg2ft_msgs.msg import RG2FTCommand    
@@ -24,6 +24,17 @@ def switch_controller(start_controllers=[], stop_controllers=[], strictness=2, s
                                     strictness,
                                     start_asap,
                                     timeout)
+    except rospy.ServiceException as e:
+        print("Service call failed: %s"%e)
+    return success
+    
+def list_controllers():
+    rospy.wait_for_service('controller_manager/list_controllers')
+    success = False
+    try:
+        list_controllers = rospy.ServiceProxy(
+                            'controller_manager/list_controllers', ListControllers)
+        success = list_controllers()
     except rospy.ServiceException as e:
         print("Service call failed: %s"%e)
     return success

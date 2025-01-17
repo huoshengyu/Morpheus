@@ -76,6 +76,9 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     python3-catkin-tools \
     python3-zipp \
     python-is-python3 \
+    libspnav-dev \
+    spacenavd \
+    ros-noetic-spacenav-node \
     && rm -rf /var/lib/apt/lists/*
 
 # Install python dependencies

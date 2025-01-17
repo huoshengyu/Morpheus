@@ -1,43 +1,56 @@
 #! /usr/bin/env python3
 
+# General Packages
 import numpy as np
+import subprocess
+# ROS Packages
 import rospy
 import tf2_ros
+import moveit_commander
+# ROS Messages
 import std_msgs.msg
 import geometry_msgs.msg   
 import sensor_msgs.msg 
 import control_msgs.msg
 import trajectory_msgs.msg
+import moveit_msgs.msg
+# Individual Imports
 from threading import Lock
 from copy import deepcopy
 from collections import deque
 from scipy.spatial.transform import Rotation as R
 from scipy.linalg import inv
 from scipy import pi
-
+# Local Imports
 from robotiq_2f_gripper_control.msg import Robotiq2FGripper_robot_output
 from onrobot_rg2ft_msgs.msg import RG2FTCommand
-from utils import switch_controller, publish_joint_pos, command_robotiq2F85, command_onrobotRG2FT
+from utils import switch_controller, list_controllers, publish_joint_pos, command_robotiq2F85, command_onrobotRG2FT
 
 class TeleopTwistJoy():
     def __init__(self):
+        # Get twist topic
         self.twist_topic = rospy.get_param("~twist_topic", "/joy/twist")
 
+        # Initialize twist command publishers and joystick subscriber
         self.twist_pub = rospy.Publisher(self.twist_topic, geometry_msgs.msg.Twist, queue_size=1)
         self.gripper_pub_robotiq = rospy.Publisher('/robotiq_2f_85_gripper/control', Robotiq2FGripper_robot_output, queue_size=1)
         self.gripper_pub_onrobot = rospy.Publisher('/onrobot_rg2ft/command', RG2FTCommand, queue_size=1)
         self.joy_sub = rospy.Subscriber("/joy", sensor_msgs.msg.Joy, self.callback)
 
+        # Initialize variables for holding joystick inputs
         self.joy_msg = None
         self.joy_msg_mutex = Lock()
 
+        # Set scaling factor on inputs
         self.linear_scale = 0.05
         self.angular_scale = 0.05
 
+        # Set limits on inputs and outputs
         self.input_min = 0.15
         self.input_max = 1.0
         self.output_max = 0.5
 
+        # Initialize buffer arrays to enable moving average filtering of outputs
         self.twist_filter_size = 5  # Adjust this value for the moving average window size
         self.linear_x_buffer = deque(maxlen=self.twist_filter_size)
         self.linear_y_buffer = deque(maxlen=self.twist_filter_size)
@@ -47,11 +60,24 @@ class TeleopTwistJoy():
         self.angular_z_buffer = deque(maxlen=self.twist_filter_size)
         self.buffer_list = [self.linear_x_buffer, self.linear_y_buffer, self.linear_z_buffer, self.angular_x_buffer, self.angular_y_buffer, self.angular_z_buffer]
 
-        self.joint_pos_topic = "/joint_group_pos_controller"
-        self.following_trajectory = False
+        # Initialize moveit commander for giving motion plans to the robot, such as returning to home position
+        self.robot_commander = moveit_commander.RobotCommander()
+        self.planning_scene_interface = moveit_commander.PlanningSceneInterface()
+        self.group_name = "arm"
+        self.move_group_commander = moveit_commander.MoveGroupCommander(self.group_name)
+        self.display_trajectory_publisher = rospy.Publisher('/move_group/display_planned_path',
+                                                            moveit_msgs.msg.DisplayTrajectory,
+                                                            queue_size=20)
+
+        # Initialize joint commands for returning to home position
         self.joint_names = ["shoulder_pan_joint", "shoulder_lift_joint", "elbow_joint", "wrist_1_joint", "wrist_2_joint", "wrist_3_joint"]
         self.home = [0, -1.5708, 1.5708, -1.5708, -1.5708, 3.14]
-        self.joint_pos_pub = rospy.Publisher(self.joint_pos_topic + "/command", std_msgs.msg.Float64MultiArray, queue_size=1)
+
+        # Start spacenav_to_wrench and spacenav_to_pose for cartesian controllers
+        # Cartesian controllers are necessary in simulation only because twist_controller requires a hardware interface
+        # See here for source files: https://github.com/fzi-forschungszentrum-informatik/cartesian_controllers/tree/ros1/cartesian_controller_utilities
+        subprocess.Popen(['roslaunch', 'morpheus_teleop', 'spacenav_to_wrench.launch'])
+        subprocess.Popen(['roslaunch', 'morpheus_teleop', 'spacenav_to_pose.launch'])
 
     def get_joy_msg(self):
         # Retrieve joy_msg and return a safe copy
@@ -112,7 +138,7 @@ class TeleopTwistJoy():
 
         # If menu button is pressed, move to home
         if buttons[7] == 1:
-            self.moveto(publisher=self.joint_pos_pub, joint_pos=self.home)
+            self.moveto(joint_pos=self.home)
             return
 
         # Append inputs on each axis to the respective buffers
@@ -166,27 +192,49 @@ class TeleopTwistJoy():
         self.joy_msg = msg
         self.joy_msg_mutex.release()
 
-    def moveto(self, publisher=None, joint_pos=None, duration=5):
+    def moveto(self, joint_pos=None):
         # Command robot to move to specified joint position, such as home position
-
-        # Switch to position controller
-        twist_controllers = ["cartesian_compliance_controller"]
+        if joint_pos is None:
+            joint_pos = self.home
+        # List expected twist and position controllers
+        twist_controllers = ["twist_controller", "cartesian_compliance_controller"]
         pos_controllers = ["pos_joint_traj_controller"]
-        switch_controller(stop_controllers=twist_controllers, start_controllers=pos_controllers)
-        self.following_trajectory = True
 
-        # Publish a position command
-        rospy.set_param(self.joint_pos_topic + "/joints", self.joint_names)
-        joint_pos_msg = std_msgs.msg.Float64MultiArray()
-        joint_pos_msg.data = joint_pos
-        publisher.publish(joint_pos_msg)
+        # Retrieve list of active controllers
+        controllers = list_controllers().controller
+        running_controllers = [controller.name for controller in controllers if controller.state=="running"]
+        running_twist_controllers = list(set(running_controllers) & set(twist_controllers))
+        stopped_controllers = [controller.name for controller in controllers if (controller.state=="initialized" or controller.state=="stopped")]
+        stopped_pos_controllers = list(set(stopped_controllers) & set(pos_controllers))
 
-        # Wait for completion
-        rospy.sleep(duration)
+        try:
+            # Switch to position controller
+            switch_controller(stop_controllers=running_twist_controllers, start_controllers=stopped_pos_controllers)
+            print([controller.state for controller in controllers])
 
-        # Switch back to twist controller
-        switch_controller(stop_controllers=pos_controllers, start_controllers=twist_controllers)
-        self.following_trajectory = False
+            # Kill spacenav_to_pose so that target pose can be reset
+            subprocess.Popen(['rosnode', 'kill', 'spacenav_to_pose'])
+
+            # Execute a position command
+            self.move_group_commander.go(joint_pos, wait=True)
+
+            # Stop after completion
+            self.move_group_commander.stop()
+
+            # Restart spacenav_to_pose at endpoint
+            subprocess.Popen(['roslaunch', 'morpheus_teleop', 'spacenav_to_pose.launch'])
+
+            # Switch back to twist controller
+            switch_controller(stop_controllers=stopped_pos_controllers, start_controllers=running_twist_controllers)
+            return True
+        except rospy.ServiceException as e:
+            print("Service call failed: %s"%e)
+            # If failed, attempt to restore status quo
+            self.move_group_commander.stop()
+            subprocess.Popen(['rosnode', 'kill', 'spacenav_to_pose'])
+            subprocess.Popen(['roslaunch', 'morpheus_teleop', 'spacenav_to_pose.launch'])
+            switch_controller(stop_controllers=stopped_pos_controllers, start_controllers=running_twist_controllers, strictness=1)
+            return False
 
 if __name__ == '__main__':
     rospy.init_node('xbox360_twist')
