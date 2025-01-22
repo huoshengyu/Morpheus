@@ -6,7 +6,7 @@
     <arg name="moveit_controller_config_file" default="$(find homestri_gazebo)/config/b_bot_moveit_controllers.yaml" />
     <arg name="use_rviz" default="true" />
 
-    <arg name="xacro_path" default="$(find morpheus_teleop)/urdf/scenes/b_bot_keyhole_scene.xacro"/>
+    <arg name="xacro_path" default="$(find morpheus_teleop)/urdf/scenes/b_bot_node2_scene.xacro"/>
     <arg name="srdf_path" default="$(find morpheus_teleop)/srdf/scenes/b_bot_scene.srdf"/>
 
     <!-- launch b_bot_fake_xbox_control -->

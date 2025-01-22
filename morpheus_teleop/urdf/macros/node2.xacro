@@ -52,7 +52,7 @@
     <joint name="${prefix}node2_joint" type="fixed">
         <parent link="${parent}" />
         <child link="${prefix}node2" />
-        <origin xyz="${x} ${y} ${z}" rpy="${R} ${P} ${Y + pi}" />
+        <origin xyz="${x} ${y} ${z}" rpy="${R} ${P} ${Y + 3*pi/2}" />
     </joint>
 
     <joint name="${prefix}PMA3_joint" type="fixed">

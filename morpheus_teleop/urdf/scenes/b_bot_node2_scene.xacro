@@ -7,7 +7,7 @@
     <xacro:node2_table
         prefix=""
         parent="world"
-        x="${0.0254 * (-62)}"
+        x="${0.0254 * (-48)}"
         y="${0.0254 * 8.5}"
         z="0"
         scale="1"
