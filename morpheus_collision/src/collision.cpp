@@ -95,32 +95,44 @@ namespace collision
 class CollisionNode
 {
     public:
+        // Declare interfaces for interacting with the planning scene
         std::shared_ptr<planning_scene_monitor::PlanningSceneMonitor> g_planning_scene_monitor;
         moveit::planning_interface::PlanningSceneInterface g_planning_scene_interface;
+
+        // Declare publishers
         ros::Publisher g_contactmap_string_publisher;
         ros::Publisher g_contactmap_msg_publisher;
         ros::Publisher g_nearest_contact_publisher;
         ros::Publisher g_nearest_distance_publisher;
         ros::Publisher g_nearest_direction_publisher;
+        ros::Publisher g_linkcontactmap_msg_publisher;
+
+        // Declare collision info variables
         collision_detection::CollisionResult g_c_res;
         collision_detection::CollisionRequest g_c_req;
         std::vector<collision_detection::Contact> g_sorted_contacts;
+        std::vector<collision_detection::Contact> g_link_contacts;
 
+        // Declare collision visualization variables
         ros::Publisher* g_marker_array_publisher = nullptr;
         visualization_msgs::MarkerArray g_collision_points;
         // moveit_visual_tools::MoveItVisualToolsPtr visual_tools_;
         std::vector<collision_detection::Contact>::size_type g_max_markers = 10;
 
+        // Declare variables for identifying robot vs environment
         std::vector<std::string> g_robot_link_vector_minimal;
         std::vector<std::string> ALLOWED_COLLISION_VECTOR;
         std::vector<std::string> g_robot_link_vector;
         
+        // Declare interfaces for retrieving robot link models and other info
         std::shared_ptr<moveit::planning_interface::MoveGroupInterface> g_arm_interface;
         std::shared_ptr<moveit::planning_interface::MoveGroupInterface> g_gripper_interface;
         
+        // Declare variables for tracking attached collision objects
         ros::Subscriber g_planning_scene_fake_subscriber;
         std::vector<moveit_msgs::AttachedCollisionObject> g_attached_collision_object_vector;
 
+        // Declare ROS node handle
         ros::NodeHandle nh;
 
         CollisionNode(int argc, char** argv)
@@ -233,6 +245,7 @@ class CollisionNode
             g_nearest_contact_publisher = nh.advertise<moveit_msgs::ContactInformation>("collision/nearest/contact", 0);
             g_nearest_distance_publisher = nh.advertise<std_msgs::Float64>("collision/nearest/distance", 0);
             g_nearest_direction_publisher = nh.advertise<geometry_msgs::Vector3>("collision/nearest/direction", 0);
+            g_linkcontactmap_msg_publisher = nh.advertise<morpheus_msgs::ContactMap>("collision/linkcontactmap/msg", 0);
 
             
             // Create a marker array publisher for publishing shapes to Rviz
@@ -299,8 +312,13 @@ class CollisionNode
             // Update the collision result, based on the collision request
             g_c_res.clear();
             locked_planning_scene->checkCollision(g_c_req, g_c_res);
-            g_sorted_contacts = get_sorted_contacts();
-
+            g_sorted_contacts = get_sorted_contacts(g_c_res);
+            g_link_contacts.clear();
+            for (auto contact : g_sorted_contacts)
+            {
+                // TODO: Fix bug where contactToLinkContact freezes at getGlobalLinkTransform()
+                // g_link_contacts.push_back(contactToLinkContact(contact));
+            }
 
             /*
             ros::Time update_time = g_planning_scene_monitor->getLastUpdateTime(); // Get last update time
@@ -319,28 +337,42 @@ class CollisionNode
             contacts_msg.data = contactMapToString(g_c_res.contacts);
             g_contactmap_string_publisher.publish(contacts_msg);
 
-            // Publish contact map as special msg type
+            // Publish contact map (sorted and reduced) as custom msg type
             morpheus_msgs::ContactMap contactmap_msg;
-            for (auto const& key_value : g_c_res.contacts)
+            for (auto const& contact : g_sorted_contacts)
             {
-                auto key = key_value.first;
-                auto value = key_value.second[0]; // Only get nearest contact
-
                 morpheus_msgs::StringPair msg_key;
-                msg_key.first = key.first;
-                msg_key.second = key.second;
+                msg_key.first = contact.body_name_1;
+                msg_key.second = contact.body_name_2;
 
                 moveit_msgs::ContactInformation msg_value;
-                msg_value = contactToContactInformation(value);
+                collision_detection::contactToMsg(contact, msg_value);
 
                 contactmap_msg.keys.push_back(msg_key);
                 contactmap_msg.values.push_back(msg_value);
             }
             g_contactmap_msg_publisher.publish(contactmap_msg);
 
+            // Publish link contact map just like regular contact map
+            morpheus_msgs::ContactMap linkcontactmap_msg;
+            for (auto const& contact : g_link_contacts)
+            {
+                morpheus_msgs::StringPair msg_key;
+                msg_key.first = contact.body_name_1;
+                msg_key.second = contact.body_name_2;
+
+                moveit_msgs::ContactInformation msg_value;
+                collision_detection::contactToMsg(contact, msg_value);
+
+                contactmap_msg.keys.push_back(msg_key);
+                contactmap_msg.values.push_back(msg_value);
+            }
+            g_linkcontactmap_msg_publisher.publish(linkcontactmap_msg);
+
             // Publish contact object associated with nearest collision
             collision_detection::Contact nearest_contact = g_sorted_contacts[0];
-            moveit_msgs::ContactInformation nearest_msg = contactToContactInformation(nearest_contact);
+            moveit_msgs::ContactInformation nearest_msg;
+            collision_detection::contactToMsg(nearest_contact, nearest_msg);
             g_nearest_contact_publisher.publish(nearest_msg);
 
             // Publish distance associated with nearest contact
@@ -357,10 +389,10 @@ class CollisionNode
 
         }
 
-        std::vector<collision_detection::Contact> get_sorted_contacts()
+        std::vector<collision_detection::Contact> get_sorted_contacts(collision_detection::CollisionResult res)
         {
             std::vector<collision_detection::Contact> sorted_contacts;
-            for (auto const& key_value : g_c_res.contacts)
+            for (auto const& key_value : res.contacts)
             {
                 // Split into keys and values for readability
                 auto key = key_value.first;
@@ -376,7 +408,7 @@ class CollisionNode
             std::sort(sorted_contacts.begin(), sorted_contacts.end(), compareContacts);
             return sorted_contacts;
         }
-
+        
         bool isRobotObstaclePair(std::pair<std::string, std::string> pair)
         {
             if 
@@ -484,8 +516,8 @@ class CollisionNode
         // If contact points from Obstacle to Robot, flip it
         collision_detection::Contact setContactDirection(collision_detection::Contact contact)
         {
-            if ((contact.body_type_1 != ROBOT_LINK) and
-                (contact.body_type_2 == ROBOT_LINK))
+            if ((contact.body_type_1 == collision_detection::BodyTypes::WORLD_OBJECT) and
+                (contact.body_type_2 != collision_detection::BodyTypes::WORLD_OBJECT))
             {
                 std::swap(contact.body_name_1, contact.body_name_2);
                 std::swap(contact.body_type_1, contact.body_type_2);
@@ -505,83 +537,62 @@ class CollisionNode
             return point;
         }
 
-        moveit_msgs::ContactInformation contactToContactInformation(collision_detection::Contact contact)
+        collision_detection::Contact contactToLinkContact(collision_detection::Contact contact)
         {
-            // Initialize and add header
-            moveit_msgs::ContactInformation ci;
-            ci.header.stamp = ros::Time::now(); // Timestamp
-            ci.header.frame_id = "world"; // Reference frame id
-
-            // Convert contact coordinates to geometry_msgs::Point
-            geometry_msgs::Point contact_point;
-            contact_point.x = contact.pos[0];
-            contact_point.y = contact.pos[1];
-            contact_point.z = contact.pos[2];
-            ci.position = contact_point;
-
-            // Convert contact normal to geometry_msgs::Vector3 (which should always be a normalized vector)
-            geometry_msgs::Vector3 contact_vector;
-            contact_vector.x = contact.normal[0];
-            contact_vector.y = contact.normal[1];
-            contact_vector.z = contact.normal[2];
-            ci.normal = contact_vector;
-
-            // Transfer other info
-            ci.depth = contact.depth;
-            ci.contact_body_1 = contact.body_name_1;
-            ci.body_type_1 = contact.body_type_1;
-            ci.contact_body_2 = contact.body_name_2;
-
-            return ci;
-        }
-
-        float contactToAxialDistance(collision_detection::Contact contact)
-        {
-            // NOTE: The returned quantity is the distance along the link's main axis
-            // given as a proportion of the total length of the link
+            // NOTE: Returns a copy of contact where:
+            // contact.pos is given in the link's reference frame
+            // contact.normal is given in the link's reference frame
+            // contact.depth is the height of the link model's bounding box
 
             // Ensure that the first body link is actually part of the robot
             try
             {
-                if (contact.body_type_1 != ROBOT_LINK)
+                if (contact.body_type_1 != collision_detection::BodyTypes::ROBOT_LINK)
                 {
                     throw std::invalid_argument("Body_1 named " + contact.body_name_1 + " is not a ROBOT_LINK");
                 }
             }
             catch (const std::invalid_argument& e)
             {
-                if (contact.body_type_2 != ROBOT_LINK)
+                if (contact.body_type_2 != collision_detection::BodyTypes::ROBOT_LINK)
                 {
-                    throw std::invalid_argument("... and Body_2 named " + contact.body_name_2 + " is not a ROBOT_LINK. Invalid contact for contactToAxialDistance().");
+                    throw std::invalid_argument("... and Body_2 named " + contact.body_name_2 + " is not a ROBOT_LINK. Invalid contact for contactToLinkContact().");
                 }
                 else
                 {
-                    ROS_INFO_STREAM("Body_2 named " + contact.body_name_2 + " is a ROBOT_LINK but Body_1 is not. Reversing contact...");
+                    ROS_INFO_STREAM("Body_2 named " + contact.body_name_2 + " is a ROBOT_LINK or ROBOT_ATTACHED but Body_1 is not. Reversing contact...");
                     contact = setContactDirection(contact);
                 }
             }
 
-            // Get transformation matrix from model frame to link frame
-            Eigen::Affine3d link_tf = g_planning_scene_monitor->getStateMonitor()->getCurrentState()->getFrameTransform(contact.body_name_1);
+            // Get transformation matrix from world frame to link frame
+            ROS_INFO_STREAM("Getting frame transform");
+            Eigen::Affine3d link_tf = planning_scene_monitor::LockedPlanningSceneRO(g_planning_scene_monitor)->getCurrentState().getGlobalLinkTransform(contact.body_name_1);
+            ROS_INFO_STREAM("Got frame transform");
 
-            // Get robot end of the contact vector as an Eigen object
-            Eigen::Vector3d contact_pos(contact.pos[0],contact.pos[0],contact.pos[0]);
+            // Get contact.pos (robot end of the contact vector) and contact.normal (direction of the contact vector) as Eigen objects
+            Eigen::Vector3d contact_pos(contact.pos[0],contact.pos[1],contact.pos[2]);
+            Eigen::Vector3d contact_normal(contact.normal[0],contact.normal[1],contact.normal[2]);
 
-            // Transform the contact to the link frame
+            // Transform the contact position and normal to the link frame
             Eigen::Vector3d contact_pos_link_frame = link_tf * contact_pos;
-
-            // Get the contact position on the z axis, which should be length along the link
-            float contact_z = contact_pos_link_frame[2];
+            Eigen::Vector3d contact_normal_link_frame = link_tf * contact_normal;
 
             // Get the length of the link by finding the z_distance of the transform of the next link
-            moveit::LinkModel link_model = g_planning_scene_monitor->getStateMonitor()->getRobotModel()->getLinkModel(contact.body_name_1);
-            Eigen::Vector3d link_extent_vector = link_model.getShapeExtentsAtOrigin();
-            float link_extent_z = link_extent_vector[0];
+            float z_extent = planning_scene_monitor::LockedPlanningSceneRO(g_planning_scene_monitor)->getRobotModel()->getLinkModel(contact.body_name_1)->getShapeExtentsAtOrigin()[2];
+            ROS_INFO_STREAM(z_extent);
 
-            // Get the distance of the contact along the length of the link as a proportion of the link length
-            // NOTE: This value does not necessarily fall within the [0,1] range
-            float proportion_z = contact_z / link_extent_z;
-            return proportion_z;
+            // Create a new contact object to be returned
+            collision_detection::Contact out;
+            out.body_name_1 = contact.body_name_1;
+            out.body_name_2 = contact.body_name_2;
+            out.body_type_1 = contact.body_type_1;
+            out.body_type_2 = contact.body_type_2;
+            out.depth = z_extent; // Get extent on z axis
+            out.normal = contact_normal_link_frame;
+            out.pos = contact_pos_link_frame;
+
+            return out;
         }
 
         void visualize(collision_detection::CollisionResult::ContactMap contact_map)
@@ -659,6 +670,9 @@ class CollisionNode
                 mk.lifetime = ros::Duration(1.0); // Remain for 0.5 sec or until replaced
                 markers.markers.push_back(mk); // Add to MarkerArray markers
             }
+
+            // Note Moveit comes with a method to automatically generate collision markers, but the above may be easier to customize
+            // collision_detection::getCollisionMarkersFromContacts(markers, "world", contact_map)
 
             publishMarkers(markers);
         }

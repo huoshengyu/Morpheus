@@ -24,7 +24,7 @@ from scipy import pi
 # Local Imports
 from robotiq_2f_gripper_control.msg import Robotiq2FGripper_robot_output
 from onrobot_rg2ft_msgs.msg import RG2FTCommand
-from utils import switch_controller, list_controllers, publish_joint_pos, command_robotiq2F85, command_onrobotRG2FT
+from utils import switch_controller, list_controllers, command_robotiq2F85, command_onrobotRG2FT
 
 class TeleopTwistJoy():
     def __init__(self):
