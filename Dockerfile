@@ -41,7 +41,7 @@ RUN rosdep init \
  && rosdep fix-permissions \
  && rosdep update --rosdistro $ROS_DISTRO
 
-# source ros setup files on startup
+# Source ROS setup files on container startup
 RUN echo "source /opt/ros/noetic/setup.bash" >> ~/.bashrc
 
 FROM base as dev
@@ -53,6 +53,15 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     ros-noetic-teleop-twist-keyboard \
     python3-tk \
     && rm -rf /var/lib/apt/lists/*
+
+# Install Trossen robot arm software (For AMD64 architectures, not Raspberry Pi) (This step may take up to 15 minutes)
+RUN sudo apt install curl
+RUN curl 'https://raw.githubusercontent.com/Interbotix/interbotix_ros_manipulators/main/interbotix_ros_xsarms/install/amd64/xsarm_amd64_install.sh' > xsarm_amd64_install.sh
+RUN chmod +x xsarm_amd64_install.sh
+RUN ./xsarm_amd64_install.sh -d noetic -n
+
+# Source Trossen installation on container startup
+RUN echo "source ~/interbotix_ws/devel/setup.bash" >> ~/.bashrc
 
 # Set the working directory in the container
 WORKDIR /root/catkin_ws
@@ -100,7 +109,7 @@ RUN pip install -e ./src/gello_software/third_party/DynamixelSDK/python/.
 
 # Build the ROS workspace
 RUN source /opt/ros/noetic/setup.bash \
-    catkin build
+    && catkin build
 
 # Source the workspace setup files on container startup
 RUN echo "source /root/catkin_ws/devel/setup.bash" >> ~/.bashrc
