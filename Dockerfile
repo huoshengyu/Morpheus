@@ -1,4 +1,4 @@
-FROM nvidia/cudagl:11.1.1-base-ubuntu20.04 as base
+FROM nvidia/cudagl:11.1.1-base-ubuntu20.04 AS base
 
 SHELL ["/bin/bash", "-c"]
 
@@ -32,7 +32,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-rosdep \
     python3-rosinstall \
+    python3-rosinstall-generator \
     python3-vcstools \
+    python3-wstool \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
@@ -44,7 +46,7 @@ RUN rosdep init \
 # Source ROS setup files on container startup
 RUN echo "source /opt/ros/noetic/setup.bash" >> ~/.bashrc
 
-FROM base as dev
+FROM base AS dev
 
 # Install ROS dependencies
 RUN apt-get update && apt-get install --no-install-recommends -y \
@@ -54,30 +56,11 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     python3-tk \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Trossen robot arm software (For AMD64 architectures, not Raspberry Pi) (This step may take up to 15 minutes)
-RUN sudo apt install curl
-RUN curl 'https://raw.githubusercontent.com/Interbotix/interbotix_ros_manipulators/main/interbotix_ros_xsarms/install/amd64/xsarm_amd64_install.sh' > xsarm_amd64_install.sh
-RUN chmod +x xsarm_amd64_install.sh
-RUN ./xsarm_amd64_install.sh -d noetic -n
-
-# Source Trossen installation on container startup
-RUN echo "source ~/interbotix_ws/devel/setup.bash" >> ~/.bashrc
-
 # Set the working directory in the container
 WORKDIR /root/catkin_ws
 
 # Copy the morpheus repo
 COPY ./ ./src/
-
-# General rosdep install (not necessary?)
-RUN source /opt/ros/noetic/setup.bash \
-    && apt-get update \
-    && rosdep update \
-    && rosdep install -q -y \
-      --from-paths ./src \
-      --ignore-src \
-      --rosdistro noetic \
-    && rm -rf /var/lib/apt/lists/*
 
 # Install general dependencies
 RUN apt-get update && apt-get install --no-install-recommends -y \
@@ -88,9 +71,11 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     libspnav-dev \
     spacenavd \
     ros-noetic-spacenav-node \
+    udev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install python dependencies
+# Install python dependencies 
+# (Relatively error-prone dependencies installed individually for readability of error messages)
 RUN pip install --upgrade pip
 RUN pip install --upgrade \ 
     pyserial \
@@ -102,10 +87,33 @@ RUN pip install --upgrade importlib_metadata
 RUN pip install --upgrade six
 RUN pip install --upgrade setuptools
 RUN pip install --upgrade PyQt6
+RUN pip install --upgrade modern_robotics
 
+# Install GELLO dependencies
 RUN pip install -r ./src/gello_software/requirements.txt
 RUN pip install -e ./src/gello_software/.
 RUN pip install -e ./src/gello_software/third_party/DynamixelSDK/python/.
+
+# Install Trossen robot arm software (For AMD64 architectures, not Raspberry Pi) (This step may take up to 15 minutes)
+#RUN sudo apt install curl
+#RUN curl 'https://raw.githubusercontent.com/Interbotix/interbotix_ros_manipulators/main/interbotix_ros_xsarms/install/amd64/xsarm_amd64_install.sh' > xsarm_amd64_install.sh
+#RUN chmod +x xsarm_amd64_install.sh
+#RUN ./xsarm_amd64_install.sh -d noetic -n
+RUN cp ./src/trossen/interbotix_ros_core/interbotix_ros_xseries/interbotix_xs_sdk/99-interbotix-udev.rules /etc/udev/rules.d
+#RUN cd ./src/trossen/interbotix_ros_core/interbotix_ros_xseries/interbotix_xs_sdk/ && \
+#    service udev start && udevadm control --reload-rules && udevadm trigger
+RUN echo 'export ROS_IP=$(echo `hostname -I | cut -d" " -f1`)' >> ~/.bashrc && \
+    echo -e 'if [ -z "$ROS_IP" ]; then\n\texport ROS_IP=127.0.0.1\nfi' >> ~/.bashrc
+
+# General rosdep install
+RUN source /opt/ros/noetic/setup.bash \
+    && apt-get update \
+    && rosdep update \
+    && rosdep install -q -y \
+      --from-paths ./src \
+      --ignore-src \
+      --rosdistro noetic \
+    && rm -rf /var/lib/apt/lists/*
 
 # Build the ROS workspace
 RUN source /opt/ros/noetic/setup.bash \

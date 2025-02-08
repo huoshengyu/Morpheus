@@ -4,3 +4,15 @@
 [submodule "HOMESTRI-UR5e-Robotiq2f85"]
 	path = HOMESTRI-UR5e-Robotiq2f85
 	url = https://github.com/tammerb/HOMESTRI-UR5e-Robotiq2f85.git
+[submodule "trossen/interbotix_ros_core"]
+	path = trossen/interbotix_ros_core
+	url = https://github.com/Interbotix/interbotix_ros_core.git
+	branch = noetic
+[submodule "trossen/interbotix_ros_manipulators"]
+	path = trossen/interbotix_ros_manipulators
+	url = https://github.com/Interbotix/interbotix_ros_manipulators.git
+	branch = noetic
+[submodule "trossen/interbotix_ros_toolboxes"]
+	path = trossen/interbotix_ros_toolboxes
+	url = https://github.com/Interbotix/interbotix_ros_toolboxes.git
+	branch = noetic
