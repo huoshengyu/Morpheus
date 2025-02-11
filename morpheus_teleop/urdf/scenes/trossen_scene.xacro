@@ -1,12 +1,8 @@
 <?xml version="1.0"?>
-<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="b_bot_scene">
-    <xacro:arg name="joint_limits_parameters_file"
-        default="$(find interbotix_xsarm_moveit)/config/joint_limits/6dof_joint_limits.yaml" />
-    <xacro:arg name="transmission_hw_interface" default="hardware_interface/PositionJointInterface" />
-
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="trossen_scene">
 
     <xacro:include filename="$(find homestri_description)/urdf/macros/simple_pedestal_macro.xacro" />
-    <xacro:include filename="$(find homestri_description)/urdf/macros/trossen_macro.xacro" />
+    <xacro:include filename="$(find morpheus_teleop)/urdf/macros/trossen_macro.xacro" />
 
     <xacro:simple_pedestal
         prefix=""
@@ -15,16 +11,12 @@
         radius="0.15"
     />
 
-    <xacro:b_bot
+    <xacro:trossen
         prefix=""
         parent="pedestal"
-        transmission_hw_interface="$(arg transmission_hw_interface)"
-        joint_limits_parameters_file="$(arg joint_limits_parameters_file)"
     >
         <origin xyz="0 0 0" rpy="0 0 0" />
-    </xacro:b_bot>
-
-    <link name="world" />
+    </xacro:trossen>
 
     <gazebo>
         <plugin name="ros_control" filename="libgazebo_ros_control.so">

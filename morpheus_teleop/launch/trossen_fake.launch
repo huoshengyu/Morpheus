@@ -1,17 +1,17 @@
 <launch>
-    <arg name="initial_joint_positions"             default=" -J elbow_joint 1.5708 -J finger_joint 0 -J left_outer_knuckle_joint 0 -J shoulder_lift_joint -1.5708 -J shoulder_pan_joint 0 -J wrist_1_joint -1.5708 -J wrist_2_joint -1.5708 -J wrist_3_joint 3.14" doc="Initial joint configuration of the robot"/>
+    <arg name="initial_joint_positions"             default="-J waist 0 -J shoulder -1.5708 -J elbow 1.5708 -J forearm_roll -1.5708 -J wrist_angle -1.5708 -J wrist_rotate 3.14 -J left_finger 0 -J right_finger 0" doc="Initial joint configuration of the robot"/>
     <arg name="controllers"                         default="joint_state_controller gripper_action_controller scaled_pos_joint_traj_controller"/>
     <arg name="stopped_controllers"                 default="cartesian_compliance_controller cartesian_motion_controller motion_control_handle cartesian_force_controller pos_joint_traj_controller"/>
-    <arg name="controller_config_file"              default="$(find morpheus_teleop)/config/gazebo_controllers.yaml" />
+    <arg name="controller_config_file"              default="$(find morpheus_teleop)/config/trossen_controllers.yaml" />
     <arg name="moveit_controller_config_file"       default="$(find homestri_gazebo)/config/b_bot_moveit_controllers.yaml" />
     <arg name="use_rviz"                            default="true" />
 
     <arg name="robot_model"                         default="vx300s"/>
     <arg name="robot_name"                          default="$(arg robot_model)"/>
-    <arg name="dof"                                 default="5"/>
+    <arg name="dof"                                 default="6"/>
 
-    <arg name="xacro_path" default="$(find interbotix_xsarm_descriptions)/urdf/$(arg robot_model).urdf.xacro"/>
-    <arg name="srdf_path" default="$(find interbotix_xsarm_moveit)/config/srdf/$(arg robot_model).srdf.xacro"/>
+    <arg name="xacro_path"                          default="$(find interbotix_xsarm_descriptions)/urdf/$(arg robot_model).urdf.xacro"/>
+    <arg name="srdf_path"                           default="$(find interbotix_xsarm_moveit)/config/srdf/$(arg robot_model).srdf.xacro"/>
 
     <!-- Control motion and compliance controller with one handle -->
     <remap from="motion_control_handle/target_frame" to="target_frame" />
@@ -36,9 +36,9 @@
 
     <!-- launch moveit for Trossen xsarms -->
     <include file="$(find interbotix_xsarm_moveit)/launch/xsarm_moveit.launch">
-        <arg name="robot_model"                     value="vx300s"/>
-        <arg name="robot_name"                      value="vx300s"/>
-        <arg name="dof"                             value="5"/>
+        <arg name="robot_model"                     value="$(arg robot_model)"/>
+        <arg name="robot_name"                      value="$(arg robot_name)"/>
+        <arg name="dof"                             value="$(arg dof)"/>
         <arg name="use_moveit_rviz" value="true" />
         <arg name="use_gazebo" value="false" />
         <arg name="use_fake" value="true" />

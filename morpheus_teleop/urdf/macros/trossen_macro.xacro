@@ -1,30 +1,18 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="trossen">
 
-    <xacro:macro name="vx300s">
-        <xacro:include filename="$(find interbotix_xsarm_descriptions)/urdf/vx300s.urdf.xacro" />
-
-        <link name="world"/>
-        <joint name="fixed" type="fixed">
-            <parent link="${parent}"/>
-            <child link="$(arg robot_name)/$(arg base_link_frame)"/>
-        </joint>
-    </xacro:macro>
+    <xacro:include filename="$(find morpheus_teleop)/urdf/macros/vx300s_macro.xacro" />
 
     <xacro:macro name="trossen"
         params="
         prefix 
-        parent 
-        transmission_hw_interface:=hardware_interface/PositionJointInterface
-        joint_limits_parameters_file:='$(find interbotix_xsarm_moveit)/config/joint_limits/6dof_joint_limits.yaml'
+        parent
         *origin">
 
         <xacro:vx300s
             prefix="${prefix}"
             parent="${parent}"
-            tcp_offset="0.223"
-            joint_limits_parameters_file="${joint_limits_parameters_file}"
-            transmission_hw_interface="${transmission_hw_interface}"
+            tcp_offset="0.163"
         >
             <origin xyz="0 0 0" rpy="0 0 0" />
         </xacro:vx300s>

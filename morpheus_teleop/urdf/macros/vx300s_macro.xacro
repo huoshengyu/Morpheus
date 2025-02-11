@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="vx300s">
+
+    <xacro:macro name="vx300s"
+        params="
+        prefix 
+        parent 
+        tcp_offset
+        *origin">
+
+        <xacro:macro name="vx300s_robot">
+            <xacro:include filename="$(find interbotix_xsarm_descriptions)/urdf/vx300s.urdf.xacro" />
+        </xacro:macro>
+
+        <xacro:vx300s_robot
+        >
+        </xacro:vx300s_robot>
+        
+        <joint name="${prefix}trossen_base_joint" type="fixed">
+            <parent link="${parent}"/>
+            <child link="$(arg robot_name)/$(arg base_link_frame)"/>
+        </joint>
+
+        <!-- Add an additional link to plan with. Oriented like the UR ee_link frame. -->
+        <link name="${prefix}tcp_link" />
+        <joint name="${prefix}tcp_joint" type="fixed">
+        <parent link="${prefix}vx300s/gripper_link" />
+        <child link="${prefix}tcp_link" />
+        <origin rpy="0 ${-pi/2} ${-pi/2}" xyz="0 0 ${tcp_offset}" />
+        </joint>
+
+    </xacro:macro>
+
+</robot>
