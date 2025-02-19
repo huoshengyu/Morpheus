@@ -26,8 +26,12 @@ from robotiq_2f_gripper_control.msg import Robotiq2FGripper_robot_output
 from onrobot_rg2ft_msgs.msg import RG2FTCommand
 from utils import switch_controller, list_controllers, command_robotiq2F85, command_onrobotRG2FT
 
-class TeleopTwistJoy():
+from teleop_twist import TeleopTwist
+
+class TeleopTwistJoy(TeleopTwist):
     def __init__(self):
+        super(TeleopTwist, self).__init__()
+
         # Get twist topic
         self.twist_topic = rospy.get_param("~twist_topic", "/joy/twist")
 
@@ -72,12 +76,6 @@ class TeleopTwistJoy():
         # Initialize joint commands for returning to home position
         self.joint_names = ["shoulder_pan_joint", "shoulder_lift_joint", "elbow_joint", "wrist_1_joint", "wrist_2_joint", "wrist_3_joint"]
         self.home = [0, -1.5708, 1.5708, -1.5708, -1.5708, 3.14]
-
-        # Start spacenav_to_wrench and spacenav_to_pose for cartesian controllers
-        # Cartesian controllers are necessary in simulation only because twist_controller requires a hardware interface
-        # See here for source files: https://github.com/fzi-forschungszentrum-informatik/cartesian_controllers/tree/ros1/cartesian_controller_utilities
-        subprocess.Popen(['roslaunch', 'morpheus_teleop', 'spacenav_to_wrench.launch'])
-        subprocess.Popen(['roslaunch', 'morpheus_teleop', 'spacenav_to_pose.launch'])
 
     def get_joy_msg(self):
         # Retrieve joy_msg and return a safe copy
@@ -209,31 +207,38 @@ class TeleopTwistJoy():
 
         try:
             # Switch to position controller
+            print("Stopping controllers: " + str(running_twist_controllers))
+            print("Starting controllers: " + str(stopped_pos_controllers))
             switch_controller(stop_controllers=running_twist_controllers, start_controllers=stopped_pos_controllers)
-            print([controller.state for controller in controllers])
-
-            # Kill spacenav_to_pose so that target pose can be reset
-            subprocess.Popen(['rosnode', 'kill', 'spacenav_to_pose'])
+            print("Controller states: " + str([controller.state for controller in controllers]))
 
             # Execute a position command
+            print("Executing move command")
             self.move_group_commander.go(joint_pos, wait=True)
 
             # Stop after completion
+            print("Stopping after move command")
             self.move_group_commander.stop()
 
-            # Restart spacenav_to_pose at endpoint
-            subprocess.Popen(['roslaunch', 'morpheus_teleop', 'spacenav_to_pose.launch'])
+            # Reset target pose to match current pose
+
 
             # Switch back to twist controller
+            print("Stopping controllers: " + str(stopped_pos_controllers))
+            print("Starting controllers: " + str(running_twist_controllers))
             switch_controller(stop_controllers=stopped_pos_controllers, start_controllers=running_twist_controllers)
+            print("Controller states: " + str([controller.state for controller in controllers]))
             return True
-        except rospy.ServiceException as e:
-            print("Service call failed: %s"%e)
+        except (...) as e:
+            print("Twist controller moveto() failed: %s"%e)
             # If failed, attempt to restore status quo
+            print("Attempting to restore normal state")
+            print("Stopping move command")
             self.move_group_commander.stop()
-            subprocess.Popen(['rosnode', 'kill', 'spacenav_to_pose'])
-            subprocess.Popen(['roslaunch', 'morpheus_teleop', 'spacenav_to_pose.launch'])
+            print("Stopping controllers: " + str(stopped_pos_controllers))
+            print("Starting controllers: " + str(running_twist_controllers))
             switch_controller(stop_controllers=stopped_pos_controllers, start_controllers=running_twist_controllers, strictness=1)
+            print("Controller states: " + str([controller.state for controller in controllers]))
             return False
 
 if __name__ == '__main__':

@@ -22,10 +22,10 @@
         <arg name="srdf_path" value="$(arg srdf_path)"/>
     </include>
 
-    <!-- launch key_to_joy -->
-    <include file="$(find morpheus_teleop)/launch/key_to_joy.launch"/>
-
     <!-- launch xbox360_swap -->
     <include file="$(find morpheus_teleop)/launch/xbox360_swap_fake.launch"/>
+
+    <!-- launch key_to_joy -->
+    <include file="$(find morpheus_teleop)/launch/key_to_joy.launch"/>
 
 </launch>

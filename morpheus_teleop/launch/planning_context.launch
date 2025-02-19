@@ -11,7 +11,7 @@
   <param if="$(arg load_robot_description)" name="$(arg robot_description)" command="xacro '$(arg xacro_path)'"/>
 
   <!-- The semantic description that corresponds to the URDF -->
-  <param name="$(arg robot_description)_semantic" textfile="$(arg srdf_path)"/>
+  <param name="$(arg robot_description)_semantic" command="xacro '$(arg srdf_path)'"/>
 
   <!-- Load updated joint limits (override information from URDF) -->
   <group ns="$(arg robot_description)_planning">
@@ -20,8 +20,9 @@
   </group>
 
   <!-- Load default settings for kinematics; these settings are overridden by settings in a node's namespace -->
+  <arg name="kinematics_path" default="$(find morpheus_teleop)/config/ur5e_kinematics.yaml"/>
   <group ns="$(arg robot_description)_kinematics">
-    <rosparam command="load" file="$(find homestri_a_bot_moveit_config)/config/kinematics.yaml"/>
+    <rosparam command="load" file="$(arg kinematics_path)"/>
 
   </group>
 

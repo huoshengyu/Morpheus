@@ -5,12 +5,6 @@
     params="x:=0 y:=0 z:=0 R:=0 P:=0 Y:=0 scale:=0.0254 prefix parent">
 
     <link name="${prefix}bar_12in">
-        <contact>
-            <lateral_friction value="1.0"/>
-            <rolling_friction value="0.05"/>
-            <contact_cfm value="0.0"/>
-            <contact_erp value="1.0"/>
-        </contact>
         <inertial>
             <origin rpy="0 0 0" xyz="${scale * 0.5} ${scale * 6.0} ${scale * 0.5}"/>
             <mass value="0.15"/>

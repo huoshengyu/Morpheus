@@ -1,6 +1,6 @@
 <launch>
 
-    <!-- launch teleop xbox360 twist -->
+    <!-- Launch teleop xbox360 twist -->
     <arg name="twist_topic" default="/twist_controller/command" />
     <node pkg="joy" type="joy_node" name="joy_node" respawn="true" output="screen">
         <param name="dev" type="str" value="/dev/input/js0" />

@@ -28,7 +28,7 @@
         <arg name="urdf_path" value="$(arg xacro_path)"/>
     </include>
 
-    <!-- compliant trajectory action server -->
+    <!-- Compliant trajectory action server -->
     <remap from="compliant_traj_action_server/target_wrench" to="target_wrench" />
     <remap from="compliant_traj_action_server/target_frame" to="target_frame" />
     <node 
@@ -38,7 +38,7 @@
         output="screen"
     />
 
-    <!-- launch moveit -->
+    <!-- Launch moveit -->
     <include file="$(find morpheus_teleop)/launch/move_group.launch">
         <arg name="allow_trajectory_execution" value="true" />
         <arg name="moveit_controller_manager" value="simple" />
@@ -53,7 +53,7 @@
     <!-- Load moveit controller list to the parameter server -->
     <rosparam file="$(arg moveit_controller_config_file)" ns="move_group"/>
 
-    <!-- launch rviz -->
+    <!-- Launch rviz -->
     <group if="$(arg use_rviz)">
         <arg name="my_rviz" value="-d $(find morpheus_teleop)/rviz/morpheus_gazebo.rviz" />
         <node name="rviz" pkg="rviz" type="rviz" respawn="false" args="$(arg my_rviz)"

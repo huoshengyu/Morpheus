@@ -1,6 +1,7 @@
 #! /usr/bin/env python3
 
 import numpy as np
+import quaternion
 import rospy
 import tf2_ros
 import geometry_msgs.msg   
@@ -17,13 +18,13 @@ def switch_controller(start_controllers=[], stop_controllers=[], strictness=2, s
     rospy.wait_for_service('controller_manager/switch_controller')
     success = False
     try:
-        switch_controller = rospy.ServiceProxy(
+        switch_controller_service = rospy.ServiceProxy(
                             'controller_manager/switch_controller', SwitchController)
-        success = switch_controller(start_controllers, 
-                                    stop_controllers,
-                                    strictness,
-                                    start_asap,
-                                    timeout)
+        success = switch_controller_service(start_controllers, 
+                                            stop_controllers,
+                                            strictness,
+                                            start_asap,
+                                            timeout)
     except rospy.ServiceException as e:
         print("Service call failed: %s"%e)
     return success
@@ -32,9 +33,9 @@ def list_controllers():
     rospy.wait_for_service('controller_manager/list_controllers')
     success = False
     try:
-        list_controllers = rospy.ServiceProxy(
+        list_controllers_service = rospy.ServiceProxy(
                             'controller_manager/list_controllers', ListControllers)
-        success = list_controllers()
+        success = list_controllers_service()
     except rospy.ServiceException as e:
         print("Service call failed: %s"%e)
     return success
@@ -106,3 +107,56 @@ def command_onrobotRG2FT(publisher=None, position=0, force=0, publish=True):
         except ... as e:
             print("Failed to publish OnRobot RG2FT command")
     return command
+
+def twist_to_wrench(twist):
+    msg = geometry_msgs.msg.Wrench()
+
+    msg.force.x   = twist.linear.x
+    msg.force.y   = twist.linear.y
+    msg.force.z   = twist.linear.z
+    msg.torque.x  = twist.angular.x
+    msg.torque.y  = twist.angular.y
+    msg.torque.z  = twist.angular.z
+    return msg
+
+def add_twist_to_pose(twist, pose, dt):
+    # Separate the twist into parts for readability
+    v = twist.linear
+    w = twist.angular
+
+    # Update pose based on linear velocity and dt
+    pose.position.x       += v.x * dt
+    pose.position.y       += v.y * dt
+    pose.position.z       += v.z * dt
+    # Integrate quaternion based on angular velocity and dt
+    # https://quaternion.readthedocs.io/en/latest/time_series/#quaternion.quaternion_time_series.integrate_angular_velocity
+    # Uses time series or function to find velocities. In this case, only one velocity is given per function call.
+    quat = orientation_to_quaternion(pose.orientation)
+    _, quat_arr = quaternion.integrate_angular_velocity(lambda _: (w.x, w.y, w.z), 0, dt, R0=quat)
+    pose.orientation = quaternion_to_orientation(quat_arr[0])
+
+    return pose
+
+def quaternion_to_orientation(quat):
+    orientation = geometry_msgs.msg.Quaternion()
+    orientation.w = quat.w
+    orientation.x = quat.x
+    orientation.y = quat.y
+    orientation.z = quat.z
+    return orientation
+
+def orientation_to_quaternion(orientation):
+    quat = np.quaternion(orientation.w, orientation.x, orientation.y, orientation.z)
+    return quat
+
+def transform_to_pose(tf):
+    msg = geometry_msgs.msg.Pose()
+
+    msg.position.x = tf.translation.x
+    msg.position.y = tf.translation.y
+    msg.position.z = tf.translation.z
+    msg.orientation.x = tf.rotation.x
+    msg.orientation.y = tf.rotation.y
+    msg.orientation.z = tf.rotation.z
+    msg.orientation.w = tf.rotation.w
+    return msg
