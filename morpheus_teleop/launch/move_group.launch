@@ -109,9 +109,4 @@
     <param name="planning_scene_monitor/publish_transforms_updates" value="$(arg publish_monitored_planning_scene)" />
   </node>
 
-  <!-- Launch Twist converter-->
-  <include file="$(find morpheus_teleop)/launch/twist_converter.launch">
-      <arg name="twist_topic" value="/twist_controller/command"/>
-  </include>
-
 </launch>

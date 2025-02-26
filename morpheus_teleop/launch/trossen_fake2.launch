@@ -29,7 +29,7 @@
         <arg name="controllers" value="$(arg controllers)"/>
         <arg name="stopped_controllers" value="$(arg stopped_controllers)"/>
         <arg name="controller_config_file" value="$(arg controller_config_file)" />
-        <arg name="robot_model" value="vx300s" />
+        <arg name="robot_model" value="$(arg robot_model)" />
     </include>
 
     <!-- compliant trajectory action server -->
@@ -64,5 +64,11 @@
         <node name="rviz" pkg="rviz" type="rviz" respawn="false" args="$(arg my_rviz)"
             output="screen" />
     </group>
+
+    <!-- launch xbox360_swap -->
+    <include file="$(find morpheus_teleop)/launch/xbox360_swap_fake.launch"/>
+
+    <!-- launch key_to_joy -->
+    <include file="$(find morpheus_teleop)/launch/key_to_joy.launch"/>
     
 </launch>

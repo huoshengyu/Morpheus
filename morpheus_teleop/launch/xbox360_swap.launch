@@ -15,4 +15,9 @@
     <!-- tcp pose publisher -->
     <node pkg="morpheus_teleop" type="tcp_pose_publisher.py" name="tcp_pose_publisher" output="screen"/>
 
+  <!-- Launch Twist converter-->
+  <include file="$(find morpheus_teleop)/launch/twist_converter.launch">
+      <arg name="twist_topic" value="/twist_controller/command"/>
+  </include>
+
 </launch>

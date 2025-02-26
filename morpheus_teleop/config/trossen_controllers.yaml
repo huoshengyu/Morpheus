@@ -2,6 +2,16 @@
 hardware_control_loop:
   loop_hz: &loop_hz 500
 
+# Settings for ros_control hardware interface
+trossen_hardware_interface:
+  joints: &robot_joints
+    - waist
+    - shoulder
+    - elbow
+    - forearm_roll
+    - wrist_angle
+    - wrist_rotate  
+
 # Trossen 6dof controller
 controller_list:
   - name: "arm_controller"
