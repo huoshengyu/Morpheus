@@ -131,9 +131,9 @@ def add_twist_to_pose(twist, pose, dt):
     # Integrate quaternion based on angular velocity and dt
     # https://quaternion.readthedocs.io/en/latest/time_series/#quaternion.quaternion_time_series.integrate_angular_velocity
     # Uses time series or function to find velocities. In this case, only one velocity is given per function call.
-    quat = orientation_to_quaternion(pose.orientation)
-    _, quat_arr = quaternion.integrate_angular_velocity(lambda _: (w.x, w.y, w.z), 0, dt, R0=quat)
-    pose.orientation = quaternion_to_orientation(quat_arr[0])
+    R0 = orientation_to_quaternion(pose.orientation)
+    _, R_arr = quaternion.integrate_angular_velocity(lambda _: (w.x, w.y, w.z), 0, dt, R0=R0)
+    pose.orientation = quaternion_to_orientation(R_arr[-1]) # Get last
 
     return pose
 

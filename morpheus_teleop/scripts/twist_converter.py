@@ -16,12 +16,12 @@ class TwistConverter():
         rospy.init_node('converter', anonymous=False)
 
         # Get params
-        self.frame_id = rospy.get_param('~frame_id', default="base_link")
-        self.end_effector = rospy.get_param('~end_effector', default="tool0")
+        self.frame_id = rospy.get_param('~frame_id', default="vx300s/base_link")
+        self.end_effector = rospy.get_param('~end_effector', default="vx300s/ee_gripper_link")
         self.rate = rospy.Rate(rospy.get_param('~publishing_rate', default=50))
 
         # Get topics
-        self.twist_topic = rospy.get_param("~twist_topic", default="/joy/twist")
+        self.twist_topic = rospy.get_param("~twist_topic", default="/twist_controller/command")
         self.wrench_topic = rospy.get_param("~wrench_topic", default="/target_wrench")
         self.pose_topic = rospy.get_param("~pose_topic", default="/target_frame")
 
@@ -50,6 +50,7 @@ class TwistConverter():
         self.pose_stamped.header.frame_id       = self.frame_id
 
         # Initialize target pose to match current pose
+        self.initialized = False
         self.initialize_pose()
     
     def set_frame_id(self, frame_id):
@@ -64,17 +65,25 @@ class TwistConverter():
 
     def initialize_pose(self):
         # Set (or reset) the target pose to the robot's current pose
-        self.last_time = self.current_time
-        self.current_time = rospy.Time.now()
-        try:
-            tf_stamped = self.tf_buffer.lookup_transform(target_frame=self.frame_id, source_frame=self.end_effector, time=self.current_time, timeout=rospy.Duration(5))
-        except Exception as e:
-            rospy.logwarn(e)
-            return False
-        
-        self.pose_stamped.header.stamp          = self.current_time
-        self.pose_stamped.header.frame_id       = self.frame_id
-        self.pose_stamped.pose                  = transform_to_pose(tf_stamped.transform)
+        self.initialized = False
+        while not self.initialized:
+            try:
+                self.last_time = self.current_time
+                self.current_time = rospy.Time.now()
+                tf_stamped = self.tf_buffer.lookup_transform(target_frame=self.frame_id, source_frame=self.end_effector, time=self.current_time, timeout=rospy.Duration(1.0))
+            
+                self.pose_stamped.header.stamp          = self.current_time
+                self.pose_stamped.header.frame_id       = self.frame_id
+                self.pose_stamped.pose                  = transform_to_pose(tf_stamped.transform)
+                
+                self.initialized = True
+            except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
+                self.rate.sleep()
+                continue
+            except Exception as e:
+                rospy.logerr(e)
+                self.rate.sleep()
+                continue
 
     def update_pose(self):
         # Find dt
@@ -99,10 +108,12 @@ class TwistConverter():
         self.update_pose()
 
     def publish(self):
-        if not rospy.is_shutdown():
+        if not rospy.is_shutdown() and self.initialized:
             try:
                 self.wrench_pub.publish(self.wrench_stamped)
                 self.pose_pub.publish(self.pose_stamped)
+                rospy.loginfo("Twist_converter pose:")
+                rospy.loginfo(self.pose_stamped.pose)
             except rospy.ROSInterruptException:
                 # Handle 'publish() to closed topic' error.
                 # This rarely happens on killing this node.

@@ -70,5 +70,8 @@
 
     <!-- launch key_to_joy -->
     <include file="$(find morpheus_teleop)/launch/key_to_joy.launch"/>
+
+    <!-- launch trossen_joy -->
+    <include file="$(find morpheus_teleop)/launch/trossen_joy.launch"/>
     
 </launch>

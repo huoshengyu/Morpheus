@@ -9,7 +9,7 @@
         *origin">
 
         <xacro:macro name="vx300s_robot">
-            <xacro:include filename="$(find interbotix_xsarm_descriptions)/urdf/vx300s.urdf.xacro" />
+            <xacro:include filename="$(find morpheus_teleop)/urdf/macros/vx300s.urdf.xacro" />
         </xacro:macro>
 
         <xacro:vx300s_robot

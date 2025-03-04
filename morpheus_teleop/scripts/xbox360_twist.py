@@ -33,7 +33,7 @@ class TeleopTwistJoy(TeleopTwist):
         super(TeleopTwist, self).__init__()
 
         # Get twist topic
-        self.twist_topic = rospy.get_param("~twist_topic", "/joy/twist")
+        self.twist_topic = rospy.get_param("~twist_topic", "/twist_controller/command")
 
         # Initialize twist command publishers and joystick subscriber
         self.twist_pub = rospy.Publisher(self.twist_topic, geometry_msgs.msg.Twist, queue_size=1)
@@ -67,7 +67,7 @@ class TeleopTwistJoy(TeleopTwist):
         # Initialize moveit commander for giving motion plans to the robot, such as returning to home position
         self.robot_commander = moveit_commander.RobotCommander()
         self.planning_scene_interface = moveit_commander.PlanningSceneInterface()
-        self.group_name = "arm"
+        self.group_name = rospy.get_param("~arm_group", "arm")
         self.move_group_commander = moveit_commander.MoveGroupCommander(self.group_name)
         self.display_trajectory_publisher = rospy.Publisher('/move_group/display_planned_path',
                                                             moveit_msgs.msg.DisplayTrajectory,

@@ -1,14 +1,13 @@
 <launch>
 
     <!-- Launch teleop xbox360 twist -->
-    <arg name="twist_topic" default="/twist_controller/command" />
+    <arg name="twist_topic" default="/twist_controller/command"/>
+    <arg name="arm_group" default="interbotix_arm"/>
 
     <node pkg="morpheus_teleop" type="xbox360_swap.py" name="xbox360_twist" output="screen">
-        <param name="twist_topic" value="$(arg twist_topic)" />
+        <param name="twist_topic" value="$(arg twist_topic)"/>
+        <param name="arm_group" value="$(arg arm_group)"/>
     </node>
-
-    <!-- tcp pose publisher -->
-    <node pkg="morpheus_teleop" type="tcp_pose_publisher.py" name="tcp_pose_publisher" output="screen"/>
 
   <!-- Launch Twist converter-->
   <include file="$(find morpheus_teleop)/launch/twist_converter.launch">

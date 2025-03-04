@@ -7,6 +7,6 @@
     </node>
 
     <!-- Twist Converter -->
-    <node pkg="morpheus_teleop" type="twist_converter.py" name="twist_converter" output="screen"/>
+    <include file="$(find morpheus_teleop)/launch/twist_converter.launch"/>
 
 </launch>
