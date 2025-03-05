@@ -1,10 +1,4 @@
 <launch>
-    <arg name="initial_joint_positions"             default="-J waist 0 -J shoulder -1.5708 -J elbow 1.5708 -J forearm_roll -1.5708 -J wrist_angle -1.5708 -J wrist_rotate 3.14 -J left_finger 0 -J right_finger 0" doc="Initial joint configuration of the robot"/>
-    <arg name="controllers"                         default="joint_state_controller gripper_action_controller scaled_pos_joint_traj_controller"/>
-    <arg name="stopped_controllers"                 default="cartesian_compliance_controller cartesian_motion_controller motion_control_handle cartesian_force_controller pos_joint_traj_controller"/>
-    <arg name="controller_config_file"              default="$(find morpheus_teleop)/config/trossen_controllers.yaml" />
-    <arg name="moveit_controller_config_file"       default="$(find homestri_gazebo)/config/b_bot_moveit_controllers.yaml" />
-
     <arg name="robot_model"                         default="vx300s"/>
     <arg name="robot_name"                          default="$(arg robot_model)"/>
     <arg name="base_link_frame"                     default="base_link"/>
@@ -36,56 +30,62 @@
     <arg name="xs_sdk_type" value="xs_sdk" unless="$(arg use_sim)"/>
     <arg name="xs_sdk_type" value="xs_sdk_sim" if="$(arg use_sim)"/>
 
+    <arg name="use_cartesian_control"               default="false"/>
+    <arg name="use_interbotix_control"              default="true"/>
+    
+    <arg name="threshold"                           default="0.75"/>
+    <arg name="controller"                          default="xbox360"/>
+
     <include if="$(arg use_gazebo)" file="$(find interbotix_xsarm_gazebo)/launch/xsarm_gazebo.launch">
-        <arg name="robot_model"                       value="$(arg robot_model)"/>
-        <arg name="robot_name"                        value="$(arg robot_name)"/>
-        <arg name="base_link_frame"                   value="$(arg base_link_frame)"/>
-        <arg name="show_ar_tag"                       value="$(arg show_ar_tag)"/>
-        <arg name="use_world_frame"                   value="$(arg use_world_frame)"/>
-        <arg name="external_urdf_loc"                 value="$(arg external_urdf_loc)"/>
-        <arg name="world_name"                        value="$(arg world_name)"/>
-        <arg name="use_trajectory_controllers"        value="true"/>
+        <arg name="robot_model"                         value="$(arg robot_model)"/>
+        <arg name="robot_name"                          value="$(arg robot_name)"/>
+        <arg name="base_link_frame"                     value="$(arg base_link_frame)"/>
+        <arg name="show_ar_tag"                         value="$(arg show_ar_tag)"/>
+        <arg name="use_world_frame"                     value="$(arg use_world_frame)"/>
+        <arg name="external_urdf_loc"                   value="$(arg external_urdf_loc)"/>
+        <arg name="world_name"                          value="$(arg world_name)"/>
+        <arg name="use_trajectory_controllers"          value="true"/>
     </include>
 
     <include if="$(arg use_actual)" file="$(find interbotix_xsarm_ros_control)/launch/xsarm_ros_control.launch">
-        <arg name="robot_model"                       value="$(arg robot_model)"/>
-        <arg name="robot_name"                        value="$(arg robot_name)"/>
-        <arg name="base_link_frame"                   value="$(arg base_link_frame)"/>
-        <arg name="show_ar_tag"                       value="$(arg show_ar_tag)"/>
-        <arg name="use_world_frame"                   value="$(arg use_world_frame)"/>
-        <arg name="external_urdf_loc"                 value="$(arg external_urdf_loc)"/>
-        <arg name="use_rviz"                          value="false"/>
-        <arg name="mode_configs"                      value="$(arg mode_configs)"/>
-        <arg name="dof"                               value="$(arg dof)"/>
+        <arg name="robot_model"                         value="$(arg robot_model)"/>
+        <arg name="robot_name"                          value="$(arg robot_name)"/>
+        <arg name="base_link_frame"                     value="$(arg base_link_frame)"/>
+        <arg name="show_ar_tag"                         value="$(arg show_ar_tag)"/>
+        <arg name="use_world_frame"                     value="$(arg use_world_frame)"/>
+        <arg name="external_urdf_loc"                   value="$(arg external_urdf_loc)"/>
+        <arg name="use_rviz"                            value="false"/>
+        <arg name="mode_configs"                        value="$(arg mode_configs)"/>
+        <arg name="dof"                                 value="$(arg dof)"/>
     </include>
 
     <include if="$(arg use_fake)" file="$(find interbotix_xsarm_descriptions)/launch/xsarm_description.launch">
-        <arg name="robot_model"                       value="$(arg robot_model)"/>
-        <arg name="robot_name"                        value="$(arg robot_name)"/>
-        <arg name="base_link_frame"                   value="$(arg base_link_frame)"/>
-        <arg name="show_ar_tag"                       value="$(arg show_ar_tag)"/>
-        <arg name="use_world_frame"                   value="$(arg use_world_frame)"/>
-        <arg name="external_urdf_loc"                 value="$(arg external_urdf_loc)"/>
-        <arg name="use_rviz"                          value="true"/>
-        <arg name="use_joint_pub"                     value="false"/>
-        <arg name="rate"                              value="100"/>
-        <arg name="source_list"                       value="[move_group/fake_controller_joint_states]"/>
+        <arg name="robot_model"                         value="$(arg robot_model)"/>
+        <arg name="robot_name"                          value="$(arg robot_name)"/>
+        <arg name="base_link_frame"                     value="$(arg base_link_frame)"/>
+        <arg name="show_ar_tag"                         value="$(arg show_ar_tag)"/>
+        <arg name="use_world_frame"                     value="$(arg use_world_frame)"/>
+        <arg name="external_urdf_loc"                   value="$(arg external_urdf_loc)"/>
+        <arg name="use_rviz"                            value="true"/>
+        <arg name="use_joint_pub"                       value="false"/>
+        <arg name="rate"                                value="100"/>
+        <arg name="source_list"                         value="[move_group/fake_controller_joint_states]"/>
     </include>
 
     <include file="$(find interbotix_xsarm_moveit)/launch/move_group.launch" ns="$(arg robot_name)">
-        <arg name="robot_model"                       value="$(arg robot_model)"/>
-        <arg name="robot_name"                        value="$(arg robot_name)"/>
-        <arg name="base_link_frame"                   value="$(arg base_link_frame)"/>
-        <arg name="show_ar_tag"                       value="$(arg show_ar_tag)"/>
-        <arg name="external_srdf_loc"                 value="$(arg external_srdf_loc)"/>
-        <arg name="dof"                               value="$(arg dof)"/>
-        <arg name="fake_execution"                    value="$(arg use_fake)"/>
-        <arg name="publish_monitored_planning_scene"  value="true" />
+        <arg name="robot_model"                         value="$(arg robot_model)"/>
+        <arg name="robot_name"                          value="$(arg robot_name)"/>
+        <arg name="base_link_frame"                     value="$(arg base_link_frame)"/>
+        <arg name="show_ar_tag"                         value="$(arg show_ar_tag)"/>
+        <arg name="external_srdf_loc"                   value="$(arg external_srdf_loc)"/>
+        <arg name="dof"                                 value="$(arg dof)"/>
+        <arg name="fake_execution"                      value="$(arg use_fake)"/>
+        <arg name="publish_monitored_planning_scene"    value="true" />
     </include>
 
     <include if="$(arg use_moveit_rviz)" file="$(find interbotix_xsarm_moveit)/launch/moveit_rviz.launch" ns="$(arg robot_name)">
-        <arg name="rviz_frame"                        value="$(arg rviz_frame)"/>
-        <arg name="config"                            value="true"/>
+        <arg name="rviz_frame"                          value="$(arg rviz_frame)"/>
+        <arg name="config"                              value="true"/>
     </include>
 
     <node
@@ -94,22 +94,31 @@
         type="$(arg xs_sdk_type)"
         output="screen"
         ns="$(arg robot_name)">
-        <param name="motor_configs"                   value="$(arg motor_configs)"/>
-        <param name="mode_configs"                    value="$(arg mode_configs)"/>
-        <param name="load_configs"                    value="$(arg load_configs)"/>
+        <param name="motor_configs"                     value="$(arg motor_configs)"/>
+        <param name="mode_configs"                      value="$(arg mode_configs)"/>
+        <param name="load_configs"                      value="$(arg load_configs)"/>
     </node>
 
-    <group ns="$(arg robot_name)">
-        <!-- launch xbox360_swap -->
-        <include file="$(find morpheus_teleop)/launch/xbox360_swap_fake.launch">
-            <arg name="arm_group" value="interbotix_arm"/>
-        </include>
+    <!-- launch xbox360_swap -->
+    <include file="$(find morpheus_teleop)/launch/xbox360_swap_fake.launch" ns="$(arg robot_name)">
+        <arg name="arm_group"                           value="interbotix_arm"/>
+    </include>
 
-        <!-- launch trossen_joy -->
-        <include file="$(find morpheus_teleop)/launch/trossen_joy.launch"/>
+    <!-- launch trossen_joy -->
+    <include if="$(arg use_cartesian_control)" file="$(find morpheus_teleop)/launch/trossen_joy.launch" ns="$(arg robot_name)"/>
 
-        <!-- launch key_to_joy -->
-        <include file="$(find morpheus_teleop)/launch/key_to_joy.launch"/>
-    </group>
+    <!-- launch key_to_joy -->
+    <include file="$(find morpheus_teleop)/launch/key_to_joy.launch" ns="$(arg robot_name)"/>
+
+    <!-- launch interbotix xsarm control -->
+    <include if="$(arg use_interbotix_control)" file="$(find morpheus_teleop)/launch/xsarm_joy.launch">
+        <arg name="robot_model"                         value="$(arg robot_model)"/>
+        <arg name="robot_name"                          value="$(arg robot_name)"/>
+        <arg name="base_link_frame"                     value="$(arg base_link_frame)"/>
+        <arg name="use_rviz"                            value="$(arg use_rviz)"/>
+        <arg name="mode_configs"                        value="$(arg mode_configs)"/>
+        <arg name="threshold"                           value="$(arg threshold)"/>
+        <arg name="controller"                          value="$(arg controller)"/>
+    </include>
     
 </launch>

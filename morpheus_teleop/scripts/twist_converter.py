@@ -112,8 +112,6 @@ class TwistConverter():
             try:
                 self.wrench_pub.publish(self.wrench_stamped)
                 self.pose_pub.publish(self.pose_stamped)
-                rospy.loginfo("Twist_converter pose:")
-                rospy.loginfo(self.pose_stamped.pose)
             except rospy.ROSInterruptException:
                 # Handle 'publish() to closed topic' error.
                 # This rarely happens on killing this node.

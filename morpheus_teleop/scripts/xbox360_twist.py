@@ -168,7 +168,7 @@ class TeleopTwistJoy(TeleopTwist):
 
         # Command OnRobot RG2FT gripper
         if position is not None:
-            command_onrobotRG2FT(publisher=self.gripper_pub_robotiq, position=position, force=force)
+            command_onrobotRG2FT(publisher=self.gripper_pub_onrobot, position=position, force=force)
 
     def update(self, msg):
         if msg is not None:

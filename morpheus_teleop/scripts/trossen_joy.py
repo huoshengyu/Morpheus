@@ -63,8 +63,6 @@ class TrossenJoy():
         transformation_matrix = np.concatenate((augmented_matrix, [[0, 0, 0, 1]]), axis=0)
         
         self.robot.arm.set_ee_pose_matrix(transformation_matrix)
-        rospy.loginfo("Trossen_joy pose:")
-        rospy.loginfo(pose.pose)
 
         #joint_traj_msg = trajectory_msgs.msg.JointTrajectory()
         #self.arm_pub.publish()

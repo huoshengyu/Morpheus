@@ -33,8 +33,10 @@ keybinds = {
     'l':[0,3,1],    # Yaw right
     'u':[0,5,-1],   # Roll left
     'o':[1,5,1],    # Roll right
-    '1':[1,0,1],    # Close gripper
-    '2':[1,1,1],    # Open gripper
+    '1':[1,0,1],    # A: Close gripper
+    '2':[1,1,1],    # B: Open gripper
+    '3':[1,2,1],    # X
+    '4':[1,3,1],    # Y
     '0':[1,6,1],    # Toggle goal haptics (goal_haptics.py must be running. Probably only works on Linux anyway)
     '-':[1,7,1],    # Move to home position (temporarily disables Xbox control)
     '=':[1,8,1]     # Swap reference frame (base <--> end effector)
