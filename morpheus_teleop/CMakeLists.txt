@@ -107,7 +107,7 @@ generate_messages(
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-  INCLUDE_DIRS include
+#  INCLUDE_DIRS include
 #  LIBRARIES morpheus_teleop
   CATKIN_DEPENDS message_runtime geometry_msgs joy rospy
 #  DEPENDS system_lib
@@ -148,10 +148,10 @@ include_directories(
 ## Add cmake target dependencies of the executable
 ## same as for the library above
 # add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-add_dependencies(${PROJECT_NAME}
-  morpheus_teleop_generate_messages
-  morpheus_teleop_generate_messages_cpp
-  morpheus_teleop_generate_messages_py)
+add_dependencies(
+  ${PROJECT_NAME}_generate_messages
+  ${PROJECT_NAME}_generate_messages_cpp
+  ${PROJECT_NAME}_generate_messages_py)
 
 ## Specify libraries to link a library or executable target against
 # target_link_libraries(${PROJECT_NAME}_node
