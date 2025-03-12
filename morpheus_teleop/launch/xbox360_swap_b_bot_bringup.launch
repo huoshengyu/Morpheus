@@ -10,8 +10,8 @@
     <arg name="gripper_port" default="502"/>
     <arg name="use_rviz" default="true" />
     
-    <arg name="xacro_path" default="$(find homestri_description)/urdf/scenes/b_bot_scene.xacro"/>
-    <arg name="srdf_path" default="$(find morpheus_teleop)/srdf/scenes/b_bot_scene.srdf"/>
+    <arg name="xacro_path" default="$(find morpheus_description)/urdf/scenes/b_bot_scene.xacro"/>
+    <arg name="srdf_path" default="$(find morpheus_description)/srdf/scenes/b_bot_scene.srdf"/>
 
     <arg name="twist_topic" default="/twist_controller/command" />
 
@@ -35,6 +35,9 @@
     <!-- Launch teleop xbox360 swap -->
     <include file="$(find morpheus_teleop)/launch/xbox360_swap.launch">
         <arg name="twist_topic" value="$(arg twist_topic)" />
+        <arg name="arm_group" value="arm"/>
+        <arg name="frame_id" value="base_link"/>
+        <arg name="end_effector" value="tcp_link"/>
     </include>
 
 </launch>

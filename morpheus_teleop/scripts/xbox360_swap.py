@@ -1,9 +1,7 @@
 #! /usr/bin/env python3
 
-import sys
 import numpy as np
 import rospy
-import tf2_ros
 
 from xbox360_effectorframe import TeleopTwistJoyEffectorFrame
 

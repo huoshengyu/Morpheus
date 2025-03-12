@@ -14,8 +14,8 @@
     <arg name="use_joint_pub_gui"                 default="false"/>
     <arg name="rate"                              default="10"/>
     <arg name="source_list"                       default="[]"/>
-    <arg name="rvizconfig"                        default="$(find morpheus_teleop)/rviz/morpheus_gazebo.rviz" />
-    <arg name="model"                             default="$(find morpheus_teleop)/urdf/scenes/trossen_node2_scene.xacro
+    <arg name="rvizconfig"                        default="$(find morpheus_moveit)/rviz/morpheus_gazebo.rviz" />
+    <arg name="model"                             default="$(find morpheus_description)/urdf/scenes/trossen_node2_scene.xacro
                                                          robot_name:=$(arg robot_name)
                                                          base_link_frame:=$(arg base_link_frame)
                                                          show_ar_tag:=$(arg show_ar_tag)
@@ -32,7 +32,7 @@
     <arg name="initial_joint_positions"             default="-J waist 0 -J shoulder -1.5708 -J elbow 1.5708 -J forearm_roll -1.5708 -J wrist_angle -1.5708 -J wrist_rotate 3.14 -J left_finger 0 -J right_finger 0" doc="Initial joint configuration of the robot"/>
     <arg name="controllers"                         default="joint_state_controller arm_traj_controller gripper_action_controller"/>
     <arg name="stopped_controllers"                 default="arm_pos_controller gripper_pos_controller"/>
-    <arg name="controller_config_file"              default="$(find homestri_gazebo)/config/a_bot_controllers.yaml" />
+    <arg name="controller_config_file"              default="$(find morpheus_moveit)/config/a_bot_controllers.yaml" />
 
     <!-- Start Gazebo paused to allow the controllers to pickup the initial pose -->
     <include file="$(find gazebo_ros)/launch/empty_world.launch" pass_all_args="true">

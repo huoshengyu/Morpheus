@@ -12,6 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
   joy
   rospy
   cartesian_controller_utilities
+  interbotix_xsarm_control
   std_msgs
   message_generation
 )

@@ -1,30 +1,7 @@
 #! /usr/bin/env python3
 
-# General Packages
-import numpy as np
-import subprocess
 # ROS Packages
 import rospy
-import tf2_ros
-import moveit_commander
-# ROS Messages
-import std_msgs.msg
-import geometry_msgs.msg   
-import sensor_msgs.msg 
-import control_msgs.msg
-import trajectory_msgs.msg
-import moveit_msgs.msg
-# Individual Imports
-from threading import Lock
-from copy import deepcopy
-from collections import deque
-from scipy.spatial.transform import Rotation as R
-from scipy.linalg import inv
-from scipy import pi
-# Local Imports
-from robotiq_2f_gripper_control.msg import Robotiq2FGripper_robot_output
-from onrobot_rg2ft_msgs.msg import RG2FTCommand
-from utils import switch_controller, list_controllers, command_robotiq2F85, command_onrobotRG2FT
 
 class TeleopTwist():
     def __init__(self):

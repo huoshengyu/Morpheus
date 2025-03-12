@@ -4,8 +4,6 @@ import numpy as np
 import rospy
 import tf2_ros
 from scipy.spatial.transform import Rotation as R
-from scipy.linalg import inv
-from scipy import pi
 
 from xbox360_twist import TeleopTwistJoy
 
