@@ -6,7 +6,7 @@
     <group ns="spawn_$(arg robot_name)">
 
         <!-- send table urdf to param server -->
-        <param name="spawner_description" command="xacro '$(find morpheus_teleop)/urdf/scenes/$(arg robot_file)_scene.xacro'" />
+        <param name="spawner_description" command="xacro '$(find morpheus_description)/urdf/scenes/$(arg robot_file)_scene.xacro'" />
 
         <!-- push table_description to factory and spawn robot in gazebo -->
         <node name="spawn_$(arg robot_name)" pkg="gazebo_ros" type="spawn_model" 

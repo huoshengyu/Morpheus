@@ -6,7 +6,7 @@
     <arg name="show_gripper_bar"                    default="true"/>
     <arg name="show_gripper_fingers"                default="true"/>
     <arg name="use_world_frame"                     default="true"/>
-    <arg name="external_urdf_loc"                   default=""/>
+    <arg name="external_urdf_loc"                   default="$(find morpheus_description)/urdf/scenes/node2_scene.xacro"/>
     <arg name="external_srdf_loc"                   default=""/>
     <arg name="use_rviz"                            default="true"/>
     <arg name="motor_configs"                       default="$(find interbotix_xsarm_control)/config/$(arg robot_model).yaml"/>
@@ -15,7 +15,7 @@
     <arg name="use_sim"                             default="true"/>
 
     <arg name="dof"                                 default="6"/>
-    <arg name="use_moveit_rviz"                     default="false"/>
+    <arg name="use_moveit_rviz"                     default="true"/>
     <arg name="rviz_frame"                          default="world"/>
     <arg name="use_gazebo"                          default="false"/>
     <arg name="use_actual"                          default="false"/>
@@ -24,7 +24,7 @@
     <arg name="moveit_interface_gui"                default="true"/>
     <arg name="use_python_interface"                default="true"/>
 
-    <arg name="xacro_path"                          default="$(find interbotix_xsarm_descriptions)/urdf/$(arg robot_model).urdf.xacro"/>
+    <arg name="xacro_path"                          default="$(find morpheus_description)/urdf/scenes/trossen_node2_scene.xacro"/>
     <arg name="srdf_path"                           default="$(find interbotix_xsarm_moveit)/config/srdf/$(arg robot_model).srdf.xacro"/>
 
     <arg name="xs_sdk_type" value="xs_sdk" unless="$(arg use_sim)"/>
@@ -33,7 +33,7 @@
     <arg name="use_cartesian_control"               default="false"/>
     <arg name="use_interbotix_control"              default="true"/>
     
-    <arg name="threshold"                           default="0.75"/>
+    <arg name="threshold"                           default="0.50"/>
     <arg name="controller"                          default="xbox360"/>
 
     <include if="$(arg use_gazebo)" file="$(find interbotix_xsarm_gazebo)/launch/xsarm_gazebo.launch">
@@ -66,7 +66,7 @@
         <arg name="show_ar_tag"                         value="$(arg show_ar_tag)"/>
         <arg name="use_world_frame"                     value="$(arg use_world_frame)"/>
         <arg name="external_urdf_loc"                   value="$(arg external_urdf_loc)"/>
-        <arg name="use_rviz"                            value="true"/>
+        <arg name="use_rviz"                            value="false"/>
         <arg name="use_joint_pub"                       value="false"/>
         <arg name="rate"                                value="100"/>
         <arg name="source_list"                         value="[move_group/fake_controller_joint_states]"/>
@@ -83,10 +83,11 @@
         <arg name="publish_monitored_planning_scene"    value="true" />
     </include>
 
-    <include if="$(arg use_moveit_rviz)" file="$(find interbotix_xsarm_moveit)/launch/moveit_rviz.launch" ns="$(arg robot_name)">
-        <arg name="rviz_frame"                          value="$(arg rviz_frame)"/>
-        <arg name="config"                              value="true"/>
-    </include>
+    <group if="$(arg use_moveit_rviz)" ns="$(arg robot_name)">
+        <arg name="rviz_config" value="-d $(find morpheus_moveit)/rviz/xsarm_description.rviz" />
+        <node name="rviz" pkg="rviz" type="rviz" respawn="false" args="$(arg rviz_config)"
+            output="screen" />
+    </group>
 
     <node
         name="xs_sdk"
@@ -99,16 +100,18 @@
         <param name="load_configs"                      value="$(arg load_configs)"/>
     </node>
 
-    <!-- launch xbox360_swap -->
-    <include file="$(find morpheus_teleop)/launch/xbox360_swap_fake.launch" ns="$(arg robot_name)">
-        <arg name="twist_topic"                         value="twist_controller/command"/>
-        <arg name="arm_group"                           value="interbotix_arm"/>
-        <arg name="frame_id"                            value="vx300s/base_link"/>
-        <arg name="end_effector"                        value="vx300s/ee_gripper_link"/>
-    </include>
+    <group if="$(arg use_cartesian_control)"> 
+        <!-- launch xbox360_swap -->
+        <include file="$(find morpheus_teleop)/launch/xbox360_swap_fake.launch" ns="$(arg robot_name)">
+            <arg name="twist_topic"                         value="twist_controller/command"/>
+            <arg name="arm_group"                           value="interbotix_arm"/>
+            <arg name="frame_id"                            value="vx300s/base_link"/>
+            <arg name="end_effector"                        value="vx300s/ee_gripper_link"/>
+        </include>
 
-    <!-- launch trossen_joy -->
-    <include if="$(arg use_cartesian_control)" file="$(find morpheus_teleop)/launch/trossen_joy.launch" ns="$(arg robot_name)"/>
+        <!-- launch trossen_joy -->
+        <include file="$(find morpheus_teleop)/launch/trossen_joy.launch" ns="$(arg robot_name)"/>
+    </group>
 
     <!-- launch key_to_joy -->
     <include file="$(find morpheus_teleop)/launch/key_to_joy.launch" ns="$(arg robot_name)"/>

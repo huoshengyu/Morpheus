@@ -69,7 +69,18 @@ class SpawnerNode
       spinner.start();
 
       // Joints to plan for, from srdf file
-      static const std::string PLANNING_GROUP = "arm";
+      std::string g_planning_group;
+
+      // Get arm and gripper groups from ros server, if possible
+      if (ros::param::get("~arm_group", g_planning_group))
+      {
+          ROS_INFO("Using arm_group from parameter server");
+      }
+      else
+      {
+        g_planning_group = "arm";
+          ROS_INFO("Using planning group 'arm'");
+      }
             
       // Instantiate PlanningSceneMonitor
       g_planning_scene_monitor = std::make_shared<planning_scene_monitor::PlanningSceneMonitor>(ROBOT_DESCRIPTION);
@@ -83,7 +94,7 @@ class SpawnerNode
       g_planning_scene_monitor->requestPlanningSceneState();
 
       // Instantiate a move group interface so objects can be attached
-      g_move_group_interface = std::make_shared<moveit::planning_interface::MoveGroupInterface>(PLANNING_GROUP);
+      g_move_group_interface = std::make_shared<moveit::planning_interface::MoveGroupInterface>(g_planning_group);
 
       // Planning scene interface does not need further instantiating
 
@@ -490,9 +501,9 @@ class SpawnerNode
       std::string mesh_param = preset_path + "/mesh_path";
       // Retrieve the mesh path from param
       ros::param::get(mesh_param, mesh_path);
-      // Specify that the path is relative to the morpheus_teleop package
+      // Specify that the path is relative to the morpheus_description package
       ROS_INFO_STREAM("Requesting mesh param: " + mesh_param);
-      mesh_path = "file://" + ros::package::getPath("morpheus_teleop") + mesh_path;
+      mesh_path = "file://" + ros::package::getPath("morpheus_description") + mesh_path;
       ROS_INFO_STREAM("Mesh path: " + mesh_path);
 
       // Get the name of the param which holds the scale
@@ -740,7 +751,7 @@ int main(int argc, char** argv)
   moveit_msgs::CollisionObject mesh_object;
   mesh_object.header.frame_id = spawner_node.g_move_group_interface->getPlanningFrame();
   mesh_object.id = "test_mesh";
-  std::string test_mesh_path = "file:///root/catkin_ws/src/morpheus_teleop/meshes/components/collision/teapot.stl";
+  std::string test_mesh_path = "file:///root/catkin_ws/src/morpheus_description/meshes/components/collision/teapot.stl";
   const Eigen::Vector3d scale_eigen(0.05, 0.05, 0.05); // mm/inch
   shapes::Mesh* m = shapes::createMeshFromResource(test_mesh_path, scale_eigen);
   shape_msgs::Mesh mesh;

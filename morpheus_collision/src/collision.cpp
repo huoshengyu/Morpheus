@@ -44,48 +44,9 @@
 static const std::string ROBOT_DESCRIPTION =
     "robot_description";
 
-// Set of names of links included in the robot for collision detection (a param name, so it can be changed externally)
-static const std::vector<std::string> ROBOT_LINK_VECTOR_DEFAULT
-{
-    "shoulder_link",
-    "upper_arm_link",
-    "forearm_link",
-    "wrist_1_link",
-    "wrist_2_link",
-    "wrist_3_link",
-    "tcp_link",
-    "tcp_collision_link",
-    "d415_mount_link",
-    "camera_link",
-    "coupler",
-    "cable_protector",
-    "gripper_body",
-    "left_outer_knuckle",
-    "left_outer_finger",
-    "left_inner_finger",
-    "left_inner_finger_pad",
-    "left_inner_knuckle",
-    "right_outer_knuckle",
-    "right_outer_finger",
-    "right_inner_finger",
-    "right_inner_finger_pad",
-    "right_inner_knuckle",
-    "quick_changer",
-    "angle_bracket"
-};
-
-// Set of names of links excluded from the obstacles for collision detection (a param name, so it can be changed externally)
-static const std::vector<std::string> ALLOWED_COLLISION_VECTOR_DEFAULT
-{
-    "base_link",
-    "base_link_inertia",
-    "pedestal",
-    "simple_pedestal"
-};
-
 // Names of groups in srdf which encompass the robot itself (and not the environment)
-static const std::string ARM_GROUP = "arm";
-static const std::string GRIPPER_GROUP = "gripper";
+static const std::string ARM_GROUP_DEFAULT = "arm";
+static const std::string GRIPPER_GROUP_DEFAULT = "gripper";
 
 namespace collision
 {
@@ -117,12 +78,12 @@ class CollisionNode
         ros::Publisher* g_marker_array_publisher = nullptr;
         visualization_msgs::MarkerArray g_collision_points;
         // moveit_visual_tools::MoveItVisualToolsPtr visual_tools_;
-        std::vector<collision_detection::Contact>::size_type g_max_markers = 10;
+        std::vector<collision_detection::Contact>::size_type g_max_markers = 20;
 
         // Declare variables for identifying robot vs environment
-        std::vector<std::string> g_robot_link_vector_minimal;
-        std::vector<std::string> ALLOWED_COLLISION_VECTOR;
         std::vector<std::string> g_robot_link_vector;
+        std::string g_arm_group;
+        std::string g_gripper_group;
         
         // Declare interfaces for retrieving robot link models and other info
         std::shared_ptr<moveit::planning_interface::MoveGroupInterface> g_arm_interface;
@@ -152,44 +113,38 @@ class CollisionNode
             // planning_scene_monitor::PlanningSceneMonitorPtr planning_scene_monitor(
             //     new planning_scene_monitor::PlanningSceneMonitor("robot_description"));
 
-            // Start move group interfaces for retrieving robot links
-            g_arm_interface = std::make_shared<moveit::planning_interface::MoveGroupInterface>(ARM_GROUP);
-            g_gripper_interface = std::make_shared<moveit::planning_interface::MoveGroupInterface>(GRIPPER_GROUP);
+            // Get arm and gripper groups from ros server, if possible
+            if (ros::param::get("~arm_group", g_arm_group))
+            {
+                ROS_INFO("Using arm_group from parameter server");
+            }
+            else
+            {
+                g_arm_group = ARM_GROUP_DEFAULT;
+                ROS_INFO("Using ARM_GROUP_DEFAULT");
+            }
+            if (ros::param::get("~gripper_group", g_gripper_group))
+            {
+                ROS_INFO("Using gripper_group from parameter server");
+            }
+            else
+            {
+                g_gripper_group = GRIPPER_GROUP_DEFAULT;
+                ROS_INFO("Using GRIPPER_GROUP_DEFAULT");
+            }
 
-            // Get robot and obstacle vectors from ros server, if possible
-            if (ros::param::get("/ALL_ROBOT_LINK_VECTOR", g_robot_link_vector_minimal))
-            {
-                ROS_INFO("Using ALL_ROBOT_LINK_VECTOR from parameter server");
-            }
-            else
-            {
-                g_robot_link_vector_minimal = ROBOT_LINK_VECTOR_DEFAULT;
-                ROS_INFO("Using ROBOT_LINK_VECTOR_DEFAULT");
-            }
-            if (ros::param::get("/ALLOWED_COLLISION_VECTOR", ALLOWED_COLLISION_VECTOR))
-            {
-                ROS_INFO("Using ALLOWED_COLLISION_VECTOR from parameter server");
-            }
-            else
-            {
-                ALLOWED_COLLISION_VECTOR = ALLOWED_COLLISION_VECTOR_DEFAULT;
-                ROS_INFO("Using ALLOWED_COLLISION_VECTOR_DEFAULT");
-            }
+            // Start move group interfaces for retrieving robot links
+            g_arm_interface = std::make_shared<moveit::planning_interface::MoveGroupInterface>(g_arm_group);
+            g_gripper_interface = std::make_shared<moveit::planning_interface::MoveGroupInterface>(g_gripper_group);
 
             // Instantiate PlanningSceneMonitor
             g_planning_scene_monitor = std::make_shared<planning_scene_monitor::PlanningSceneMonitor>(ROBOT_DESCRIPTION);
             
             // Start the PlanningSceneMonitor
-            g_planning_scene_monitor->startSceneMonitor("/move_group/monitored_planning_scene"); // Get scene updates from topic
-            // g_planning_scene_monitor->startSceneMonitor("/planning_scene");
-            // g_planning_scene_monitor->startWorldGeometryMonitor("/collision_object", "/planning_scene_world");
-            // g_planning_scene_monitor->startStateMonitor("/joint_states", "/attached_collision_object");
-
-            // Set update callback
-            // g_planning_scene_monitor->addUpdateCallback(planningSceneMonitorCallback);
+            g_planning_scene_monitor->startSceneMonitor("move_group/monitored_planning_scene"); // Get scene updates from topic
 
             // Ensure the PlanningSceneMonitor is ready
-            if (g_planning_scene_monitor->requestPlanningSceneState("/get_planning_scene"))
+            if (g_planning_scene_monitor->requestPlanningSceneState("get_planning_scene"))
             {
                 ROS_INFO("Planning Scene Monitor is active and ready.");
             }
@@ -253,27 +208,19 @@ class CollisionNode
                 new ros::Publisher(nh.advertise<visualization_msgs::MarkerArray>("visualization_marker_array", 0));
             
             // Subscribe to fake planning scene for recognizing "fake" attached collision objects
-            g_planning_scene_fake_subscriber = nh.subscribe<moveit_msgs::PlanningScene>("/planning_scene_fake", 1, &CollisionNode::planning_scene_fake_callback, this);
+            g_planning_scene_fake_subscriber = nh.subscribe<moveit_msgs::PlanningScene>("planning_scene_fake", 1, &CollisionNode::planning_scene_fake_callback, this);
 
             // Set robot link vector to include all parts of the robot
             // Get all links in the robot arm
             std::vector<std::string> arm_link_vector = g_arm_interface->getLinkNames();
-            g_robot_link_vector_minimal.insert(g_robot_link_vector_minimal.end(), arm_link_vector.begin(), arm_link_vector.end());
+            g_robot_link_vector.insert(g_robot_link_vector.end(), arm_link_vector.begin(), arm_link_vector.end());
 
             // Get all links in the robot gripper
             std::vector<std::string> gripper_link_vector = g_gripper_interface->getLinkNames();
-            g_robot_link_vector_minimal.insert(g_robot_link_vector_minimal.end(), gripper_link_vector.begin(), gripper_link_vector.end());
+            g_robot_link_vector.insert(g_robot_link_vector.end(), gripper_link_vector.begin(), gripper_link_vector.end());
 
             // Instantiate visual tools for visualizing markers in Rviz
             // visual_tools_ = std::make_shared<moveit_visual_tools::MoveItVisualTools>(node_, "world", "/moveit_visual_tools");
-
-            // Add callback which dictates behavior after each scene update
-            // planning_scene_monitor->addUpdateCallback
-            
-            // Get a list of all links in the robot so we can check them for collisions
-
-
-            // ros::shutdown();
         }
 
         void spin()
@@ -305,9 +252,6 @@ class CollisionNode
             
             // Get locked planning scene to ensure scene does not change during update
             planning_scene_monitor::LockedPlanningSceneRO locked_planning_scene(g_planning_scene_monitor);
-
-            // Update the list of robot links, in case new attached collision objects have been added
-            updateLinkVectors(locked_planning_scene);
 
             // Update the collision result, based on the collision request
             g_c_res.clear();
@@ -369,24 +313,28 @@ class CollisionNode
             }
             g_linkcontactmap_msg_publisher.publish(linkcontactmap_msg);
 
-            // Publish contact object associated with nearest collision
-            collision_detection::Contact nearest_contact = g_sorted_contacts[0];
-            moveit_msgs::ContactInformation nearest_msg;
-            collision_detection::contactToMsg(nearest_contact, nearest_msg);
-            g_nearest_contact_publisher.publish(nearest_msg);
+            // Get nearest contact, break if none exist
+            if (g_sorted_contacts.size() > 0)
+            {
+                collision_detection::Contact nearest_contact = g_sorted_contacts[0];
 
-            // Publish distance associated with nearest contact
-            std_msgs::Float64 distance_msg;
-            distance_msg.data = nearest_contact.depth;
-            g_nearest_distance_publisher.publish(distance_msg);
+                // Publish contact object associated with nearest collision
+                moveit_msgs::ContactInformation nearest_msg;
+                collision_detection::contactToMsg(nearest_contact, nearest_msg);
+                g_nearest_contact_publisher.publish(nearest_msg);
 
-            // Publish direction associated with nearest contact
-            geometry_msgs::Vector3 direction_msg;
-            direction_msg.x = nearest_contact.normal[0];
-            direction_msg.y = nearest_contact.normal[1];
-            direction_msg.z = nearest_contact.normal[2];
-            g_nearest_direction_publisher.publish(direction_msg);
+                // Publish distance associated with nearest contact
+                std_msgs::Float64 distance_msg;
+                distance_msg.data = nearest_contact.depth;
+                g_nearest_distance_publisher.publish(distance_msg);
 
+                // Publish direction associated with nearest contact
+                geometry_msgs::Vector3 direction_msg;
+                direction_msg.x = nearest_contact.normal[0];
+                direction_msg.y = nearest_contact.normal[1];
+                direction_msg.z = nearest_contact.normal[2];
+                g_nearest_direction_publisher.publish(direction_msg);
+            }
         }
 
         std::vector<collision_detection::Contact> get_sorted_contacts(collision_detection::CollisionResult res)
@@ -396,34 +344,44 @@ class CollisionNode
             {
                 // Split into keys and values for readability
                 auto key = key_value.first;
-                auto value = key_value.second[0]; // Only get nearest contact
+                auto contact = key_value.second[0]; // Only get nearest contact
 
                 // Enforce condition
-                if (isRobotObstaclePair(key))
+                if (isRobotObstacleContact(contact))
                 {
                     // Add nearest contact between pair of links
-                    sorted_contacts.push_back(setContactDirection(value));
+                    sorted_contacts.push_back(setContactDirection(contact));
                 }
             }
             std::sort(sorted_contacts.begin(), sorted_contacts.end(), compareContacts);
             return sorted_contacts;
         }
         
-        bool isRobotObstaclePair(std::pair<std::string, std::string> pair)
+        bool isRobotObstacleContact(collision_detection::Contact contact)
         {
+            // Get locked planning scene to query
+            planning_scene_monitor::LockedPlanningSceneRO locked_planning_scene(g_planning_scene_monitor);
+            
+            // Get allowed collision matrix and check if contact bodies can collide
+            collision_detection::AllowedCollisionMatrix allowed_collision_matrix = locked_planning_scene->getAllowedCollisionMatrix();
+            collision_detection::AllowedCollision::Type allowed_collision_type;
+            
+            // If objects can collide and exactly one is a world object (i.e. not robot link or robot attached), return true. 
+            // Else, return false.
             if 
             (
-                !(std::find(ALLOWED_COLLISION_VECTOR.begin(), ALLOWED_COLLISION_VECTOR.end(), pair.first) != ALLOWED_COLLISION_VECTOR.end()) and
-                !(std::find(ALLOWED_COLLISION_VECTOR.begin(), ALLOWED_COLLISION_VECTOR.end(), pair.second) != ALLOWED_COLLISION_VECTOR.end()) and
+                (
+                    !(allowed_collision_matrix.getEntry(contact.body_name_1, contact.body_name_2, allowed_collision_type)) or
+                    (allowed_collision_type == collision_detection::AllowedCollision::NEVER)
+                ) and
                 (
                     (
-                        (std::find(g_robot_link_vector.begin(), g_robot_link_vector.end(), pair.first) != g_robot_link_vector.end()) and
-                        !(std::find(g_robot_link_vector.begin(), g_robot_link_vector.end(), pair.second) != g_robot_link_vector.end())
-                    )
-                    or 
+                        (contact.body_type_1 == collision_detection::BodyTypes::ROBOT_ATTACHED) or
+                        (std::find(g_robot_link_vector.begin(), g_robot_link_vector.end(), contact.body_name_1) != g_robot_link_vector.end())
+                    ) !=
                     (
-                        !(std::find(g_robot_link_vector.begin(), g_robot_link_vector.end(), pair.first) != g_robot_link_vector.end()) and
-                        (std::find(g_robot_link_vector.begin(), g_robot_link_vector.end (), pair.second) != g_robot_link_vector.end())
+                        (contact.body_type_2 == collision_detection::BodyTypes::ROBOT_ATTACHED) or 
+                        (std::find(g_robot_link_vector.begin(), g_robot_link_vector.end(), contact.body_name_2) != g_robot_link_vector.end())
                     )
                 )
             )
@@ -436,30 +394,6 @@ class CollisionNode
             }
         }
 
-        void updateLinkVectors(planning_scene_monitor::LockedPlanningSceneRO locked_planning_scene)
-        {
-            // Reset the robot link vector before updating
-            g_robot_link_vector.clear();
-
-            // Add in the link names which should refer to parts of the robot itself
-            g_robot_link_vector.insert(g_robot_link_vector.end(), g_robot_link_vector_minimal.begin(), g_robot_link_vector_minimal.end());
-
-            // Get all attached collision objects currently attached to the robot
-            std::map<std::string, moveit_msgs::AttachedCollisionObject> attached_collision_object_map = g_planning_scene_interface.getAttachedObjects();
-            for(auto const& key_value : attached_collision_object_map)
-            {
-                std::string id = key_value.first;
-                g_robot_link_vector.push_back(id);
-            }
-
-            // Get all fake attached collision objects from the spawner node
-            for(moveit_msgs::AttachedCollisionObject attached_collision_object : g_attached_collision_object_vector)
-            {
-                std::string id = attached_collision_object.object.id;
-                g_robot_link_vector.push_back(id);
-            }
-        }
-
         std::string contactMapToString(collision_detection::CollisionResult::ContactMap contact_map)
         {
             // Convert the key list to a string
@@ -469,10 +403,10 @@ class CollisionNode
             {
                 // Separate keys from values for readability
                 const std::pair<std::string, std::string>& key = key_value.first;
-                const std::vector<collision_detection::Contact>& value = key_value.second;
+                auto contact = key_value.second[0];
 
                 // Enforce condition
-                if (isRobotObstaclePair(key))
+                if (isRobotObstacleContact(contact))
                 {
                     // First add the keys, each of which is a pair of link names, for links in contact
                     key_value_list_str << "Contact: (" << key.first << ", " << key.second << "), Vector: [";
@@ -482,7 +416,6 @@ class CollisionNode
                     //     key_value_list_str << "{depth: " << contact.depth << ", normal: " << contact.normal << ", pos: " << contact.pos << "}, ";
                     // }
                     // Just publish the first (smallest) depth so we can see the pairwise nearest distances
-                    const collision_detection::Contact& contact = value[0];
                     key_value_list_str << contact.depth;
                     // End entry
                     key_value_list_str << "]" << '\\';
@@ -706,7 +639,7 @@ class CollisionNode
             moveit_msgs::CollisionObject mesh_object;
             mesh_object.header.frame_id = "world";
             mesh_object.id = "test_mesh";
-            std::string test_mesh_path = "file:///root/catkin_ws/src/morpheus_teleop/meshes/components/collision/block.obj";
+            std::string test_mesh_path = "file:///root/catkin_ws/src/morpheus_description/meshes/components/collision/block.obj";
             const Eigen::Vector3d scale_eigen(0.1, 0.1, 0.1); // mm/inch
             shapes::Mesh* m = shapes::createMeshFromResource(test_mesh_path, scale_eigen);
             shape_msgs::Mesh mesh;
@@ -799,12 +732,6 @@ class CollisionNode
         }
         
     private:
-        // Define a callback to update to be called when the PlanningSceneMonitor receives an update
-        static void planningSceneMonitorCallback(const moveit_msgs::PlanningScene::ConstPtr& planning_scene, planning_scene_monitor::PlanningSceneMonitorPtr& planning_scene_monitor)
-        {
-            ROS_INFO("Updating...");
-        }
-
         // Define a comparator for sorting contacts by depth
         static const bool compareContacts (const collision_detection::Contact a, const collision_detection::Contact b)
         {

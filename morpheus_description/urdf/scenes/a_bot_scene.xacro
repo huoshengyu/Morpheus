@@ -13,7 +13,7 @@
     <xacro:simple_pedestal
         prefix=""
         parent="world"
-        height="0.9144"
+        height="$(-0.0254 * 34.75)"
         radius="0.15"
     />
 

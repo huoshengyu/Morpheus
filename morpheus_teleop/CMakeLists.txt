@@ -9,12 +9,14 @@ project(morpheus_teleop)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
-  joy
-  rospy
-  cartesian_controller_utilities
+  interbotix_xs_msgs
   interbotix_xsarm_control
-  std_msgs
+  joy
   message_generation
+  roscpp
+  rospy
+  sensor_msgs
+  std_msgs
 )
 
 ## System dependencies are found with CMake's conventions

@@ -26,7 +26,7 @@ def usage():
 
 if __name__ == "__main__":
     # Check command line argument count, retrieve name of collision_object.yaml entry
-    if len(sys.argv) == 2:
+    if len(sys.argv) >= 2:
         preset_name = str(sys.argv[1])
     # If command line args incorrect, print a reminder and exit
     else:

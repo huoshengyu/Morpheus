@@ -50,10 +50,15 @@
   <!--   <doc_depend>doxygen</doc_depend> -->
   <buildtool_depend>catkin</buildtool_depend>
   <depend>geometry_msgs</depend>
-  <depend>joy</depend>
-  <depend>rospy</depend>
-  <depend>cartesian_controller_utilities</depend>
+  <depend>interbotix_xs_msgs</depend>
+  <depend>interbotix_xsarm_control</depend>
   <depend>message_generation</depend>
+  <depend>sensor_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>joy</depend>
+  <depend>roscpp</depend>
+  <depend>rospy</depend>
+  <exec_depend>cartesian_controller_utilities</exec_depend>
   <exec_depend>message_runtime</exec_depend>
 
 
