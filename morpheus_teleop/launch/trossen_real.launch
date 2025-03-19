@@ -18,8 +18,8 @@
     <arg name="use_moveit_rviz"                     default="true"/>
     <arg name="rviz_frame"                          default="world"/>
     <arg name="use_gazebo"                          default="false"/>
-    <arg name="use_actual"                          default="false"/>
-    <arg name="use_fake"                            default="true"/>
+    <arg name="use_actual"                          default="true"/>
+    <arg name="use_fake"                            default="false"/>
     <arg name="use_cpp_interface"                   default="false"/>
     <arg name="moveit_interface_gui"                default="true"/>
     <arg name="use_python_interface"                default="true"/>
