@@ -1,7 +1,7 @@
 <launch>
 
     <!-- Launch teleop xbox360 twist -->
-    <arg name="twist_topic" default="/twist_controller/command"/>
+    <arg name="twist_topic" default="twist_controller/command"/>
     <arg name="arm_group" default="arm"/>
     <arg name="frame_id" default="base_link"/>
     <arg name="end_effector" default="tcp_link"/>

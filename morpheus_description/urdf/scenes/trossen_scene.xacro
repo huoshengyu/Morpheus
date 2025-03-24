@@ -10,13 +10,13 @@
     <xacro:arg name="external_urdf_loc" default=""/>
     <xacro:arg name="load_gazebo_configs" default="false"/>
 
-    <xacro:include filename="$(find homestri_description)/urdf/macros/simple_pedestal_macro.xacro" />
+    <xacro:include filename="$(find morpheus_description)/urdf/macros/simple_pedestal_macro.xacro" />
     <xacro:include filename="$(find morpheus_description)/urdf/macros/trossen_macro.xacro" />
 
     <xacro:simple_pedestal
         prefix=""
         parent="world"
-        height="$(-0.0254 * 34.75)"
+        height="$(0.0254 * 34.75)"
         radius="0.15"
     />
 

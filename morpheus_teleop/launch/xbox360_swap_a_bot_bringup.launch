@@ -12,7 +12,7 @@
     <arg name="xacro_path" default="$(find morpheus_description)/urdf/scenes/a_bot_keyhole_scene.xacro"/>
     <arg name="srdf_path" default="$(find morpheus_description)/srdf/scenes/a_bot_scene.srdf"/>
 
-    <arg name="twist_topic" default="/twist_controller/command" />
+    <arg name="twist_topic" default="twist_controller/command" />
 
     <!-- Launch a_bot_bringup -->
     <include file="$(find morpheus_teleop)/launch/a_bot_bringup.launch">

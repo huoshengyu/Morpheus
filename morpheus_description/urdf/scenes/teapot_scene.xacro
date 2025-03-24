@@ -13,7 +13,7 @@
         scale="0.05"
     />
 
-    <xacro:include filename="$(find homestri_description)/urdf/macros/simple_pedestal_macro.xacro" />
+    <xacro:include filename="$(find morpheus_description)/urdf/macros/simple_pedestal_macro.xacro" />
 
     <xacro:simple_pedestal
         prefix=""

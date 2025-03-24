@@ -81,13 +81,16 @@ class SpawnerNode
         g_planning_group = "arm";
           ROS_INFO("Using planning group 'arm'");
       }
+
+      // Set PlanningSceneInterface in namespace
+      g_planning_scene_interface = *new moveit::planning_interface::PlanningSceneInterface(ros::this_node::getNamespace());
             
       // Instantiate PlanningSceneMonitor
       g_planning_scene_monitor = std::make_shared<planning_scene_monitor::PlanningSceneMonitor>(ROBOT_DESCRIPTION);
       g_planning_scene_fake_monitor = std::make_shared<planning_scene_monitor::PlanningSceneMonitor>(ROBOT_DESCRIPTION);
       
       // Start the PlanningSceneMonitor
-      g_planning_scene_monitor->startSceneMonitor("/move_group/monitored_planning_scene"); // Get scene updates from topic
+      g_planning_scene_monitor->startSceneMonitor("move_group/monitored_planning_scene"); // Get scene updates from topic
       // g_planning_scene_monitor->startSceneMonitor("/planning_scene");
       // g_planning_scene_monitor->startWorldGeometryMonitor("/collision_object", "/planning_scene_world");
       // g_planning_scene_monitor->startStateMonitor("/joint_states", "/attached_collision_object");
@@ -105,22 +108,22 @@ class SpawnerNode
       g_attached_collision_object_publisher = nh.advertise<moveit_msgs::AttachedCollisionObject>("attached_collision_object", 1);
     
       // Instantiate planning scene diff publisher
-      g_planning_scene_fake_publisher = nh.advertise<moveit_msgs::PlanningScene>("/planning_scene_fake", 1);
+      g_planning_scene_fake_publisher = nh.advertise<moveit_msgs::PlanningScene>("planning_scene_fake", 1);
 
       // Instantiate planning scene diff publisher
-      g_planning_scene_diff_publisher = nh.advertise<moveit_msgs::PlanningScene>("/planning_scene", 1);
+      g_planning_scene_diff_publisher = nh.advertise<moveit_msgs::PlanningScene>("planning_scene", 1);
 
       // Instantiate a subscriber to receive collision object messages to spawn
-      g_spawner_msg_subscriber = nh.subscribe<moveit_msgs::CollisionObject>("/spawner/spawner_msg_queue", 1, &SpawnerNode::spawner_msg_subscriber_callback, this);
+      g_spawner_msg_subscriber = nh.subscribe<moveit_msgs::CollisionObject>("spawner/spawner_msg_queue", 1, &SpawnerNode::spawner_msg_subscriber_callback, this);
 
       // Instantiate a subscriber to receive names of object presets to spawn
-      g_spawner_preset_subscriber = nh.subscribe<std_msgs::String>("/spawner/spawner_preset_queue", 1, &SpawnerNode::spawner_preset_subscriber_callback, this);
+      g_spawner_preset_subscriber = nh.subscribe<std_msgs::String>("spawner/spawner_preset_queue", 1, &SpawnerNode::spawner_preset_subscriber_callback, this);
 
       // Instantiate a subscriber to receive indices of collision objects to attach/detach
-      g_attacher_msg_subscriber = nh.subscribe<moveit_msgs::AttachedCollisionObject>("/spawner/attacher_msg_queue", 1, &SpawnerNode::attacher_msg_subscriber_callback, this);
+      g_attacher_msg_subscriber = nh.subscribe<moveit_msgs::AttachedCollisionObject>("spawner/attacher_msg_queue", 1, &SpawnerNode::attacher_msg_subscriber_callback, this);
 
       // Instantiate a subscriber to receive indices of collision objects to attach/detach
-      g_attacher_index_subscriber = nh.subscribe<moveit_msgs::CollisionObject>("/spawner/attacher_index_queue", 1, &SpawnerNode::attacher_index_subscriber_callback, this);
+      g_attacher_index_subscriber = nh.subscribe<moveit_msgs::CollisionObject>("spawner/attacher_index_queue", 1, &SpawnerNode::attacher_index_subscriber_callback, this);
 
       // Instantiate collision object message spawner service
       g_spawner_msg_service = nh.advertiseService("spawner_msg", &SpawnerNode::spawner_msg_service_callback, this);

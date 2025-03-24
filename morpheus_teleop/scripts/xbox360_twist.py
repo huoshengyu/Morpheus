@@ -30,8 +30,8 @@ class TeleopTwistJoy(TeleopTwist):
 
         # Initialize twist command publishers and joystick subscriber
         self.twist_pub = rospy.Publisher(self.twist_topic, geometry_msgs.msg.Twist, queue_size=1)
-        self.gripper_pub_robotiq = rospy.Publisher('/robotiq_2f_85_gripper/control', Robotiq2FGripper_robot_output, queue_size=1)
-        self.gripper_pub_onrobot = rospy.Publisher('/onrobot_rg2ft/command', RG2FTCommand, queue_size=1)
+        self.gripper_pub_robotiq = rospy.Publisher('robotiq_2f_85_gripper/control', Robotiq2FGripper_robot_output, queue_size=1)
+        self.gripper_pub_onrobot = rospy.Publisher('onrobot_rg2ft/command', RG2FTCommand, queue_size=1)
         self.joy_sub = rospy.Subscriber("/joy", sensor_msgs.msg.Joy, self.callback)
 
         # Initialize variables for holding joystick inputs
@@ -62,7 +62,7 @@ class TeleopTwistJoy(TeleopTwist):
         self.planning_scene_interface = moveit_commander.PlanningSceneInterface()
         self.group_name = rospy.get_param("~arm_group", "arm")
         self.move_group_commander = moveit_commander.MoveGroupCommander(self.group_name)
-        self.display_trajectory_publisher = rospy.Publisher('/move_group/display_planned_path',
+        self.display_trajectory_publisher = rospy.Publisher('move_group/display_planned_path',
                                                             moveit_msgs.msg.DisplayTrajectory,
                                                             queue_size=20)
 

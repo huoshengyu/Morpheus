@@ -137,6 +137,9 @@ class CollisionNode
             g_arm_interface = std::make_shared<moveit::planning_interface::MoveGroupInterface>(g_arm_group);
             g_gripper_interface = std::make_shared<moveit::planning_interface::MoveGroupInterface>(g_gripper_group);
 
+            // Set PlanningSceneInterface in namespace
+            g_planning_scene_interface = *new moveit::planning_interface::PlanningSceneInterface(ros::this_node::getNamespace());
+
             // Instantiate PlanningSceneMonitor
             g_planning_scene_monitor = std::make_shared<planning_scene_monitor::PlanningSceneMonitor>(ROBOT_DESCRIPTION);
             
@@ -249,13 +252,13 @@ class CollisionNode
         {
             // Update the planning scene monitor, in case new collision objects have been added
             // g_planning_scene_monitor->requestPlanningSceneState();
-            
-            // Get locked planning scene to ensure scene does not change during update
-            planning_scene_monitor::LockedPlanningSceneRO locked_planning_scene(g_planning_scene_monitor);
 
             // Update the collision result, based on the collision request
             g_c_res.clear();
-            locked_planning_scene->checkCollision(g_c_req, g_c_res);
+            // Get locked planning scene to ensure scene does not change during update
+            planning_scene_monitor::LockedPlanningSceneRO(g_planning_scene_monitor)->checkCollision(g_c_req, g_c_res);
+
+            // Get sorted contacts so that the top N can be selected
             g_sorted_contacts = get_sorted_contacts(g_c_res);
             g_link_contacts.clear();
             for (auto contact : g_sorted_contacts)
@@ -359,19 +362,28 @@ class CollisionNode
         
         bool isRobotObstacleContact(collision_detection::Contact contact)
         {
-            // Get locked planning scene to query
-            planning_scene_monitor::LockedPlanningSceneRO locked_planning_scene(g_planning_scene_monitor);
-            
-            // Get allowed collision matrix and check if contact bodies can collide
-            collision_detection::AllowedCollisionMatrix allowed_collision_matrix = locked_planning_scene->getAllowedCollisionMatrix();
+            // Query locked planning scene's allowed collision matrix to see if contact objects can collide
             collision_detection::AllowedCollision::Type allowed_collision_type;
+            bool has_entry = false;
+            try
+            {
+                has_entry = planning_scene_monitor::LockedPlanningSceneRO(g_planning_scene_monitor)->getAllowedCollisionMatrix().getEntry(contact.body_name_1, contact.body_name_2, allowed_collision_type);
+            }
+            catch (const std::exception& e)
+            {
+                ROS_ERROR_STREAM(e.what());
+            }
+            catch (const ros::Exception& e)
+            {
+                ROS_ERROR_STREAM(e.what());
+            }
             
             // If objects can collide and exactly one is a world object (i.e. not robot link or robot attached), return true. 
             // Else, return false.
             if 
             (
                 (
-                    !(allowed_collision_matrix.getEntry(contact.body_name_1, contact.body_name_2, allowed_collision_type)) or
+                    !(has_entry) or
                     (allowed_collision_type == collision_detection::AllowedCollision::NEVER)
                 ) and
                 (
@@ -748,5 +760,6 @@ int main(int argc, char** argv)
     //collision_node.test();
 
     collision_node.spin();
+    ROS_INFO_STREAM("Stop");
     return 0;
 }

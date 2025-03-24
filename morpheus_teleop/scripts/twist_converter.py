@@ -21,9 +21,9 @@ class TwistConverter():
         self.rate = rospy.Rate(rospy.get_param('~publishing_rate', default=50))
 
         # Get topics
-        self.twist_topic = rospy.get_param("~twist_topic", default="/twist_controller/command")
-        self.wrench_topic = rospy.get_param("~wrench_topic", default="/target_wrench")
-        self.pose_topic = rospy.get_param("~pose_topic", default="/target_frame")
+        self.twist_topic = rospy.get_param("~twist_topic", default="twist_controller/command")
+        self.wrench_topic = rospy.get_param("~wrench_topic", default="target_wrench")
+        self.pose_topic = rospy.get_param("~pose_topic", default="target_frame")
 
         # Instantiate subscribers and publishers
         self.twist_sub = rospy.Subscriber(self.twist_topic, geometry_msgs.msg.Twist, self.twist_callback)

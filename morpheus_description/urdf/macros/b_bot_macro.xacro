@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="b_bot">
 
-    <xacro:include filename="$(find homestri_description)/urdf/macros/ur5e_macro.xacro" />
-    <xacro:include filename="$(find homestri_description)/urdf/macros/d415_mount_macro.xacro" />
+    <xacro:include filename="$(find morpheus_description)/urdf/macros/ur5e_macro.xacro" />
+    <xacro:include filename="$(find morpheus_description)/urdf/macros/d415_mount_macro.xacro" />
     <xacro:include filename="$(find onrobot_rg2ft_description)/urdf/onrobot_rg2ft_macro.xacro" />
 
     <xacro:macro name="b_bot"

@@ -83,7 +83,7 @@ speedBindings={
 class PublishThread(threading.Thread):
     def __init__(self, rate):
         super(PublishThread, self).__init__()
-        twist_topic = rospy.get_param("~twist_topic", "/twist_controller/command")
+        twist_topic = rospy.get_param("~twist_topic", "twist_controller/command")
         self.publisher = rospy.Publisher(twist_topic, TwistMsg, queue_size = 1)
         self.x = 0.0
         self.y = 0.0

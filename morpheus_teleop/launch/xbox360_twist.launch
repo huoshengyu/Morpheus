@@ -1,19 +1,19 @@
 <launch>
 
     <!-- Launch teleop xbox360 twist -->
-    <arg name="twist_topic" default="/twist_controller/command"/>
+    <arg name="twist_topic" default="twist_controller/command"/>
     <arg name="arm_group" default="arm"/>
     <arg name="frame_id" default="base_link"/>
     <arg name="end_effector" default="tcp_link"/>
 
     <node pkg="joy" type="joy_node" name="joy_node" respawn="true" output="screen">
         <param name="dev" type="str" value="/dev/input/js0"/>
-        <param name="dev_ff" value="/dev/input/event7" />
-        <param name="default_trig_val" value="true" />
+        <param name="dev_ff" value="/dev/input/event7"/>
+        <param name="default_trig_val" value="true"/>
     </node>
 
     <node pkg="morpheus_teleop" type="xbox360_twist.py" name="xbox360_twist" output="screen">
-        <param name="twist_topic" value="$(arg twist_topic)" />
+        <param name="twist_topic" value="$(arg twist_topic)"/>
         <param name="arm_group" value="$(arg arm_group)"/>
     </node>
 
