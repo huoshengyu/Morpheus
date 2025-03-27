@@ -9,8 +9,6 @@ project(morpheus_teleop)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
-  interbotix_xs_msgs
-  interbotix_xsarm_control
   joy
   message_generation
   roscpp

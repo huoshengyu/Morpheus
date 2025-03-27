@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>morpheus_teleop</name>
+  <name>morpheus_gui</name>
   <version>1.0.0</version>
-  <description>The morpheus_teleop package</description>
+  <description>The morpheus_gui package</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag -->
   <!-- Example:  -->
@@ -49,15 +49,6 @@
   <!-- Use doc_depend for packages you need only for building documentation: -->
   <!--   <doc_depend>doxygen</doc_depend> -->
   <buildtool_depend>catkin</buildtool_depend>
-  <depend>geometry_msgs</depend>
-  <depend>message_generation</depend>
-  <depend>sensor_msgs</depend>
-  <depend>std_msgs</depend>
-  <depend>joy</depend>
-  <depend>roscpp</depend>
-  <depend>rospy</depend>
-  <exec_depend>message_runtime</exec_depend>
-
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>
