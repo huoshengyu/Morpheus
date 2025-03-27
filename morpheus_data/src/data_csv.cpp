@@ -64,11 +64,6 @@ static const std::vector<std::string> OBSTACLE_VECTOR
     "foam"
 };
 
-namespace data
-{
-
-};
-
 // Get directory of data folder. Note: cwd is /root/.ros/ by default
 static const std::string data_dir = "/root/catkin_ws/src/morpheus/morpheus_data/data/";
 
