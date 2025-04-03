@@ -23,7 +23,7 @@ from teleop_twist import TeleopTwist
 
 class TeleopTwistJoy(TeleopTwist):
     def __init__(self):
-        super(TeleopTwist, self).__init__()
+        super().__init__()
 
         # Get twist topic
         self.twist_topic = rospy.get_param("~twist_topic", "/twist_controller/command")
