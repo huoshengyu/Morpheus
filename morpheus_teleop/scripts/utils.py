@@ -3,10 +3,7 @@
 import numpy as np
 import quaternion
 import rospy
-import tf2_ros
-import geometry_msgs.msg   
-import sensor_msgs.msg 
-import control_msgs.msg
+import geometry_msgs.msg
 import trajectory_msgs.msg
 
 from controller_manager_msgs.srv import SwitchController, ListControllers
