@@ -39,7 +39,7 @@
     <arg name="controller"                          default="xbox360"/>
     <arg name="use_keyboard"                        default="true"/>
 
-    <include if="$(eval (arg mode == 'gazebo'))" file="$(find interbotix_xsarm_gazebo)/launch/xsarm_gazebo.launch">
+    <include if="$(eval arg('robot_mode') == 'gazebo')" file="$(find interbotix_xsarm_gazebo)/launch/xsarm_gazebo.launch">
         <arg name="robot_model"                         value="$(arg robot_model)"/>
         <arg name="robot_name"                          value="$(arg robot_name)"/>
         <arg name="base_link_frame"                     value="$(arg base_link_frame)"/>
@@ -50,7 +50,7 @@
         <arg name="use_trajectory_controllers"          value="true"/>
     </include>
 
-    <include if="$(eval (arg mode == 'real'))" file="$(find interbotix_xsarm_ros_control)/launch/xsarm_ros_control.launch">
+    <include if="$(eval arg('robot_mode') == 'real')" file="$(find interbotix_xsarm_ros_control)/launch/xsarm_ros_control.launch">
         <arg name="robot_model"                         value="$(arg robot_model)"/>
         <arg name="robot_name"                          value="$(arg robot_name)"/>
         <arg name="base_link_frame"                     value="$(arg base_link_frame)"/>
@@ -62,7 +62,7 @@
         <arg name="dof"                                 value="$(arg dof)"/>
     </include>
 
-    <include if="$(eval (arg mode == 'fake'))" file="$(find interbotix_xsarm_descriptions)/launch/xsarm_description.launch">
+    <include if="$(eval arg('robot_mode') == 'fake')" file="$(find interbotix_xsarm_descriptions)/launch/xsarm_description.launch">
         <arg name="robot_model"                         value="$(arg robot_model)"/>
         <arg name="robot_name"                          value="$(arg robot_name)"/>
         <arg name="base_link_frame"                     value="$(arg base_link_frame)"/>
@@ -103,7 +103,7 @@
         <param name="load_configs"                      value="$(arg load_configs)"/>
     </node>
 
-    <group if="$(eval (arg control_mode == cartesian)"> 
+    <group if="$(eval arg('control_mode') == 'cartesian')"> 
         <!-- launch xbox360_swap -->
         <include file="$(find morpheus_teleop)/launch/xbox360_swap_fake.launch" ns="$(arg robot_name)">
             <arg name="twist_topic"                         value="twist_controller/command"/>
@@ -117,7 +117,7 @@
     </group>
 
     <!-- launch interbotix xsarm control -->
-    <include if="$(eval (arg control_mode == interbotix)" file="$(find morpheus_teleop)/launch/xsarm_joy.launch">
+    <include if="$(eval arg('control_mode') == 'interbotix')" file="$(find morpheus_teleop)/launch/xsarm_joy.launch">
         <arg name="robot_model"                         value="$(arg robot_model)"/>
         <arg name="robot_name"                          value="$(arg robot_name)"/>
         <arg name="base_link_frame"                     value="$(arg base_link_frame)"/>
