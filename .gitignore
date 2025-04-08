@@ -165,3 +165,7 @@ temp.srdf
 
 # vscode
 .vscode/
+
+# Data recordings
+*.csv
+*.bag

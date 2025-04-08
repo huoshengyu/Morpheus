@@ -82,7 +82,8 @@ RUN pip install --upgrade \
     pymodbus===2.1.0 \
     numpy \
     numpy-quaternion \
-    scipy
+    scipy \
+    readchar
 RUN pip install --upgrade importlib_metadata
 RUN pip install --upgrade six
 RUN pip install --upgrade setuptools

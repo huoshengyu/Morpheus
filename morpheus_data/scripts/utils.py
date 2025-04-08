@@ -9,7 +9,7 @@ def get_key():
 
 def input_args(func, keywords=[]):
     # Call a function and prompt the user to input argument values
-
+    return
 
 def sanitize_filename(input):
     valid_punctuation = "._ "
