@@ -19,6 +19,17 @@
     <arg name="use_sim"                           value="$(arg use_sim)"/>
   </include>
 
+  <node 
+    pkg="joy" 
+    type="joy_node"
+    name="joy_node"
+    output="screen"
+    ns="$(arg robot_name)">
+    <param name="dev" type="str" value="/dev/input/js0"/>
+    <param name="dev_ff" value="/dev/input/event7"/>
+    <param name="default_trig_val" value="true"/>
+  </node>
+
   <node
     pkg="interbotix_xsarm_joy"
     type="xsarm_joy"
@@ -27,7 +38,7 @@
     ns="$(arg robot_name)">
     <param name="threshold" value="$(arg threshold)"/>
     <param name="controller" value="$(arg controller)"/>
-    <remap from="commands/joy_raw" to="/joy"/>
+    <remap from="commands/joy_raw" to="joy"/>
   </node>
 
   <node

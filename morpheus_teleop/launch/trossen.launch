@@ -74,6 +74,17 @@
         <arg name="rate"                                value="100"/>
         <arg name="source_list"                         value="[move_group/fake_controller_joint_states]"/>
     </include>
+    
+    <node if=if="$(eval arg('robot_mode') != 'real')"
+        name="xs_sdk"
+        pkg="interbotix_xs_sdk"
+        type="$(arg xs_sdk_type)"
+        output="screen"
+        ns="$(arg robot_name)">
+        <param name="motor_configs"                     value="$(arg motor_configs)"/>
+        <param name="mode_configs"                      value="$(arg mode_configs)"/>
+        <param name="load_configs"                      value="$(arg load_configs)"/>
+    </node>
 
     <include file="$(find interbotix_xsarm_moveit)/launch/move_group.launch" ns="$(arg robot_name)">
         <arg name="robot_model"                         value="$(arg robot_model)"/>
@@ -92,20 +103,9 @@
             output="screen" />
     </group>
 
-    <node
-        name="xs_sdk"
-        pkg="interbotix_xs_sdk"
-        type="$(arg xs_sdk_type)"
-        output="screen"
-        ns="$(arg robot_name)">
-        <param name="motor_configs"                     value="$(arg motor_configs)"/>
-        <param name="mode_configs"                      value="$(arg mode_configs)"/>
-        <param name="load_configs"                      value="$(arg load_configs)"/>
-    </node>
-
     <group if="$(eval arg('control_mode') == 'cartesian')"> 
         <!-- launch xbox360_swap -->
-        <include file="$(find morpheus_teleop)/launch/xbox360_swap_fake.launch" ns="$(arg robot_name)">
+        <include file="$(find morpheus_teleop)/launch/xbox360_swap.launch" ns="$(arg robot_name)">
             <arg name="twist_topic"                         value="twist_controller/command"/>
             <arg name="arm_group"                           value="interbotix_arm"/>
             <arg name="frame_id"                            value="vx300s/base_link"/>
