@@ -75,7 +75,7 @@
         <arg name="source_list"                         value="[move_group/fake_controller_joint_states]"/>
     </include>
     
-    <node if=if="$(eval arg('robot_mode') != 'real')"
+    <node if="$(eval arg('robot_mode') != 'real')"
         name="xs_sdk"
         pkg="interbotix_xs_sdk"
         type="$(arg xs_sdk_type)"
