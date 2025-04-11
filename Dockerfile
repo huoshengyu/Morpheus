@@ -13,7 +13,7 @@ RUN rm ~/miniconda3.sh
 RUN export PATH=~/miniconda3/bin:$PATH
 
 # Minimal setup
-ENV ROS_DISTRO noetic
+ENV ROS_DISTRO=noetic
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install --no-install-recommends -y \
     locales \
@@ -57,7 +57,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Set the working directory in the container
-WORKDIR /root/catkin_ws
+WORKDIR /root/catkin_ws/
 
 # Copy the morpheus repo
 COPY ./ ./src/
@@ -92,7 +92,7 @@ RUN pip install --upgrade modern_robotics
 
 # Install GELLO dependencies
 RUN pip install -r ./src/gello_software/requirements.txt
-RUN pip install -e ./src/gello_software/.
+RUN pip install -e ./src/gello_software/. --use-pep517
 RUN pip install -e ./src/gello_software/third_party/DynamixelSDK/python/.
 
 # Install Trossen robot arm software (For AMD64 architectures, not Raspberry Pi) (This step may take up to 15 minutes)
@@ -111,7 +111,7 @@ RUN source /opt/ros/noetic/setup.bash \
     && apt-get update \
     && rosdep update \
     && rosdep install -q -y \
-      --from-paths ./src \
+      --from-paths ./src/ \
       --ignore-src \
       --rosdistro noetic \
     && rm -rf /var/lib/apt/lists/*
@@ -125,3 +125,17 @@ RUN echo "source /root/catkin_ws/devel/setup.bash" >> ~/.bashrc
 
 # Configure display access (Unsets variable. Setting it may cause Rviz to fail.)
 RUN echo "export LIBGL_ALWAYS_INDIRECT=" >> ~/.bashrc
+
+# Install Trossen Interbotix software
+WORKDIR /root/catkin_ws/src/trossen
+RUN sudo apt install curl
+RUN curl 'https://raw.githubusercontent.com/Interbotix/interbotix_ros_manipulators/main/interbotix_ros_xsarms/install/amd64/xsarm_amd64_install.sh' > xsarm_amd64_install.sh
+RUN chmod +x xsarm_amd64_install.sh
+RUN ./xsarm_amd64_install.sh -d noetic -n
+
+# Set udev rules
+RUN sudo service udev restart
+RUN sudo udevadm control --reload-rules && udevadm trigger
+
+# Restore workdir
+WORKDIR /root/catkin_ws/

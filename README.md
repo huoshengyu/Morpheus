@@ -44,8 +44,7 @@ git clone https://github.com/huoshengyu/Morpheus
 ```  
 2. Clone and update all submodules:
 ```
-git submodule update --init --recursive
-git submodule update --recursive
+git submodule update --init --recursive --checkout --progress
 ```
 
 ## 4. Build the Docker image:
