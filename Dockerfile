@@ -127,15 +127,14 @@ RUN echo "source /root/catkin_ws/devel/setup.bash" >> ~/.bashrc
 RUN echo "export LIBGL_ALWAYS_INDIRECT=" >> ~/.bashrc
 
 # Install Trossen Interbotix software
-WORKDIR /root/catkin_ws/src/trossen
-RUN sudo apt install curl
-RUN curl 'https://raw.githubusercontent.com/Interbotix/interbotix_ros_manipulators/main/interbotix_ros_xsarms/install/amd64/xsarm_amd64_install.sh' > xsarm_amd64_install.sh
-RUN chmod +x xsarm_amd64_install.sh
-RUN ./xsarm_amd64_install.sh -d noetic -n
+# WORKDIR /root/catkin_ws/src/trossen
+# RUN sudo apt install curl
+# RUN curl 'https://raw.githubusercontent.com/Interbotix/interbotix_ros_manipulators/main/interbotix_ros_xsarms/install/amd64/xsarm_amd64_install.sh' > xsarm_amd64_install.sh
+# RUN chmod +x xsarm_amd64_install.sh
+# RUN ./xsarm_amd64_install.sh -d noetic -n
 
 # Set udev rules
-RUN sudo service udev restart
-RUN sudo udevadm control --reload-rules && udevadm trigger
+# RUN sudo service udev restart && sudo udevadm control --reload-rules && udevadm trigger
 
 # Restore workdir
 WORKDIR /root/catkin_ws/
