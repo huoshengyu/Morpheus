@@ -9,7 +9,7 @@
     <arg name="external_urdf_loc"                   default="$(find morpheus_description)/urdf/scenes/node2_scene.xacro"/>
     <arg name="external_srdf_loc"                   default=""/>
     <arg name="use_rviz"                            default="true"/>
-    <arg name="motor_configs"                       default="$(find interbotix_xsarm_control)/config/$(arg robot_model).yaml"/>
+    <arg name="motor_configs"                       default="$(find morpheus_teleop)/config/$(arg robot_model).yaml"/>
     <arg name="mode_configs"                        default="$(find interbotix_xsarm_control)/config/modes.yaml"/>
     <arg name="load_configs"                        default="true"/>
     <arg name="use_sim"                             default="true"/>
@@ -19,9 +19,6 @@
     <arg name="rviz_frame"                          default="world"/>
     <arg name="robot_mode"                          default="fake"/>
     <arg name="control_mode"                        default="interbotix"/>
-    <arg name="use_gazebo"                          default="false"/>
-    <arg name="use_actual"                          default="false"/>
-    <arg name="use_fake"                            default="true"/>
     <arg name="use_cpp_interface"                   default="false"/>
     <arg name="moveit_interface_gui"                default="true"/>
     <arg name="use_python_interface"                default="true"/>
@@ -32,14 +29,18 @@
     <arg name="xs_sdk_type" value="xs_sdk" unless="$(arg use_sim)"/>
     <arg name="xs_sdk_type" value="xs_sdk_sim" if="$(arg use_sim)"/>
 
-    <arg name="use_cartesian_control"               default="false"/>
-    <arg name="use_interbotix_control"              default="true"/>
+    <arg name="use_gazebo"  value="false" unless="$(eval arg('robot_mode') == 'gazebo')"/>
+    <arg name="use_actual"  value="false" unless="$(eval arg('robot_mode') == 'real')"/>
+    <arg name="use_fake"    value="false" unless="$(eval arg('robot_mode') == 'fake')"/>
+    <arg name="use_gazebo"  value="true" if="$(eval arg('robot_mode') == 'gazebo')"/>
+    <arg name="use_actual"  value="true" if="$(eval arg('robot_mode') == 'real')"/>
+    <arg name="use_fake"    value="true" if="$(eval arg('robot_mode') == 'fake')"/>
     
     <arg name="threshold"                           default="0.75"/>
     <arg name="controller"                          default="xbox360"/>
-    <arg name="use_keyboard"                        default="true"/>
+    <arg name="use_keyboard"                        default="false"/>
 
-    <include if="$(eval arg('robot_mode') == 'gazebo')" file="$(find interbotix_xsarm_gazebo)/launch/xsarm_gazebo.launch">
+    <include if="$(arg use_gazebo)" file="$(find interbotix_xsarm_gazebo)/launch/xsarm_gazebo.launch">
         <arg name="robot_model"                         value="$(arg robot_model)"/>
         <arg name="robot_name"                          value="$(arg robot_name)"/>
         <arg name="base_link_frame"                     value="$(arg base_link_frame)"/>
@@ -50,7 +51,7 @@
         <arg name="use_trajectory_controllers"          value="true"/>
     </include>
 
-    <include if="$(eval arg('robot_mode') == 'real')" file="$(find interbotix_xsarm_ros_control)/launch/xsarm_ros_control.launch">
+    <include if="$(arg use_actual)" file="$(find interbotix_xsarm_ros_control)/launch/xsarm_ros_control.launch">
         <arg name="robot_model"                         value="$(arg robot_model)"/>
         <arg name="robot_name"                          value="$(arg robot_name)"/>
         <arg name="base_link_frame"                     value="$(arg base_link_frame)"/>
@@ -62,7 +63,7 @@
         <arg name="dof"                                 value="$(arg dof)"/>
     </include>
 
-    <include if="$(eval arg('robot_mode') == 'fake')" file="$(find interbotix_xsarm_descriptions)/launch/xsarm_description.launch">
+    <include if="$(arg use_fake)" file="$(find interbotix_xsarm_descriptions)/launch/xsarm_description.launch">
         <arg name="robot_model"                         value="$(arg robot_model)"/>
         <arg name="robot_name"                          value="$(arg robot_name)"/>
         <arg name="base_link_frame"                     value="$(arg base_link_frame)"/>
@@ -75,7 +76,7 @@
         <arg name="source_list"                         value="[move_group/fake_controller_joint_states]"/>
     </include>
     
-    <node if="$(eval arg('robot_mode') != 'real')"
+    <node unless="$(arg use_actual)"
         name="xs_sdk"
         pkg="interbotix_xs_sdk"
         type="$(arg xs_sdk_type)"

@@ -133,8 +133,9 @@ RUN echo "export LIBGL_ALWAYS_INDIRECT=" >> ~/.bashrc
 # RUN chmod +x xsarm_amd64_install.sh
 # RUN ./xsarm_amd64_install.sh -d noetic -n
 
-# Set udev rules
-# RUN sudo service udev restart && sudo udevadm control --reload-rules && udevadm trigger
-
 # Restore workdir
 WORKDIR /root/catkin_ws/
+
+# Set udev rules
+# COPY ./trossen/99-interbotix-udev.rules /etc/udev/rules.d/99-interbotix-udev.rules
+# RUN sudo service udev restart && sudo udevadm control --reload-rules && udevadm trigger
