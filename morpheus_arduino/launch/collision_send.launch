@@ -1,0 +1,3 @@
+<launch>
+    <node name="collisionseral" pkg="morpheus_arduino" type="collisionseral" output="screen" />
+</launch>

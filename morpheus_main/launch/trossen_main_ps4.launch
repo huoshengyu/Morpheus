@@ -2,7 +2,7 @@
     <arg name="robot_model"                         default="vx300s"/>
     <arg name="robot_name"                          default="$(arg robot_model)"/>
 
-    <arg name="robot_mode"                          default="real"/>
+    <arg name="robot_mode"                          default="fake"/>
     <arg name="control_mode"                        default="interbotix"/>
     <arg name="controller"                          default="ps4"/>
     <arg name="use_keyboard"                        default="false"/>
