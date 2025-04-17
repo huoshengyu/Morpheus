@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>morpheus_arduino</name>
+  <name>morpheus_haptics</name>
   <version>1.0.0</version>
-  <description>The morpheus_arduino package</description>
+  <description>The morpheus_haptics package</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag -->
   <!-- Example:  -->
