@@ -39,7 +39,7 @@
         </include>
 
         <!-- Launch arduino haptics node -->
-        <include if="$(arg arduino)" file="$(find morpheus_arduino)/launch/collision_send.launch"/>  
+        <include if="$(arg arduino)" file="$(find morpheus_haptics)/launch/collision_send.launch"/>  
 
     </group>
 

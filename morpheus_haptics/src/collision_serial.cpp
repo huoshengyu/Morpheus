@@ -92,7 +92,7 @@ public:
                 ROS_INFO_STREAM("Collision with gripper_bar_link detected! Sending '2' to Arduino.");
                 char send_char = '2'; // Send 2
                 write(serial_port, &send_char, 1);
-                std::string pos_str = std::to_string(msg.position.x) + "\n";
+                std::string pos_str = std::to_string(msg.position.x) + "," + std::to_string(msg.position.z) + "\n";
                 write(serial_port, pos_str.c_str(), pos_str.length());
             }
             else
