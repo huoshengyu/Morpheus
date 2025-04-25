@@ -92,7 +92,15 @@ public:
                 ROS_INFO_STREAM("Collision with gripper_bar_link detected! Sending '2' to Arduino.");
                 char send_char = '2'; // Send 2
                 write(serial_port, &send_char, 1);
-                std::string pos_str = std::to_string(msg.position.x) + "," + std::to_string(msg.position.z) + "\n";
+                std::string pos_str = std::to_string(msg.normal.x) + "," + std::to_string(msg.normal.z) + "\n";
+                write(serial_port, pos_str.c_str(), pos_str.length());
+            }
+            else if (link1 == "vx300s/wrist_link" || link2 == "vx300s/wrist_link")
+            {
+                ROS_INFO_STREAM("Collision with wrist_link detected! Sending '3' to Arduino.");
+                char send_char = '3'; // Send 2
+                write(serial_port, &send_char, 1);
+                std::string pos_str = std::to_string(msg.normal.x) + "," + std::to_string(msg.normal.z) + "\n";
                 write(serial_port, pos_str.c_str(), pos_str.length());
             }
             else
