@@ -162,7 +162,7 @@ cython_debug/
 # temp files
 temp.urdf
 temp.srdf
-arena.xml
+gello_software/arena.xml
 
 # vscode
 .vscode/
