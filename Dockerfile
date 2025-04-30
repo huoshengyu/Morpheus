@@ -125,6 +125,8 @@ RUN echo "source /root/catkin_ws/devel/setup.bash" >> ~/.bashrc
 
 # Configure display access (Unsets variable. Setting it may cause Rviz to fail.)
 RUN echo "export LIBGL_ALWAYS_INDIRECT=" >> ~/.bashrc
+# Disable hardware acceleration to reduce Rviz graphical issues
+RUN echo "export LIBGL_ALWAYS_SOFTWARE=1" >> ~/.bashrc
 
 # Install Trossen Interbotix software
 # WORKDIR /root/catkin_ws/src/trossen
