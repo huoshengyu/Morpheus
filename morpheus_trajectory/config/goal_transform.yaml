@@ -1,4 +1,18 @@
 goal:
+  trossen_sleep:
+    goal_pose:
+      position: {x: 0.13709, y: 0.0, z: 0.988091}
+      orientation: {x: 0.0, y: 0.247404, z: 0, w: 0.968912}
+    position_weights: {x: 1.0, y: 1.0, z: 1.0}
+    orientation_weights: {x: 0.0, y: 0.0, z: 0.0, w: 0.0}
+    max_velocity_scaling_factor: 0.1
+  trossen_home:
+    goal_pose:
+      position: {x: 0.536494, y: 0.0, z: 1.3097}
+      orientation: {x: 0, y: 0, z: 0, w: 1}
+    position_weights: {x: 1.0, y: 1.0, z: 1.0}
+    orientation_weights: {x: 0.0, y: 0.0, z: 0.0, w: 0.0}
+    max_velocity_scaling_factor: 0.1
   keyhole:
     goal_pose:
       position: {x: 0.350, y: 0.535, z: 0.86995}
