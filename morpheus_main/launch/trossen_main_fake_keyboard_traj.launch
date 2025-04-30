@@ -12,7 +12,7 @@
     <arg name="srdf_path"                           default="$(find interbotix_xsarm_moveit)/config/srdf/$(arg robot_model).srdf.xacro"/>
 
     <!-- Launch trossen and controls -->
-    <include file="$(find morpheus_main)/launch/trossen_main.launch">
+    <include file="$(find morpheus_teleop)/launch/trossen.launch">
         <arg name="robot_model"                         value="$(arg robot_model)"/>
         <arg name="robot_name"                          value="$(arg robot_name)"/>
 
@@ -20,10 +20,19 @@
         <arg name="control_mode"                        value="$(arg control_mode)"/>
         <arg name="controller"                          value="$(arg controller)"/>
         <arg name="use_keyboard"                        value="$(arg use_keyboard)"/>
-        <arg name="haptics"                             value="$(arg haptics)"/>
 
         <arg name="xacro_path"                          value="$(arg xacro_path)"/>
         <arg name="srdf_path"                           value="$(arg srdf_path)"/>
     </include>
+
+    <group ns="$(arg robot_name)">
+
+        <!-- Launch trajectory node -->
+        <include file="$(find morpheus_trajectory)/launch/trajectory.launch">
+            <arg name="arm_group"                       value="interbotix_arm"/>
+            <arg name="gripper_group"                   value="interbotix_gripper"/>
+        </include>
+
+    </group>
 
 </launch>

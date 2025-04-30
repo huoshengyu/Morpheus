@@ -47,7 +47,7 @@ keybinds = {
 class KeyToJoy():
 
     def __init__(self):
-        self.joy_pub = rospy.Publisher("/joy", sensor_msgs.msg.Joy, queue_size=5)
+        self.joy_pub = rospy.Publisher("joy", sensor_msgs.msg.Joy, queue_size=5)
         self.joy = sensor_msgs.msg.Joy()
         self.joy.axes = [0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]
         self.joy.buttons = [0,0,0,0,0,0,0,0,0,0,0]

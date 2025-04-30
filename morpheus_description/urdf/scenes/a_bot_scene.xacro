@@ -24,7 +24,7 @@
         transmission_hw_interface="$(arg transmission_hw_interface)"
         joint_limits_parameters_file="$(arg joint_limits_parameters_file)"
     >
-        <origin xyz="0 0 0" rpy="0 0 0" />
+        <origin xyz="0 0 ${0.0254 * 34.75}" rpy="0 0 0" />
     </xacro:a_bot>
 
     <gazebo>

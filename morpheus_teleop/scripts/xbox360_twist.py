@@ -26,13 +26,13 @@ class TeleopTwistJoy(TeleopTwist):
         super().__init__()
 
         # Get twist topic
-        self.twist_topic = rospy.get_param("~twist_topic", "/twist_controller/command")
+        self.twist_topic = rospy.get_param("~twist_topic", "twist_controller/command")
 
         # Initialize twist command publishers and joystick subscriber
         self.twist_pub = rospy.Publisher(self.twist_topic, geometry_msgs.msg.Twist, queue_size=1)
         self.gripper_pub_robotiq = rospy.Publisher('robotiq_2f_85_gripper/control', Robotiq2FGripper_robot_output, queue_size=1)
         self.gripper_pub_onrobot = rospy.Publisher('onrobot_rg2ft/command', RG2FTCommand, queue_size=1)
-        self.joy_sub = rospy.Subscriber("/joy", sensor_msgs.msg.Joy, self.callback)
+        self.joy_sub = rospy.Subscriber("joy", sensor_msgs.msg.Joy, self.callback)
 
         # Initialize variables for holding joystick inputs
         self.joy_msg = None

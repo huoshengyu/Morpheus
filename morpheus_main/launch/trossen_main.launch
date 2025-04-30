@@ -6,7 +6,7 @@
     <arg name="control_mode"                        default="interbotix"/>
     <arg name="controller"                          default="xbox360"/>
     <arg name="use_keyboard"                        default="false"/>
-    <arg name="arduino"                             default="true"/>
+    <arg name="haptics"                             default="true"/>
 
     <arg name="xacro_path"                          default="$(find morpheus_description)/urdf/scenes/trossen_node2_scene.xacro"/>
     <arg name="srdf_path"                           default="$(find interbotix_xsarm_moveit)/config/srdf/$(arg robot_model).srdf.xacro"/>
@@ -39,7 +39,7 @@
         </include>
 
         <!-- Launch arduino haptics node -->
-        <include if="$(arg arduino)" file="$(find morpheus_haptics)/launch/collision_send.launch"/>  
+        <include if="$(arg haptics)" file="$(find morpheus_haptics)/launch/collision_send.launch"/>  
 
     </group>
 

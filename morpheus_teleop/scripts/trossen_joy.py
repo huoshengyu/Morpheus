@@ -24,10 +24,10 @@ class TrossenJoy():
         self.robot = InterbotixManipulatorXS("vx300s", "arm", "gripper", init_node=False)
         
         # Get joy topic to get button commands, such as gripper commands
-        self.joy_topic = rospy.get_param("~joy_topic", "/joy")
+        self.joy_topic = rospy.get_param("~joy_topic", "joy")
         # Get topic for pose and wrench commands from param server, or default
-        self.pose_topic = rospy.get_param("~pose_topic", default="/target_frame")
-        self.wrench_topic = rospy.get_param("~wrench_topic", default="/target_wrench")
+        self.pose_topic = rospy.get_param("~pose_topic", default="target_frame")
+        self.wrench_topic = rospy.get_param("~wrench_topic", default="target_wrench")
         # Get topics for Trossen robot commands from param server, or default
         self.arm_topic = rospy.get_param("~arm_topic", default="arm_controller/command")
         self.gripper_topic = rospy.get_param("~gripper_topic", default="gripper_controller/command")

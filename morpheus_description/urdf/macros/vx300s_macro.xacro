@@ -17,34 +17,33 @@
         <xacro:arg name="external_urdf_loc" default=""/>
         <xacro:arg name="load_gazebo_configs" default="false"/>
 
-        <xacro:macro name="vx300s_robot">
-            <xacro:include filename="$(find morpheus_description)/urdf/macros/vx300s.urdf.xacro">
-                <xacro:arg name="robot_name" value="${arg robot_name}"/>
-                <xacro:arg name="base_link_frame" value="${arg base_link_frame}"/>
-                <xacro:arg name="show_ar_tag" value="${arg show_ar_tag}"/>
-                <xacro:arg name="show_gripper_bar" value="${arg show_gripper_bar}"/>
-                <xacro:arg name="show_gripper_fingers" value="${arg show_gripper_fingers}"/>
-                <xacro:arg name="use_world_frame" value="${arg use_world_frame}"/>
-                <xacro:arg name="external_urdf_loc" value="${arg external_urdf_loc}"/>
-                <xacro:arg name="load_gazebo_configs" value="${arg load_gazebo_configs}"/>
-            </xacro:include>
-        </xacro:macro>
+        <xacro:include filename="$(find morpheus_description)/urdf/macros/vx300s.urdf.xacro">
+            <xacro:arg name="robot_name" value="${arg robot_name}"/>
+            <xacro:arg name="base_link_frame" value="${arg base_link_frame}"/>
+            <xacro:arg name="show_ar_tag" value="${arg show_ar_tag}"/>
+            <xacro:arg name="show_gripper_bar" value="${arg show_gripper_bar}"/>
+            <xacro:arg name="show_gripper_fingers" value="${arg show_gripper_fingers}"/>
+            <xacro:arg name="use_world_frame" value="${arg use_world_frame}"/>
+            <xacro:arg name="external_urdf_loc" value="${arg external_urdf_loc}"/>
+            <xacro:arg name="load_gazebo_configs" value="${arg load_gazebo_configs}"/>
+        </xacro:include>
+        <xacro:vx300s/>
 
-        <xacro:vx300s_robot
-        >
-        </xacro:vx300s_robot>
-        
-        <joint name="${prefix}trossen_base_joint" type="fixed">
-            <parent link="${parent}"/>
-            <child link="$(arg robot_name)/$(arg base_link_frame)"/>
-        </joint>
+        <xacro:unless value="$(arg use_world_frame)">
+            <link name="world"/>
+            <joint name="${prefix}trossen_base_joint" type="fixed">
+                <parent link="${parent}"/>
+                <child link="$(arg robot_name)/$(arg base_link_frame)"/>
+                <xacro:insert_block name="origin" />
+            </joint>
+        </xacro:unless>
 
         <!-- Add an additional link to plan with. Oriented like the UR ee_link frame. -->
         <link name="${prefix}tcp_link" />
         <joint name="${prefix}tcp_joint" type="fixed">
-        <parent link="${prefix}vx300s/gripper_link" />
-        <child link="${prefix}tcp_link" />
-        <origin rpy="0 ${-pi/2} ${-pi/2}" xyz="0 0 ${tcp_offset}" />
+            <parent link="${prefix}vx300s/gripper_link" />
+            <child link="${prefix}tcp_link" />
+            <origin rpy="0 ${-pi/2} ${-pi/2}" xyz="0 0 ${tcp_offset}" />
         </joint>
 
     </xacro:macro>

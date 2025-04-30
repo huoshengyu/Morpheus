@@ -6,7 +6,7 @@
     <arg name="control_mode"                        default="interbotix"/>
     <arg name="controller"                          default="ps4"/>
     <arg name="use_keyboard"                        default="false"/>
-    <arg name="arduino"                             default="true"/>
+    <arg name="haptics"                             default="true"/>
 
     <arg name="xacro_path"                          default="$(find morpheus_description)/urdf/scenes/trossen_node2_scene.xacro"/>
     <arg name="srdf_path"                           default="$(find interbotix_xsarm_moveit)/config/srdf/$(arg robot_model).srdf.xacro"/>
@@ -20,7 +20,7 @@
         <arg name="control_mode"                        value="$(arg control_mode)"/>
         <arg name="controller"                          value="$(arg controller)"/>
         <arg name="use_keyboard"                        value="$(arg use_keyboard)"/>
-        <arg name="arduino"                             value="$(arg arduino)"/>
+        <arg name="haptics"                             value="$(arg haptics)"/>
 
         <arg name="xacro_path"                          value="$(arg xacro_path)"/>
         <arg name="srdf_path"                           value="$(arg srdf_path)"/>
