@@ -67,7 +67,7 @@ class CollisionNode
         ros::Publisher g_nearest_distance_publisher;
         ros::Publisher g_nearest_direction_publisher;
         ros::Publisher g_linkcontactmap_msg_publisher;
-
+        ros::Publisher g_directional_distance_publisher; //testing before full integration with arduino
         // Declare collision info variables
         collision_detection::CollisionResult g_c_res;
         collision_detection::CollisionRequest g_c_req;
@@ -203,6 +203,7 @@ class CollisionNode
             g_nearest_contact_publisher = nh.advertise<moveit_msgs::ContactInformation>("collision/nearest/contact", 0);
             g_nearest_distance_publisher = nh.advertise<std_msgs::Float64>("collision/nearest/distance", 0);
             g_nearest_direction_publisher = nh.advertise<geometry_msgs::Vector3>("collision/nearest/direction", 0);
+            g_directional_distance_publisher = nh.advertise<geometry_msgs::Vector3>("collision/nearest/directional_distance", 0); //testing before full integration with arduino
             g_linkcontactmap_msg_publisher = nh.advertise<morpheus_msgs::ContactMap>("collision/linkcontactmap/msg", 0);
 
             
@@ -337,6 +338,13 @@ class CollisionNode
                 direction_msg.y = nearest_contact.normal[1];
                 direction_msg.z = nearest_contact.normal[2];
                 g_nearest_direction_publisher.publish(direction_msg);
+                geometry_msgs::Point vec_point = contactToPoint(nearest_contact); //testing before full integration with arduino
+
+                geometry_msgs::Vector3 directional_distance_msg;//testing before full integration with arduino
+                directional_distance_msg.x = vec_point.x;//testing before full integration with arduino
+                directional_distance_msg.y = vec_point.y;//testing before full integration with arduino
+                directional_distance_msg.z = vec_point.z;//testing before full integration with arduino
+                g_directional_distance_publisher.publish(directional_distance_msg);//testing before full integration with arduino
             }
         }
 
