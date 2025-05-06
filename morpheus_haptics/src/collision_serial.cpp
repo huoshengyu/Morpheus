@@ -82,6 +82,8 @@ public:
     {
         std::string link1 = msg.contact_body_1;
         std::string link2 = msg.contact_body_2;
+
+
         
         if (link1 != last_contact_link && link2 != last_contact_link)
         {
@@ -92,15 +94,23 @@ public:
                 ROS_INFO_STREAM("Collision with gripper_bar_link detected! Sending '2' to Arduino.");
                 char send_char = '2'; // Send 2
                 write(serial_port, &send_char, 1);
-                std::string pos_str = std::to_string(msg.normal.x) + "," + std::to_string(msg.normal.z) + "\n";
+                float distancex = msg.normal.x * msg.depth;
+                float distancey = msg.normal.y * msg.depth;
+                float distancez = msg.normal.z * msg.depth;
+                ROS_INFO_STREAM("Directional X distance (distancex): " << distancex);
+                std::string pos_str = std::to_string(distancex) + "," + std::to_string(distancey) + "\n";
                 write(serial_port, pos_str.c_str(), pos_str.length());
             }
             else if (link1 == "vx300s/wrist_link" || link2 == "vx300s/wrist_link")
             {
                 ROS_INFO_STREAM("Collision with wrist_link detected! Sending '3' to Arduino.");
                 char send_char = '3'; // Send 2
+                float distancex = msg.normal.x * msg.depth;
+                float distancey = msg.normal.y * msg.depth;
+                float distancez = msg.normal.z * msg.depth;
+
                 write(serial_port, &send_char, 1);
-                std::string pos_str = std::to_string(msg.normal.x) + "," + std::to_string(msg.normal.z) + "\n";
+                std::string pos_str = std::to_string(distancex) + "," + std::to_string(distancey) + "\n";
                 write(serial_port, pos_str.c_str(), pos_str.length());
             }
             else
