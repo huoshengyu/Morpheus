@@ -4,10 +4,9 @@
     <xacro:macro name="vx300s"
         params="
         prefix 
-        parent 
-        tcp_offset
+        parent
         *origin">
-
+        <xacro:arg name="tcp_offset" default="0.04"/>
         <xacro:arg name="robot_name" default="vx300s"/>
         <xacro:arg name="base_link_frame" default="base_link"/>
         <xacro:arg name="show_ar_tag" default="false"/>

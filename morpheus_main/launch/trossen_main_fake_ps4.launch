@@ -9,7 +9,7 @@
     <arg name="haptics"                             default="true"/>
 
     <arg name="xacro_path"                          default="$(find morpheus_description)/urdf/scenes/trossen_node2_scene.xacro"/>
-    <arg name="srdf_path"                           default="$(find interbotix_xsarm_moveit)/config/srdf/$(arg robot_model).srdf.xacro"/>
+    <arg name="srdf_path"                           default="$(find morpheus_description)/srdf/scenes/$(arg robot_model).srdf.xacro"/>
 
     <!-- Launch trossen and controls -->
     <include file="$(find morpheus_main)/launch/trossen_main.launch">

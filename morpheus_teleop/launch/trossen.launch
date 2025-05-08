@@ -1,4 +1,5 @@
 <launch>
+    <!-- Robot model and description settings -->
     <arg name="robot_model"                         default="vx300s"/>
     <arg name="robot_name"                          default="$(arg robot_model)"/>
     <arg name="base_link_frame"                     default="base_link"/>
@@ -17,40 +18,50 @@
                                                          use_world_frame:=$(arg use_world_frame)
                                                          external_urdf_loc:=$(arg external_urdf_loc)
                                                          load_gazebo_configs:=$(arg load_gazebo_configs)"/>
-    
-    <arg name="external_srdf_loc"                   default=""/>
-    <arg name="use_rviz"                            default="true"/>
+
+    <!-- Robot config settings -->
+    <arg name="dof"                                 default="6"/>
     <arg name="motor_configs"                       default="$(find morpheus_teleop)/config/$(arg robot_model).yaml"/>
     <arg name="mode_configs"                        default="$(find interbotix_xsarm_control)/config/modes.yaml"/>
     <arg name="load_configs"                        default="true"/>
     <arg name="use_sim"                             default="true"/>
-
-    <arg name="dof"                                 default="6"/>
-    <arg name="use_moveit_rviz"                     default="true"/>
-    <arg name="rviz_frame"                          default="world"/>
     <arg name="robot_mode"                          default="fake"/>
     <arg name="control_mode"                        default="interbotix"/>
+
+    <!-- Visualization settings -->
+    <arg name="use_rviz"                            default="true"/>
+    <arg name="use_moveit_rviz"                     default="true"/>
+    <arg name="rviz_frame"                          default="world"/>
     <arg name="use_cpp_interface"                   default="false"/>
     <arg name="moveit_interface_gui"                default="true"/>
     <arg name="use_python_interface"                default="true"/>
 
+    <!-- Move group settings -->
     <arg name="xacro_path"                          default="$(find morpheus_description)/urdf/scenes/trossen_node2_scene.xacro"/>
-    <arg name="srdf_path"                           default="$(find interbotix_xsarm_moveit)/config/srdf/$(arg robot_model).srdf.xacro"/>
+    <arg name="srdf_path"                           default="$(find morpheus_description)/srdf/scenes/$(arg robot_model).srdf.xacro"/>
+    <arg name="joint_limits_path"                   default="$(find interbotix_xsarm_moveit)/config/joint_limits/$(arg dof)dof_joint_limits.yaml"/>
+    <arg name="cartesian_limits_path"               default="$(find morpheus_moveit)/config/cartesian_limits.yaml"/>
+    <arg name="kinematics_path"                     default="$(find interbotix_xsarm_moveit)/config/kinematics.yaml"/>
+    <arg name="external_srdf_loc"                   default=""/>
 
+    <!-- Resolve real/fake control -->
     <arg name="xs_sdk_type" value="xs_sdk" unless="$(arg use_sim)"/>
     <arg name="xs_sdk_type" value="xs_sdk_sim" if="$(arg use_sim)"/>
 
+    <!-- Resolve robot mode (real/fake) launch settings -->
     <arg name="use_gazebo"  value="false" unless="$(eval arg('robot_mode') == 'gazebo')"/>
     <arg name="use_actual"  value="false" unless="$(eval arg('robot_mode') == 'real')"/>
     <arg name="use_fake"    value="false" unless="$(eval arg('robot_mode') == 'fake')"/>
     <arg name="use_gazebo"  value="true" if="$(eval arg('robot_mode') == 'gazebo')"/>
     <arg name="use_actual"  value="true" if="$(eval arg('robot_mode') == 'real')"/>
     <arg name="use_fake"    value="true" if="$(eval arg('robot_mode') == 'fake')"/>
-    
+
+    <!-- Controller settings -->
     <arg name="threshold"                           default="0.75"/>
     <arg name="controller"                          default="xbox360"/>
     <arg name="use_keyboard"                        default="false"/>
 
+    <!-- Launch Gazebo simulation of the robot -->
     <include if="$(arg use_gazebo)" file="$(find interbotix_xsarm_gazebo)/launch/xsarm_gazebo.launch">
         <arg name="robot_model"                         value="$(arg robot_model)"/>
         <arg name="robot_name"                          value="$(arg robot_name)"/>
@@ -62,6 +73,7 @@
         <arg name="use_trajectory_controllers"          value="true"/>
     </include>
 
+    <!-- Launch control of the real robot -->
     <include if="$(arg use_actual)" file="$(find interbotix_xsarm_ros_control)/launch/xsarm_ros_control.launch">
         <arg name="robot_model"                         value="$(arg robot_model)"/>
         <arg name="robot_name"                          value="$(arg robot_name)"/>
@@ -74,6 +86,7 @@
         <arg name="dof"                                 value="$(arg dof)"/>
     </include>
 
+    <!-- Launch Moveit simulation of the robot -->
     <include if="$(arg use_fake)" file="$(find interbotix_xsarm_descriptions)/launch/xsarm_description.launch">
         <arg name="robot_model"                         value="$(arg robot_model)"/>
         <arg name="robot_name"                          value="$(arg robot_name)"/>
@@ -86,7 +99,8 @@
         <arg name="rate"                                value="100"/>
         <arg name="source_list"                         value="[move_group/fake_controller_joint_states]"/>
     </include>
-    
+
+    <!-- Launch the Interbotix sdk to enable control of simulated robot -->
     <node unless="$(arg use_actual)"
         name="xs_sdk"
         pkg="interbotix_xs_sdk"
@@ -98,17 +112,18 @@
         <param name="load_configs"                      value="$(arg load_configs)"/>
     </node>
 
-    <include file="$(find interbotix_xsarm_moveit)/launch/move_group.launch" ns="$(arg robot_name)">
-        <arg name="robot_model"                         value="$(arg robot_model)"/>
-        <arg name="robot_name"                          value="$(arg robot_name)"/>
-        <arg name="base_link_frame"                     value="$(arg base_link_frame)"/>
-        <arg name="show_ar_tag"                         value="$(arg show_ar_tag)"/>
-        <arg name="external_srdf_loc"                   value="$(arg external_srdf_loc)"/>
-        <arg name="dof"                                 value="$(arg dof)"/>
-        <arg name="fake_execution"                      value="$(arg use_fake)"/>
+    <!-- Launch the move group -->
+    <include file="$(find morpheus_moveit)/launch/move_group.launch" ns="$(arg robot_name)">
+        <arg name="load_robot_description"              value="false"/>
+        <arg name="xacro_path"                          value="$(arg xacro_path)"/>
+        <arg name="srdf_path"                           value="$(arg srdf_path)"/>
+        <arg name="joint_limits_path"                   value="$(arg joint_limits_path)"/>
+        <arg name="cartesian_limits_path"               value="$(arg cartesian_limits_path)"/>
+        <arg name="kinematics_path"                     value="$(arg kinematics_path)"/>
         <arg name="publish_monitored_planning_scene"    value="true" />
     </include>
 
+    <!-- Launch RVIZ -->
     <group if="$(arg use_moveit_rviz)" ns="$(arg robot_name)">
         <arg name="rviz_config" value="-d $(find morpheus_moveit)/rviz/xsarm_description.rviz" />
         <node name="rviz" pkg="rviz" type="rviz" respawn="false" args="$(arg rviz_config)"
@@ -116,7 +131,7 @@
     </group>
 
     <group if="$(eval arg('control_mode') == 'cartesian')"> 
-        <!-- launch xbox360_swap -->
+        <!-- Launch xbox360_swap -->
         <include file="$(find morpheus_teleop)/launch/xbox360_swap.launch" ns="$(arg robot_name)">
             <arg name="twist_topic"                         value="twist_controller/command"/>
             <arg name="arm_group"                           value="interbotix_arm"/>
@@ -124,11 +139,11 @@
             <arg name="end_effector"                        value="vx300s/ee_gripper_link"/>
         </include>
 
-        <!-- launch trossen_joy -->
+        <!-- Launch trossen_joy -->
         <include file="$(find morpheus_teleop)/launch/trossen_joy.launch" ns="$(arg robot_name)"/>
     </group>
 
-    <!-- launch interbotix xsarm control -->
+    <!-- Launch interbotix xsarm control -->
     <include if="$(eval arg('control_mode') == 'interbotix')" file="$(find morpheus_teleop)/launch/xsarm_joy.launch">
         <arg name="robot_model"                         value="$(arg robot_model)"/>
         <arg name="robot_name"                          value="$(arg robot_name)"/>
@@ -139,7 +154,7 @@
         <arg name="controller"                          value="$(arg controller)"/>
     </include>
 
-    <!-- launch key_to_joy -->
+    <!-- Launch key_to_joy -->
     <include if="$(arg use_keyboard)" file="$(find morpheus_teleop)/launch/key_to_joy.launch" ns="$(arg robot_name)"/>
     
 </launch>

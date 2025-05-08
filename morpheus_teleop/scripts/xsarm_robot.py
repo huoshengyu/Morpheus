@@ -17,7 +17,7 @@ class ArmRobot(object):
         self.current_loop_rate = 25
         self.current_torque_status = True
         self.current_gripper_pressure = 0.5
-        self.loop_rates = {"course" : 25, "fine" : 25}
+        self.loop_rates = {"coarse" : 25, "fine" : 25}
         self.joy_msg = ArmJoy()
         self.joy_mutex = threading.Lock()
         self.rate = rospy.Rate(self.current_loop_rate)
@@ -67,12 +67,12 @@ class ArmRobot(object):
             self.update_speed(self.current_loop_rate - 1)
 
         # Check the speed_toggle_cmd
-        if (msg.speed_toggle_cmd == ArmJoy.SPEED_COURSE):
+        if (msg.speed_toggle_cmd == ArmJoy.SPEED_COARSE):
             self.loop_rates["fine"] = self.current_loop_rate
-            rospy.loginfo("Switched to Course Control")
-            self.update_speed(self.loop_rates["course"])
+            rospy.loginfo("Switched to Coarse Control")
+            self.update_speed(self.loop_rates["coarse"])
         elif (msg.speed_toggle_cmd == ArmJoy.SPEED_FINE):
-            self.loop_rates["course"] = self.current_loop_rate
+            self.loop_rates["coarse"] = self.current_loop_rate
             rospy.loginfo("Switched to Fine Control")
             self.update_speed(self.loop_rates["fine"])
 

@@ -72,39 +72,62 @@
     <!--END EFFECTOR: Purpose: Represent information about an end effector.-->
     <end_effector name="interbotix_gripper" parent_link="$(arg robot_name)/ee_gripper_link" group="interbotix_gripper" />
     <!--DISABLE COLLISIONS: By default it is assumed that any link of the robot could potentially come into collision with any other link in the robot. This tag disables collision checking between a specified pair of links. -->
+    <!--This section has been modified to disable all self-collisions -->
     <disable_collisions link1="$(arg robot_name)/$(arg base_link_frame)" link2="$(arg robot_name)/shoulder_link" reason="Adjacent" />
     <disable_collisions link1="$(arg robot_name)/$(arg base_link_frame)" link2="$(arg robot_name)/upper_arm_link" reason="Never" />
+    <disable_collisions link1="$(arg robot_name)/$(arg base_link_frame)" link2="$(arg robot_name)/upper_forearm_link" reason="Never" />
+    <disable_collisions link1="$(arg robot_name)/$(arg base_link_frame)" link2="$(arg robot_name)/lower_forearm_link" reason="Never" />
+    <disable_collisions link1="$(arg robot_name)/$(arg base_link_frame)" link2="$(arg robot_name)/wrist_link" reason="Never" />
+    <disable_collisions link1="$(arg robot_name)/$(arg base_link_frame)" link2="$(arg robot_name)/gripper_bar_link" reason="Never" />
+    <disable_collisions link1="$(arg robot_name)/$(arg base_link_frame)" link2="$(arg robot_name)/gripper_link" reason="Never" />
+    <disable_collisions link1="$(arg robot_name)/$(arg base_link_frame)" link2="$(arg robot_name)/gripper_prop_link" reason="Never" />
+    <disable_collisions link1="$(arg robot_name)/$(arg base_link_frame)" link2="$(arg robot_name)/left_finger_link" reason="Never" />
+    <disable_collisions link1="$(arg robot_name)/$(arg base_link_frame)" link2="$(arg robot_name)/right_finger_link" reason="Never" />
+    <disable_collisions link1="$(arg robot_name)/shoulder_link" link2="$(arg robot_name)/upper_arm_link" reason="Adjacent" />
+    <disable_collisions link1="$(arg robot_name)/shoulder_link" link2="$(arg robot_name)/upper_forearm_link" reason="Never" />
+    <disable_collisions link1="$(arg robot_name)/shoulder_link" link2="$(arg robot_name)/lower_forearm_link" reason="Never" />
+    <disable_collisions link1="$(arg robot_name)/shoulder_link" link2="$(arg robot_name)/wrist_link" reason="Never" />
+    <disable_collisions link1="$(arg robot_name)/shoulder_link" link2="$(arg robot_name)/gripper_bar_link" reason="Never" />
+    <disable_collisions link1="$(arg robot_name)/shoulder_link" link2="$(arg robot_name)/gripper_link" reason="Never" />
+    <disable_collisions link1="$(arg robot_name)/shoulder_link" link2="$(arg robot_name)/gripper_prop_link" reason="Never" />
+    <disable_collisions link1="$(arg robot_name)/shoulder_link" link2="$(arg robot_name)/left_finger_link" reason="Never" />
+    <disable_collisions link1="$(arg robot_name)/shoulder_link" link2="$(arg robot_name)/right_finger_link" reason="Never" />
+    <disable_collisions link1="$(arg robot_name)/upper_arm_link" link2="$(arg robot_name)/upper_forearm_link" reason="Adjacent" />
+    <disable_collisions link1="$(arg robot_name)/upper_arm_link" link2="$(arg robot_name)/wrist_link" reason="Never" />
+    <disable_collisions link1="$(arg robot_name)/upper_arm_link" link2="$(arg robot_name)/gripper_bar_link" reason="Never" />
+    <disable_collisions link1="$(arg robot_name)/upper_arm_link" link2="$(arg robot_name)/gripper_link" reason="Never" />
+    <disable_collisions link1="$(arg robot_name)/upper_arm_link" link2="$(arg robot_name)/gripper_prop_link" reason="Never" />
+    <disable_collisions link1="$(arg robot_name)/upper_arm_link" link2="$(arg robot_name)/left_finger_link" reason="Never" />
+    <disable_collisions link1="$(arg robot_name)/upper_arm_link" link2="$(arg robot_name)/lower_forearm_link" reason="Never" />
+    <disable_collisions link1="$(arg robot_name)/upper_arm_link" link2="$(arg robot_name)/right_finger_link" reason="Never" />
+    <disable_collisions link1="$(arg robot_name)/upper_forearm_link" link2="$(arg robot_name)/lower_forearm_link" reason="Adjacent" />
+    <disable_collisions link1="$(arg robot_name)/upper_forearm_link" link2="$(arg robot_name)/wrist_link" reason="Never" />
+    <disable_collisions link1="$(arg robot_name)/upper_forearm_link" link2="$(arg robot_name)/gripper_bar_link" reason="Never" />
+    <disable_collisions link1="$(arg robot_name)/upper_forearm_link" link2="$(arg robot_name)/gripper_link" reason="Never" />
+    <disable_collisions link1="$(arg robot_name)/upper_forearm_link" link2="$(arg robot_name)/gripper_prop_link" reason="Never" />
+    <disable_collisions link1="$(arg robot_name)/upper_forearm_link" link2="$(arg robot_name)/left_finger_link" reason="Never" />
+    <disable_collisions link1="$(arg robot_name)/upper_forearm_link" link2="$(arg robot_name)/right_finger_link" reason="Never" />
+    <disable_collisions link1="$(arg robot_name)/lower_forearm_link" link2="$(arg robot_name)/wrist_link" reason="Adjacent" />
+    <disable_collisions link1="$(arg robot_name)/lower_forearm_link" link2="$(arg robot_name)/gripper_bar_link" reason="Never" />
+    <disable_collisions link1="$(arg robot_name)/lower_forearm_link" link2="$(arg robot_name)/gripper_link" reason="Never" />
+    <disable_collisions link1="$(arg robot_name)/lower_forearm_link" link2="$(arg robot_name)/gripper_prop_link" reason="Never" />
+    <disable_collisions link1="$(arg robot_name)/lower_forearm_link" link2="$(arg robot_name)/left_finger_link" reason="Never" />
+    <disable_collisions link1="$(arg robot_name)/lower_forearm_link" link2="$(arg robot_name)/right_finger_link" reason="Never" />
+    <disable_collisions link1="$(arg robot_name)/wrist_link" link2="$(arg robot_name)/gripper_bar_link" reason="Adjacent" />
+    <disable_collisions link1="$(arg robot_name)/wrist_link" link2="$(arg robot_name)/gripper_link" reason="Adjacent" />
+    <disable_collisions link1="$(arg robot_name)/wrist_link" link2="$(arg robot_name)/gripper_prop_link" reason="Never" />
+    <disable_collisions link1="$(arg robot_name)/wrist_link" link2="$(arg robot_name)/left_finger_link" reason="Never" />
+    <disable_collisions link1="$(arg robot_name)/wrist_link" link2="$(arg robot_name)/right_finger_link" reason="Never" />
     <disable_collisions link1="$(arg robot_name)/gripper_bar_link" link2="$(arg robot_name)/gripper_link" reason="Adjacent" />
     <disable_collisions link1="$(arg robot_name)/gripper_bar_link" link2="$(arg robot_name)/gripper_prop_link" reason="Adjacent" />
     <disable_collisions link1="$(arg robot_name)/gripper_bar_link" link2="$(arg robot_name)/left_finger_link" reason="Adjacent" />
-    <disable_collisions link1="$(arg robot_name)/gripper_bar_link" link2="$(arg robot_name)/lower_forearm_link" reason="Never" />
     <disable_collisions link1="$(arg robot_name)/gripper_bar_link" link2="$(arg robot_name)/right_finger_link" reason="Adjacent" />
-    <disable_collisions link1="$(arg robot_name)/gripper_bar_link" link2="$(arg robot_name)/upper_forearm_link" reason="Never" />
-    <disable_collisions link1="$(arg robot_name)/gripper_bar_link" link2="$(arg robot_name)/wrist_link" reason="Never" />
     <disable_collisions link1="$(arg robot_name)/gripper_link" link2="$(arg robot_name)/gripper_prop_link" reason="Adjacent" />
     <disable_collisions link1="$(arg robot_name)/gripper_link" link2="$(arg robot_name)/left_finger_link" reason="Never" />
-    <disable_collisions link1="$(arg robot_name)/gripper_link" link2="$(arg robot_name)/lower_forearm_link" reason="Never" />
     <disable_collisions link1="$(arg robot_name)/gripper_link" link2="$(arg robot_name)/right_finger_link" reason="Never" />
-    <disable_collisions link1="$(arg robot_name)/gripper_link" link2="$(arg robot_name)/upper_forearm_link" reason="Never" />
-    <disable_collisions link1="$(arg robot_name)/gripper_link" link2="$(arg robot_name)/wrist_link" reason="Adjacent" />
     <disable_collisions link1="$(arg robot_name)/gripper_prop_link" link2="$(arg robot_name)/left_finger_link" reason="Never" />
-    <disable_collisions link1="$(arg robot_name)/gripper_prop_link" link2="$(arg robot_name)/lower_forearm_link" reason="Never" />
     <disable_collisions link1="$(arg robot_name)/gripper_prop_link" link2="$(arg robot_name)/right_finger_link" reason="Never" />
-    <disable_collisions link1="$(arg robot_name)/gripper_prop_link" link2="$(arg robot_name)/upper_forearm_link" reason="Never" />
-    <disable_collisions link1="$(arg robot_name)/gripper_prop_link" link2="$(arg robot_name)/wrist_link" reason="Never" />
-    <disable_collisions link1="$(arg robot_name)/left_finger_link" link2="$(arg robot_name)/lower_forearm_link" reason="Never" />
     <disable_collisions link1="$(arg robot_name)/left_finger_link" link2="$(arg robot_name)/right_finger_link" reason="Adjacent" />
-    <disable_collisions link1="$(arg robot_name)/left_finger_link" link2="$(arg robot_name)/upper_forearm_link" reason="Never" />
-    <disable_collisions link1="$(arg robot_name)/left_finger_link" link2="$(arg robot_name)/wrist_link" reason="Never" />
-    <disable_collisions link1="$(arg robot_name)/lower_forearm_link" link2="$(arg robot_name)/right_finger_link" reason="Never" />
-    <disable_collisions link1="$(arg robot_name)/lower_forearm_link" link2="$(arg robot_name)/upper_forearm_link" reason="Adjacent" />
-    <disable_collisions link1="$(arg robot_name)/lower_forearm_link" link2="$(arg robot_name)/wrist_link" reason="Adjacent" />
-    <disable_collisions link1="$(arg robot_name)/right_finger_link" link2="$(arg robot_name)/upper_forearm_link" reason="Never" />
-    <disable_collisions link1="$(arg robot_name)/right_finger_link" link2="$(arg robot_name)/wrist_link" reason="Never" />
-    <disable_collisions link1="$(arg robot_name)/shoulder_link" link2="$(arg robot_name)/upper_arm_link" reason="Adjacent" />
-    <disable_collisions link1="$(arg robot_name)/shoulder_link" link2="$(arg robot_name)/upper_forearm_link" reason="Never" />
-    <disable_collisions link1="$(arg robot_name)/upper_arm_link" link2="$(arg robot_name)/upper_forearm_link" reason="Adjacent" />
-    <disable_collisions link1="$(arg robot_name)/upper_forearm_link" link2="$(arg robot_name)/wrist_link" reason="Never" />
 
     <xacro:if value="$(arg show_ar_tag)">
       <disable_collisions link1="$(arg robot_name)/ar_tag_link" link2="$(arg robot_name)/gripper_bar_link" reason="Adjacent" />

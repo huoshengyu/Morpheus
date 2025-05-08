@@ -18,7 +18,7 @@ static const std::map<std::string, int> ps3 = {{"GRIPPER_PWM_DEC", 0}, // button
                                                {"FLIP_EE_ROLL", 12},
                                                {"SPEED_INC", 13},
                                                {"SPEED_DEC", 14},
-                                               {"SPEED_COURSE", 15},
+                                               {"SPEED_COARSE", 15},
                                                {"SPEED_FINE", 16},
                                                {"EE_X", 0},            // axes start here
                                                {"EE_Z", 1},
@@ -138,9 +138,12 @@ void joy_state_cb(const sensor_msgs::Joy &msg)
   }
   else if (controller_type == "xbox360")
   {
-    if (msg.axes.at(cntlr["EE_Y_INC"]) < 1.0 - 2.0 * threshold)
+    // Xbox trigger values are 1.0 when unpressed, 0.0 when fully pressed
+    // Note that if default_trig_val==false in joy node, they will incorrectly report 0.0 until pressed
+    // default_trig_val is set when initializing joy node, in morpheus_teleop/xsarm_joy.launch
+    if (msg.axes.at(cntlr["EE_Y_INC"]) <= 1.0 - 1.0 * threshold)
       joy_cmd.ee_y_cmd = interbotix_xs_msgs::ArmJoy::EE_Y_INC;
-    else if (msg.axes.at(cntlr["EE_Y_DEC"]) < 1.0 - 2.0 * threshold)
+    else if (msg.axes.at(cntlr["EE_Y_DEC"]) <= 1.0 - 1.0 * threshold)
       joy_cmd.ee_y_cmd = interbotix_xs_msgs::ArmJoy::EE_Y_DEC;
   }
 
@@ -201,8 +204,8 @@ void joy_state_cb(const sensor_msgs::Joy &msg)
       joy_cmd.speed_cmd = interbotix_xs_msgs::ArmJoy::SPEED_DEC;
 
     // Check the speed_toggle_cmd
-    if (msg.buttons.at(cntlr["SPEED_COURSE"]) == 1)
-      joy_cmd.speed_toggle_cmd = interbotix_xs_msgs::ArmJoy::SPEED_COURSE;
+    if (msg.buttons.at(cntlr["SPEED_COARSE"]) == 1)
+      joy_cmd.speed_toggle_cmd = interbotix_xs_msgs::ArmJoy::SPEED_COURSE; // This typo comes from the official Interbotix library
     else if (msg.buttons.at(cntlr["SPEED_FINE"]) == 1)
       joy_cmd.speed_toggle_cmd = interbotix_xs_msgs::ArmJoy::SPEED_FINE;
   }
@@ -216,7 +219,7 @@ void joy_state_cb(const sensor_msgs::Joy &msg)
 
     // Check the speed_toggle_cmd
     if (msg.axes.at(cntlr["SPEED_TYPE"]) == 1)
-      joy_cmd.speed_toggle_cmd = interbotix_xs_msgs::ArmJoy::SPEED_COURSE;
+      joy_cmd.speed_toggle_cmd = interbotix_xs_msgs::ArmJoy::SPEED_COURSE; // This typo comes from the official Interbotix library
     else if (msg.axes.at(cntlr["SPEED_TYPE"]) == -1)
       joy_cmd.speed_toggle_cmd = interbotix_xs_msgs::ArmJoy::SPEED_FINE;
   }

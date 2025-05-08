@@ -41,12 +41,16 @@
   <!-- robot file paths -->
   <arg name="xacro_path" default="$(find morpheus_description)/urdf/scenes/test_scene.xacro"/>
   <arg name="srdf_path" default="$(find morpheus_description)/srdf/scenes/test_scene.srdf"/>
-  <arg name="kinematics_path" default="$(find morpheus_moveit)/config/ur5e_kinematics.yaml"/>
+  <arg name="joint_limits_path" default="$(find homestri_a_bot_moveit_config)/config/joint_limits.yaml"/>
+  <arg name="cartesian_limits_path" default="$(find morpheus_moveit)/config/cartesian_limits.yaml"/>
+  <arg name="kinematics_path" default="$(find interbotix_xsarm_moveit)/config/kinematics.yaml"/>
   <!-- load URDF, SRDF and joint_limits configuration -->
   <include file="$(dirname)/planning_context.launch">
     <arg name="load_robot_description" value="$(arg load_robot_description)" />
     <arg name="xacro_path" value="$(arg xacro_path)"/>
     <arg name="srdf_path" value="$(arg srdf_path)"/>
+    <arg name="joint_limits_path" value="$(arg joint_limits_path)"/>
+    <arg name="cartesian_limits_path" value="$(arg cartesian_limits_path)"/>
     <arg name="kinematics_path" value="$(arg kinematics_path)"/>
   </include>
 

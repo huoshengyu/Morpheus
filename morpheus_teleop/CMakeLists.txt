@@ -8,6 +8,8 @@ project(morpheus_teleop)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
+  interbotix_xs_msgs
+  interbotix_xsarm_control
   geometry_msgs
   joy
   message_generation
@@ -110,7 +112,7 @@ generate_messages(
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES morpheus_teleop
-  CATKIN_DEPENDS message_runtime geometry_msgs joy rospy
+  CATKIN_DEPENDS message_runtime interbotix_xs_msgs interbotix_xsarm_control geometry_msgs joy roscpp rospy sensor_msgs std_msgs
 #  DEPENDS system_lib
 )
 
@@ -138,7 +140,7 @@ include_directories(
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-# add_executable(${PROJECT_NAME}_node src/morpheus_teleop_node.cpp)
+add_executable(${PROJECT_NAME} src/xsarm_joy.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -155,9 +157,9 @@ add_dependencies(
   ${PROJECT_NAME}_generate_messages_py)
 
 ## Specify libraries to link a library or executable target against
-# target_link_libraries(${PROJECT_NAME}_node
-#   ${catkin_LIBRARIES}
-# )
+target_link_libraries(${PROJECT_NAME}
+  ${catkin_LIBRARIES}
+)
 
 #############
 ## Install ##
