@@ -8,7 +8,7 @@
     <arg name="use_keyboard"                        default="false"/>
     <arg name="haptics"                             default="true"/>
 
-    <arg name="xacro_path"                          default="$(find morpheus_description)/urdf/scenes/trossen_node2_scene.xacro"/>
+    <arg name="xacro_path"                          default="$(find morpheus_description)/urdf/scenes/trossen_hera_scene.xacro"/>
     <arg name="srdf_path"                           default="$(find morpheus_description)/srdf/scenes/$(arg robot_model).srdf.xacro"/>
 
     <!-- Launch trossen and controls -->

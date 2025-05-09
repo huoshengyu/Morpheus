@@ -31,7 +31,7 @@
   </node>
 
   <node
-    pkg="morpheus_teleop"
+    pkg="interbotix_xsarm_joy"
     type="xsarm_joy"
     name="xsarm_joy"
     output="screen"

@@ -32,7 +32,7 @@
       <xacro:insert_block name="origin" />
     </joint>
 
-    <!-- Add an additional link to plan with. Oriented like the UR ee_link frame. -->
+    <!-- Add an additional link to plan with. Oriented like the Trossen ee_gripper_link frame. -->
     <link name="${prefix}tcp_link" />
     <joint name="${prefix}tcp_joint" type="fixed">
       <parent link="${prefix}wrist_3_link" />

@@ -5,28 +5,10 @@
         params="
         prefix 
         parent
+        tcp_offset
         *origin">
-        <xacro:arg name="tcp_offset" default="0.04"/>
-        <xacro:arg name="robot_name" default="vx300s"/>
-        <xacro:arg name="base_link_frame" default="base_link"/>
-        <xacro:arg name="show_ar_tag" default="false"/>
-        <xacro:arg name="show_gripper_bar" default="true"/>
-        <xacro:arg name="show_gripper_fingers" default="true"/>
-        <xacro:arg name="use_world_frame" default="false"/>
-        <xacro:arg name="external_urdf_loc" default=""/>
-        <xacro:arg name="load_gazebo_configs" default="false"/>
 
-        <xacro:include filename="$(find morpheus_description)/urdf/macros/vx300s.urdf.xacro">
-            <xacro:arg name="robot_name" value="${arg robot_name}"/>
-            <xacro:arg name="base_link_frame" value="${arg base_link_frame}"/>
-            <xacro:arg name="show_ar_tag" value="${arg show_ar_tag}"/>
-            <xacro:arg name="show_gripper_bar" value="${arg show_gripper_bar}"/>
-            <xacro:arg name="show_gripper_fingers" value="${arg show_gripper_fingers}"/>
-            <xacro:arg name="use_world_frame" value="${arg use_world_frame}"/>
-            <xacro:arg name="external_urdf_loc" value="${arg external_urdf_loc}"/>
-            <xacro:arg name="load_gazebo_configs" value="${arg load_gazebo_configs}"/>
-        </xacro:include>
-        <xacro:vx300s/>
+        <xacro:include filename="$(find morpheus_description)/urdf/macros/vx300s.urdf.xacro"/>
 
         <xacro:unless value="$(arg use_world_frame)">
             <link name="world"/>
@@ -37,12 +19,12 @@
             </joint>
         </xacro:unless>
 
-        <!-- Add an additional link to plan with. Oriented like the UR ee_link frame. -->
+        <!-- Add an additional link to plan with. Identical to ee_gripper_link frame, included for consistency with HOMESTRI UR5e description. -->
         <link name="${prefix}tcp_link" />
         <joint name="${prefix}tcp_joint" type="fixed">
-            <parent link="${prefix}vx300s/gripper_link" />
+            <parent link="${prefix}vx300s/ee_arm_link" />
             <child link="${prefix}tcp_link" />
-            <origin rpy="0 ${-pi/2} ${-pi/2}" xyz="0 0 ${tcp_offset}" />
+            <origin rpy="0 0 0" xyz="${tcp_offset} 0 0" />
         </joint>
 
     </xacro:macro>

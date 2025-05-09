@@ -9,29 +9,13 @@
         parent
         *origin">
 
-        <xacro:arg name="robot_name" default="vx300s"/>
-        <xacro:arg name="base_link_frame" default="base_link"/>
-        <xacro:arg name="show_ar_tag" default="false"/>
-        <xacro:arg name="show_gripper_bar" default="true"/>
-        <xacro:arg name="show_gripper_fingers" default="true"/>
-        <xacro:arg name="use_world_frame" default="false"/>
-        <xacro:arg name="external_urdf_loc" default=""/>
-        <xacro:arg name="load_gazebo_configs" default="false"/>
-
+        <!-- tcp_offset is the summation of offsets from gripper_bar, ee_bar, and ee_gripper, i.e. the offset from ee_arm_link to ee_gripper_link -->
         <xacro:vx300s
             prefix="${prefix}"
             parent="${parent}"
-            tcp_offset="0.163"
+            tcp_offset="${0 + 0.025875 + 0.0385}"
         >
             <xacro:insert_block name="origin" />
-            <xacro:arg name="robot_name" value="${arg robot_name}"/>
-            <xacro:arg name="base_link_frame" value="${arg base_link_frame}"/>
-            <xacro:arg name="show_ar_tag" value="${arg show_ar_tag}"/>
-            <xacro:arg name="show_gripper_bar" value="${arg show_gripper_bar}"/>
-            <xacro:arg name="show_gripper_fingers" value="${arg show_gripper_fingers}"/>
-            <xacro:arg name="use_world_frame" value="${arg use_world_frame}"/>
-            <xacro:arg name="external_urdf_loc" value="${arg external_urdf_loc}"/>
-            <xacro:arg name="load_gazebo_configs" value="${arg load_gazebo_configs}"/>
         </xacro:vx300s>
 
     </xacro:macro>

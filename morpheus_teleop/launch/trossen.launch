@@ -7,17 +7,7 @@
     <arg name="show_gripper_bar"                    default="true"/>
     <arg name="show_gripper_fingers"                default="true"/>
     <arg name="use_world_frame"                     default="false"/>
-    <arg name="external_urdf_loc"                   default="$(find morpheus_description)/urdf/scenes/trossen_node2_external.xacro"/>
     <arg name="load_gazebo_configs"                 default="false"/>
-    <arg name="model"                               default="$(find morpheus_description)/urdf/scenes/trossen_node2_scene.xacro
-                                                         robot_name:=$(arg robot_name)
-                                                         base_link_frame:=$(arg base_link_frame)
-                                                         show_ar_tag:=$(arg show_ar_tag)
-                                                         show_gripper_bar:=$(arg show_gripper_bar)
-                                                         show_gripper_fingers:=$(arg show_gripper_fingers)
-                                                         use_world_frame:=$(arg use_world_frame)
-                                                         external_urdf_loc:=$(arg external_urdf_loc)
-                                                         load_gazebo_configs:=$(arg load_gazebo_configs)"/>
 
     <!-- Robot config settings -->
     <arg name="dof"                                 default="6"/>
@@ -36,13 +26,23 @@
     <arg name="moveit_interface_gui"                default="true"/>
     <arg name="use_python_interface"                default="true"/>
 
-    <!-- Move group settings -->
-    <arg name="xacro_path"                          default="$(find morpheus_description)/urdf/scenes/trossen_node2_scene.xacro"/>
+    <!-- Move group, urdf, and srdf settings -->
+    <arg name="xacro_path"                          default="$(find morpheus_description)/urdf/scenes/trossen_hera_scene.xacro"/>
     <arg name="srdf_path"                           default="$(find morpheus_description)/srdf/scenes/$(arg robot_model).srdf.xacro"/>
     <arg name="joint_limits_path"                   default="$(find interbotix_xsarm_moveit)/config/joint_limits/$(arg dof)dof_joint_limits.yaml"/>
     <arg name="cartesian_limits_path"               default="$(find morpheus_moveit)/config/cartesian_limits.yaml"/>
     <arg name="kinematics_path"                     default="$(find interbotix_xsarm_moveit)/config/kinematics.yaml"/>
+    <arg name="external_urdf_loc"                   default=""/>
     <arg name="external_srdf_loc"                   default=""/>
+    <arg name="model"                               default="$(arg xacro_path)
+                                                         robot_name:=$(arg robot_name)
+                                                         base_link_frame:=$(arg base_link_frame)
+                                                         show_ar_tag:=$(arg show_ar_tag)
+                                                         show_gripper_bar:=$(arg show_gripper_bar)
+                                                         show_gripper_fingers:=$(arg show_gripper_fingers)
+                                                         use_world_frame:=$(arg use_world_frame)
+                                                         external_urdf_loc:=$(arg external_urdf_loc)
+                                                         load_gazebo_configs:=$(arg load_gazebo_configs)"/>
 
     <!-- Resolve real/fake control -->
     <arg name="xs_sdk_type" value="xs_sdk" unless="$(arg use_sim)"/>
@@ -86,7 +86,7 @@
         <arg name="dof"                                 value="$(arg dof)"/>
     </include>
 
-    <!-- Launch Moveit simulation of the robot -->
+    <!-- Launch Moveit simulation of the robot and load urdf description -->
     <include if="$(arg use_fake)" file="$(find interbotix_xsarm_descriptions)/launch/xsarm_description.launch">
         <arg name="robot_model"                         value="$(arg robot_model)"/>
         <arg name="robot_name"                          value="$(arg robot_name)"/>
@@ -94,6 +94,7 @@
         <arg name="show_ar_tag"                         value="$(arg show_ar_tag)"/>
         <arg name="use_world_frame"                     value="$(arg use_world_frame)"/>
         <arg name="external_urdf_loc"                   value="$(arg external_urdf_loc)"/>
+        <arg name="model"                               value="$(arg model)"/>
         <arg name="use_rviz"                            value="false"/>
         <arg name="use_joint_pub"                       value="false"/>
         <arg name="rate"                                value="100"/>
