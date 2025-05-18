@@ -6,10 +6,16 @@
     <arg name="control_mode"                        default="interbotix"/>
     <arg name="controller"                          default="ps4"/>
     <arg name="use_keyboard"                        default="false"/>
+<<<<<<< HEAD
     <arg name="haptics"                             default="true"/>
 
     <arg name="xacro_path"                          default="$(find morpheus_description)/urdf/scenes/trossen_hera_scene.xacro"/>
     <arg name="srdf_path"                           default="$(find morpheus_description)/srdf/scenes/$(arg robot_model).srdf.xacro"/>
+=======
+    <arg name="haptics"                             default="false"/>
+    <arg name="xacro_path"                          default="$(find morpheus_description)/urdf/scenes/trossen_node2_scene.xacro"/>
+    <arg name="srdf_path"                           default="$(find interbotix_xsarm_moveit)/config/srdf/$(arg robot_model).srdf.xacro"/>
+>>>>>>> Add goal vibration node and update launch/CMake files
 
     <!-- Launch trossen and controls -->
     <include file="$(find morpheus_main)/launch/trossen_main.launch">
@@ -25,5 +31,17 @@
         <arg name="xacro_path"                          value="$(arg xacro_path)"/>
         <arg name="srdf_path"                           value="$(arg srdf_path)"/>
     </include>
+    
+    <group ns="$(arg robot_name)">
+
+        <!-- Launch trajectory node -->
+        <include file="$(find morpheus_trajectory)/launch/trajectory.launch">
+            <arg name="arm_group"                       value="interbotix_arm"/>
+            <arg name="gripper_group"                   value="interbotix_gripper"/>
+        </include>
+
+    </group>
+
+
 
 </launch>
