@@ -6,6 +6,7 @@
 #include <visualization_msgs/Marker.h>
 #include <moveit_msgs/RobotState.h>
 #include <moveit_msgs/RobotTrajectory.h>
+#include <eigen_conversions/eigen_msg.h>
 
 #include <moveit/moveit_cpp/moveit_cpp.h>
 #include <moveit/moveit_cpp/planning_component.h>
@@ -48,6 +49,8 @@ class TrajectoryNode
         ros::Publisher g_nearest_direction_publisher;
         ros::Publisher g_forward_distance_publisher;
         ros::Publisher g_forward_direction_publisher;
+        ros::Publisher g_goal_distance_publisher;
+        ros::Publisher g_goal_direction_publisher;
         visualization_msgs::MarkerArray g_trajectory_marker_array;
         moveit_visual_tools::MoveItVisualToolsPtr g_visual_tools;
 
@@ -73,6 +76,7 @@ class TrajectoryNode
         // Guidance parameters
         Eigen::Affine3d g_nearest;
         Eigen::Affine3d g_forward;
+        Eigen::Affine3d g_goal;
 
         TrajectoryNode(int argc, char** argv)
         {
@@ -154,6 +158,8 @@ class TrajectoryNode
             g_nearest_direction_publisher = nh.advertise<geometry_msgs::Vector3>("trajectory/nearest/direction", 0);
             g_forward_distance_publisher = nh.advertise<std_msgs::Float64>("trajectory/forward/distance", 0);
             g_forward_direction_publisher = nh.advertise<geometry_msgs::Vector3>("trajectory/forward/direction", 0);
+            g_goal_distance_publisher = nh.advertise<std_msgs::Float64>("trajectory/goal/distance", 0);
+            g_goal_direction_publisher = nh.advertise<geometry_msgs::Vector3>("trajectory/goal/direction", 0);
 
             // Create a marker array publisher for publishing shapes to Rviz
             g_marker_array_publisher = nh.advertise<visualization_msgs::MarkerArray>("visualization_marker_array", 100);
@@ -304,12 +310,11 @@ class TrajectoryNode
                     waypoints.push_back(g_target_vector[i].pose);
                 }
                 double step = 0.01;
-                double jump_threshold = 0.01;
                 moveit_msgs::RobotTrajectory msg;
                 // const moveit_msgs::Constraints path_constraints;
                 // bool avoid_collisions = true;
                 // moveit_msgs::MoveItErrorCodes error_code;
-                g_move_group_interface->computeCartesianPath(waypoints, step, jump_threshold, msg);
+                g_move_group_interface->computeCartesianPath(waypoints, step, msg);
 
                 // Set trajectory msg
                 ROS_INFO_STREAM("Setting msg");
@@ -385,6 +390,11 @@ class TrajectoryNode
                 g_nearest = transform_vector[0];
                 g_forward = transform_vector[1];
 
+                // Find relative transform to goal
+                Eigen::Affine3d target_transform;
+                tf::poseMsgToEigen(g_target_vector.back().pose, target_transform);
+                g_goal = getRelativeTransform(tcp_transform, target_transform);
+
                 // Print tcp transform matrix and quaternion for debugging
                 /* std::ostringstream oss;
                 oss << tcp_transform.matrix();
@@ -396,7 +406,7 @@ class TrajectoryNode
                 ROS_INFO_STREAM("\n" + ss.str()); */
 
                 // Publish and visualize
-                publishVectors(g_nearest.translation(), g_forward.translation());
+                publishVectors(g_nearest.translation(), g_forward.translation(), g_goal.translation());
                 publishTrajectory(transform_deque);
                 visualizeTrajectory(transform_deque, current_state);
 
@@ -633,7 +643,7 @@ class TrajectoryNode
             return R;
         }
 
-        void publishVectors(Eigen::Vector3d nearest, Eigen::Vector3d forward)
+        void publishVectors(Eigen::Vector3d nearest, Eigen::Vector3d forward, Eigen::Vector3d goal)
         {
             // Calculate euclidean norm of nearest
             double nearest_dot_product = 0;
@@ -665,11 +675,28 @@ class TrajectoryNode
             forward_direction_msg.y = forward[1] / forward_distance;
             forward_direction_msg.z = forward[2] / forward_distance;
 
+            // Calculate euclidean norm of goal (relative to end effector)
+            double goal_dot_product = 0;
+            for (int i = 0; i < goal.size(); i++)
+            {
+                goal_dot_product += goal[i] * goal[i];
+            }
+            double goal_distance = std::sqrt(goal_dot_product);
+            std_msgs::Float64 goal_distance_msg;
+            goal_distance_msg.data = goal_distance;
+            // Calculate normalized vector of goal (relative to end effector)
+            geometry_msgs::Vector3 goal_direction_msg;
+            goal_direction_msg.x = goal[0] / goal_distance;
+            goal_direction_msg.y = goal[1] / goal_distance;
+            goal_direction_msg.z = goal[2] / goal_distance;
+
             // Publish
             g_nearest_distance_publisher.publish(nearest_distance_msg);
             g_nearest_direction_publisher.publish(nearest_direction_msg);
             g_forward_distance_publisher.publish(forward_distance_msg);
             g_forward_direction_publisher.publish(forward_direction_msg);
+            g_goal_distance_publisher.publish(goal_distance_msg);
+            g_goal_direction_publisher.publish(goal_direction_msg);
         }
 
         void publishTrajectory(std::deque<Eigen::Affine3d> transform_deque)
@@ -716,11 +743,11 @@ class TrajectoryNode
             //// Visualize the Trajectory itself /////
 
             // Set a color for the visualization markers
-            std_msgs::ColorRGBA color;
-            color.r = 0.0;
-            color.g = 1.0;
-            color.b = 0.0;
-            color.a = 0.5;
+            std_msgs::ColorRGBA traj_color;
+            traj_color.r = 0.0;
+            traj_color.g = 1.0;
+            traj_color.b = 0.0;
+            traj_color.a = 0.5;
 
             // Instantiate marker array for holding the markers to be visualized
             visualization_msgs::MarkerArray markers;
@@ -759,20 +786,20 @@ class TrajectoryNode
                     ns_counts[ns_name] = 0;
                 else
                     ns_counts[ns_name]++;
-                visualization_msgs::Marker mk; // Instantiate marker
-                mk.header.stamp = ros::Time::now(); // Timestamp
-                mk.header.frame_id = "world"; // Reference frame id
-                mk.ns = ns_name; // String name
-                mk.id = ns_counts[ns_name]; // Unique number id
-                mk.type = visualization_msgs::Marker::ARROW; // Arrow marker shape
-                mk.action = visualization_msgs::Marker::ADD; // Add shape to Rviz
-                mk.points = points; // Start and end points of arrow
-                mk.scale.x = 0.005; // Arrow shaft diameter
-                mk.scale.y = 0.015; // Arrow head diameter
-                mk.scale.z = 0.015; // Arrow head length
-                mk.color = color; // Color specified above
-                mk.lifetime = ros::Duration(1); // Remain for 1 second or until updated
-                markers.markers.push_back(mk); // Add to MarkerArray markers
+                visualization_msgs::Marker mk_traj; // Instantiate marker
+                mk_traj.header.stamp = ros::Time::now(); // Timestamp
+                mk_traj.header.frame_id = "world"; // Reference frame id
+                mk_traj.ns = ns_name; // String name
+                mk_traj.id = ns_counts[ns_name]; // Unique number id
+                mk_traj.type = visualization_msgs::Marker::ARROW; // Arrow marker shape
+                mk_traj.action = visualization_msgs::Marker::ADD; // Add shape to Rviz
+                mk_traj.points = points; // Start and end points of arrow
+                mk_traj.scale.x = 0.005; // Arrow shaft diameter
+                mk_traj.scale.y = 0.015; // Arrow head diameter
+                mk_traj.scale.z = 0.015; // Arrow head length
+                mk_traj.color = traj_color; // Color specified above
+                mk_traj.lifetime = ros::Duration(1); // Remain for 1 second or until updated
+                markers.markers.push_back(mk_traj); // Add to MarkerArray markers
             }
 
             //// Visualize the tcp -> Trajectory transform
@@ -784,7 +811,7 @@ class TrajectoryNode
             tcp_color.b = 1.0;
             tcp_color.a = 0.5;
 
-            // Add a marker for the tcp -> Trajectory transform
+            // Add a marker for the tcp -> nearest transform
             Eigen::Vector3d tcp_translation = robot_state.getGlobalLinkTransform(g_move_group_interface->getEndEffectorLink()).translation();
             Eigen::Vector3d nearest_translation = g_nearest.translation();
             geometry_msgs::Point tcp_point;
@@ -800,25 +827,25 @@ class TrajectoryNode
             points.push_back(tcp_point);
             points.push_back(nearest_point);
 
-            std::string ns_name = "tcp_marker"; // String name
+            std::string ns_name = "nearest_marker"; // String name
             if (ns_counts.find(ns_name) == ns_counts.end())
                 ns_counts[ns_name] = 0;
             else
                 ns_counts[ns_name]++;
-            visualization_msgs::Marker mk; // Instantiate marker
-            mk.header.stamp = ros::Time::now(); // Timestamp
-            mk.header.frame_id = "world"; // Reference frame id
-            mk.ns = ns_name; // String name
-            mk.id = ns_counts[ns_name]; // Unique number id
-            mk.type = visualization_msgs::Marker::ARROW; // Arrow marker shape
-            mk.action = visualization_msgs::Marker::ADD; // Add shape to Rviz
-            mk.points = points; // Start and end points of arrow
-            mk.scale.x = 0.01; // Arrow shaft diameter
-            mk.scale.y = 0.015; // Arrow head diameter
-            mk.scale.z = 0.015; // Arrow head length
-            mk.color = tcp_color; // Color specified above
-            mk.lifetime = ros::Duration(1); // Remain for 1 second or until updated
-            markers.markers.push_back(mk); // Add to MarkerArray markers
+            visualization_msgs::Marker mk_nearest; // Instantiate marker
+            mk_nearest.header.stamp = ros::Time::now(); // Timestamp
+            mk_nearest.header.frame_id = "world"; // Reference frame id
+            mk_nearest.ns = ns_name; // String name
+            mk_nearest.id = ns_counts[ns_name]; // Unique number id
+            mk_nearest.type = visualization_msgs::Marker::ARROW; // Arrow marker shape
+            mk_nearest.action = visualization_msgs::Marker::ADD; // Add shape to Rviz
+            mk_nearest.points = points; // Start and end points of arrow
+            mk_nearest.scale.x = 0.01; // Arrow shaft diameter
+            mk_nearest.scale.y = 0.015; // Arrow head diameter
+            mk_nearest.scale.z = 0.015; // Arrow head length
+            mk_nearest.color = tcp_color; // Color specified above
+            mk_nearest.lifetime = ros::Duration(1); // Remain for 1 second or until updated
+            markers.markers.push_back(mk_nearest); // Add to MarkerArray markers
 
             //// Visualize the tcp --> forward transform
             
@@ -860,6 +887,45 @@ class TrajectoryNode
             mk_forward.lifetime = ros::Duration(1); // Remain for 1 second or until updated
             markers.markers.push_back(mk_forward); // Add to MarkerArray markers
 
+            //// Visualize the tcp --> goal transform
+            
+            // Set a different color for the tcp --> goal transform
+            std_msgs::ColorRGBA goal_color;
+            goal_color.r = 1.0;
+            goal_color.g = 1.0;
+            goal_color.b = 1.0;
+            goal_color.a = 0.5;
+
+            // Add a marker for the tcp --> goal transform
+            Eigen::Vector3d goal_translation = g_goal.translation();
+            geometry_msgs::Point goal_point;
+            goal_point.x = tcp_translation[0] + goal_translation[0];
+            goal_point.y = tcp_translation[1] + goal_translation[1];
+            goal_point.z = tcp_translation[2] + goal_translation[2];
+
+            std::vector<geometry_msgs::Point> points_goal;
+            points_goal.push_back(tcp_point);
+            points_goal.push_back(goal_point);
+
+            std::string ns_name_goal = "goal_marker"; // String name
+            if (ns_counts.find(ns_name_goal) == ns_counts.end())
+                ns_counts[ns_name_goal] = 0;
+            else
+                ns_counts[ns_name_goal]++;
+            visualization_msgs::Marker mk_goal; // Instantiate marker
+            mk_goal.header.stamp = ros::Time::now(); // Timestamp
+            mk_goal.header.frame_id = "world"; // Reference frame id
+            mk_goal.ns = ns_name_goal; // String name
+            mk_goal.id = ns_counts[ns_name_goal]; // Unique number id
+            mk_goal.type = visualization_msgs::Marker::ARROW; // Arrow marker shape
+            mk_goal.action = visualization_msgs::Marker::ADD; // Add shape to Rviz
+            mk_goal.points = points_goal; // Start and end points of arrow
+            mk_goal.scale.x = 0.01; // Arrow shaft diameter
+            mk_goal.scale.y = 0.015; // Arrow head diameter
+            mk_goal.scale.z = 0.015; // Arrow head length
+            mk_goal.color = goal_color; // Color specified above
+            mk_goal.lifetime = ros::Duration(1); // Remain for 1 second or until updated
+            markers.markers.push_back(mk_goal); // Add to MarkerArray markers
 
             //// Update markers to be published ////
             publishMarkers(markers);

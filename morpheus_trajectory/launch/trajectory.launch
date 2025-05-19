@@ -1,7 +1,7 @@
 <launch>
 
-    <arg name="arm_group" default="arm"/>
-    <arg name="gripper_group" default="gripper"/>
+    <arg name="arm_group"                           default="arm"/>
+    <arg name="gripper_group"                       default="gripper"/>
     <arg name="trajvib"                             default="true"/>
 
     <!-- launch goal_transform params -->

@@ -14,6 +14,7 @@ find_package(catkin REQUIRED COMPONENTS
   moveit_ros_planning_interface
   moveit_visual_tools
   moveit_msgs
+  eigen_conversions
 )
 
 ## System dependencies are found with CMake's conventions
