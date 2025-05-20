@@ -76,8 +76,8 @@ public:
         ROS_INFO("Serial port configured successfully!");
 
         // Subscribe to nearest collision contact
-        goal_dist_sub = nh.subscribe("/vx300s/trajectory/forward/distance", 10, &serialTrajecSender::distanceCallback, this);
-        goal_direc_sub = nh.subscribe("/vx300s/trajectory/forward/direction", 10, &serialTrajecSender::directionCallback, this);
+        goal_dist_sub = nh.subscribe("/vx300s/trajectory/goal/distance", 10, &serialTrajecSender::distanceCallback, this);
+        goal_direc_sub = nh.subscribe("/vx300s/trajectory/goal/vector", 10, &serialTrajecSender::directionCallback, this);
 
     }
     void directionCallback(const geometry_msgs::Vector3& msg)

@@ -51,6 +51,7 @@ class TrajectoryNode
         ros::Publisher g_forward_direction_publisher;
         ros::Publisher g_goal_distance_publisher;
         ros::Publisher g_goal_direction_publisher;
+        ros::Publisher g_goal_vector_publisher; //For the directional distance
         visualization_msgs::MarkerArray g_trajectory_marker_array;
         moveit_visual_tools::MoveItVisualToolsPtr g_visual_tools;
 
@@ -160,7 +161,7 @@ class TrajectoryNode
             g_forward_direction_publisher = nh.advertise<geometry_msgs::Vector3>("trajectory/forward/direction", 0);
             g_goal_distance_publisher = nh.advertise<std_msgs::Float64>("trajectory/goal/distance", 0);
             g_goal_direction_publisher = nh.advertise<geometry_msgs::Vector3>("trajectory/goal/direction", 0);
-
+            g_goal_vector_publisher = nh.advertise<geometry_msgs::Vector3>("trajectory/goal/vector", 0); //For the directional distance
             // Create a marker array publisher for publishing shapes to Rviz
             g_marker_array_publisher = nh.advertise<visualization_msgs::MarkerArray>("visualization_marker_array", 100);
             
@@ -689,7 +690,10 @@ class TrajectoryNode
             goal_direction_msg.x = goal[0] / goal_distance;
             goal_direction_msg.y = goal[1] / goal_distance;
             goal_direction_msg.z = goal[2] / goal_distance;
-
+            geometry_msgs::Vector3 goal_vector_msg; //For the directional distance
+            goal_vector_msg.x = goal[0]; //For the directional distance
+            goal_vector_msg.y = goal[1]; //For the directional distance
+            goal_vector_msg.z = goal[2]; //For the directional distance   
             // Publish
             g_nearest_distance_publisher.publish(nearest_distance_msg);
             g_nearest_direction_publisher.publish(nearest_direction_msg);
@@ -697,6 +701,7 @@ class TrajectoryNode
             g_forward_direction_publisher.publish(forward_direction_msg);
             g_goal_distance_publisher.publish(goal_distance_msg);
             g_goal_direction_publisher.publish(goal_direction_msg);
+            g_goal_vector_publisher.publish(goal_vector_msg); //For the directional distance
         }
 
         void publishTrajectory(std::deque<Eigen::Affine3d> transform_deque)
