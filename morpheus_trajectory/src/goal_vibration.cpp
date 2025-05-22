@@ -101,6 +101,7 @@ public:
         {
             char send_char = '0';  // Activation
             write(serial_port, &send_char, 1);
+            usleep(150000);  // 150 ms
             ROS_INFO("Sent '0' to Arduino (active)");
 
             // Send direction sequentially
@@ -115,7 +116,7 @@ public:
         std::string out = std::string(1, axis) + ":" + std::to_string(value) + "\n";
         write(serial_port, out.c_str(), out.length());
         ROS_INFO_STREAM("Sent to Arduino: " << out);
-        usleep(100000); // 100 ms
+        usleep(300000); // 100 ms
     }
 };
 

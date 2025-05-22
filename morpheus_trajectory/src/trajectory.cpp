@@ -701,7 +701,7 @@ class TrajectoryNode
             g_forward_direction_publisher.publish(forward_direction_msg);
             g_goal_distance_publisher.publish(goal_distance_msg);
             g_goal_direction_publisher.publish(goal_direction_msg);
-            g_goal_vector_publisher.publish(goal_vector_msg); //For the directional distance
+            g_goal_vector_publisher.publish(goal_vector_msg); 
         }
 
         void publishTrajectory(std::deque<Eigen::Affine3d> transform_deque)
