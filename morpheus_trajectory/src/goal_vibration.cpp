@@ -116,7 +116,7 @@ public:
         std::string out = std::string(1, axis) + ":" + std::to_string(value) + "\n";
         write(serial_port, out.c_str(), out.length());
         ROS_INFO_STREAM("Sent to Arduino: " << out);
-        usleep(300000); // 100 ms
+        usleep(200000); // 100 ms
     }
 };
 
