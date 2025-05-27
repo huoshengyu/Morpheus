@@ -14,7 +14,6 @@
     <arg name="motor_configs"                       default="$(find morpheus_teleop)/config/$(arg robot_model).yaml"/>
     <arg name="mode_configs"                        default="$(find interbotix_xsarm_control)/config/modes.yaml"/>
     <arg name="load_configs"                        default="true"/>
-    <arg name="use_sim"                             default="true"/>
     <arg name="robot_mode"                          default="fake"/>
     <arg name="control_mode"                        default="interbotix"/>
 
@@ -44,10 +43,6 @@
                                                          external_urdf_loc:=$(arg external_urdf_loc)
                                                          load_gazebo_configs:=$(arg load_gazebo_configs)"/>
 
-    <!-- Resolve real/fake control -->
-    <arg name="xs_sdk_type" value="xs_sdk" unless="$(arg use_sim)"/>
-    <arg name="xs_sdk_type" value="xs_sdk_sim" if="$(arg use_sim)"/>
-
     <!-- Resolve robot mode (real/fake) launch settings -->
     <arg name="use_gazebo"  value="false" unless="$(eval arg('robot_mode') == 'gazebo')"/>
     <arg name="use_actual"  value="false" unless="$(eval arg('robot_mode') == 'real')"/>
@@ -55,6 +50,12 @@
     <arg name="use_gazebo"  value="true" if="$(eval arg('robot_mode') == 'gazebo')"/>
     <arg name="use_actual"  value="true" if="$(eval arg('robot_mode') == 'real')"/>
     <arg name="use_fake"    value="true" if="$(eval arg('robot_mode') == 'fake')"/>
+    <arg name="use_sim"     value="true" unless="$(eval arg('robot_mode') == 'fake')"/>
+    <arg name="use_sim"     value="false" if="$(eval arg('robot_mode') == 'fake')"/>
+
+    <!-- Resolve real/fake control -->
+    <arg name="xs_sdk_type" value="xs_sdk" unless="$(arg use_sim)"/>
+    <arg name="xs_sdk_type" value="xs_sdk_sim" if="$(arg use_sim)"/>
 
     <!-- Controller settings -->
     <arg name="threshold"                           default="0.75"/>
