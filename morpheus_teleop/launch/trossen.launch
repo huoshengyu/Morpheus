@@ -50,12 +50,10 @@
     <arg name="use_gazebo"  value="true" if="$(eval arg('robot_mode') == 'gazebo')"/>
     <arg name="use_actual"  value="true" if="$(eval arg('robot_mode') == 'real')"/>
     <arg name="use_fake"    value="true" if="$(eval arg('robot_mode') == 'fake')"/>
-    <arg name="use_sim"     value="true" unless="$(eval arg('robot_mode') == 'fake')"/>
-    <arg name="use_sim"     value="false" if="$(eval arg('robot_mode') == 'fake')"/>
 
     <!-- Resolve real/fake control -->
-    <arg name="xs_sdk_type" value="xs_sdk" unless="$(arg use_sim)"/>
-    <arg name="xs_sdk_type" value="xs_sdk_sim" if="$(arg use_sim)"/>
+    <arg name="xs_sdk_type" value="xs_sdk" unless="$(eval arg('robot_mode') == 'fake')"/>
+    <arg name="xs_sdk_type" value="xs_sdk_sim" if="$(eval arg('robot_mode') == 'fake')"/>
 
     <!-- Controller settings -->
     <arg name="threshold"                           default="0.75"/>
@@ -154,6 +152,7 @@
         <arg name="mode_configs"                        value="$(arg mode_configs)"/>
         <arg name="threshold"                           value="$(arg threshold)"/>
         <arg name="controller"                          value="$(arg controller)"/>
+        <arg name="launch_driver"                       value="false"/>
     </include>
 
     <!-- Launch key_to_joy -->
