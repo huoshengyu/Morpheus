@@ -1,0 +1,27 @@
+<launch>
+
+    <!-- Launch teleop twist -->
+    <arg name="robot_model"         default="ur5e"/>
+    <arg name="controller_type"     default="xbox360"/>
+    <arg name="gripper_type"        default="robotiq"/>
+    <arg name="twist_topic"         default="twist_controller/command"/>
+    <arg name="arm_group"           default="arm"/>
+    <arg name="frame_id"            default="base_link"/>
+    <arg name="end_effector"        default="tcp_link"/>
+
+    <node pkg="morpheus_teleop" type="teleop_main.py" name="teleop_main" output="screen">
+        <param name="robot_model"       value="$(arg robot_model)"/>
+        <param name="controller_type"   value="$(arg controller_type)"/>
+        <param name="gripper_type"      value="$(arg gripper_type)"/>
+        <param name="twist_topic"       value="$(arg twist_topic)"/>
+        <param name="arm_group"         value="$(arg arm_group)"/>
+    </node>
+
+    <!-- Launch Twist converter-->
+    <include file="$(find morpheus_teleop)/launch/twist_converter.launch">
+        <arg name="twist_topic"       value="$(arg twist_topic)"/>
+        <arg name="frame_id"          value="$(arg frame_id)"/>
+        <arg name="end_effector"      value="$(arg end_effector)"/>
+    </include>
+
+</launch>
