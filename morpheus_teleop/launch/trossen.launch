@@ -8,6 +8,7 @@
     <arg name="show_gripper_fingers"                default="true"/>
     <arg name="use_world_frame"                     default="false"/>
     <arg name="load_gazebo_configs"                 default="false"/>
+    <arg name="world_name"                          default="$(find interbotix_xsarm_gazebo)/worlds/xsarm_gazebo.world"/>
 
     <!-- Robot config settings -->
     <arg name="dof"                                 default="6"/>
@@ -79,21 +80,8 @@
         <arg name="use_trajectory_controllers"          value="true"/>
     </include>
 
-    <!-- Launch control of the real robot -->
-    <include if="$(arg use_actual)" file="$(find interbotix_xsarm_ros_control)/launch/xsarm_ros_control.launch">
-        <arg name="robot_model"                         value="$(arg robot_model)"/>
-        <arg name="robot_name"                          value="$(arg robot_name)"/>
-        <arg name="base_link_frame"                     value="$(arg base_link_frame)"/>
-        <arg name="show_ar_tag"                         value="$(arg show_ar_tag)"/>
-        <arg name="use_world_frame"                     value="$(arg use_world_frame)"/>
-        <arg name="external_urdf_loc"                   value="$(arg external_urdf_loc)"/>
-        <arg name="use_rviz"                            value="false"/>
-        <arg name="mode_configs"                        value="$(arg mode_configs)"/>
-        <arg name="dof"                                 value="$(arg dof)"/>
-    </include>
-
     <!-- Launch Moveit simulation of the robot and load urdf description -->
-    <include if="$(arg use_fake)" file="$(find interbotix_xsarm_descriptions)/launch/xsarm_description.launch">
+    <include unless="$(arg use_gazebo)" file="$(find interbotix_xsarm_descriptions)/launch/xsarm_description.launch">
         <arg name="robot_model"                         value="$(arg robot_model)"/>
         <arg name="robot_name"                          value="$(arg robot_name)"/>
         <arg name="base_link_frame"                     value="$(arg base_link_frame)"/>
@@ -108,7 +96,7 @@
     </include>
 
     <!-- Launch the Interbotix sdk to enable control of simulated robot -->
-    <node unless="$(arg use_actual)"
+    <node
         name="xs_sdk"
         pkg="interbotix_xs_sdk"
         type="$(arg xs_sdk_type)"
