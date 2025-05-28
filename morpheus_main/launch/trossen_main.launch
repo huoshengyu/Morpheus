@@ -4,7 +4,7 @@
 
     <arg name="robot_mode"                          default="real"/>
     <arg name="control_mode"                        default="interbotix"/>
-    <arg name="controller"                          default="xbox360"/>
+    <arg name="controller"                          default="ps4"/>
     <arg name="use_keyboard"                        default="false"/>
     <arg name="haptics"                             default="true"/>
 

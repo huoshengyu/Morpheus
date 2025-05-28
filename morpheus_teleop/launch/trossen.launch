@@ -45,9 +45,9 @@
                                                          load_gazebo_configs:=$(arg load_gazebo_configs)"/>
 
     <!-- Resolve real/fake control -->
-    <arg name="xs_sdk_type" value="xs_sdk" unless="$(arg use_sim)"/>
-    <arg name="xs_sdk_type" value="xs_sdk_sim" if="$(arg use_sim)"/>
-
+    <arg name="xs_sdk_type" value="xs_sdk" unless="$(eval arg('robot_mode') == 'fake')"/>
+    <arg name="xs_sdk_type" value="xs_sdk_sim" if="$(eval arg('robot_mode') == 'fake')"/>
+    
     <!-- Resolve robot mode (real/fake) launch settings -->
     <arg name="use_gazebo"  value="false" unless="$(eval arg('robot_mode') == 'gazebo')"/>
     <arg name="use_actual"  value="false" unless="$(eval arg('robot_mode') == 'real')"/>
@@ -58,7 +58,7 @@
 
     <!-- Controller settings -->
     <arg name="threshold"                           default="0.75"/>
-    <arg name="controller"                          default="xbox360"/>
+    <arg name="controller"                          default="ps4"/>
     <arg name="use_keyboard"                        default="false"/>
 
     <!-- Launch Gazebo simulation of the robot -->
