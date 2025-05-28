@@ -44,6 +44,8 @@
                                                          external_urdf_loc:=$(arg external_urdf_loc)
                                                          load_gazebo_configs:=$(arg load_gazebo_configs)"/>
 
+ 
+    
     <!-- Resolve robot mode (real/fake) launch settings -->
     <arg name="use_gazebo"  value="false" unless="$(eval arg('robot_mode') == 'gazebo')"/>
     <arg name="use_actual"  value="false" unless="$(eval arg('robot_mode') == 'real')"/>
