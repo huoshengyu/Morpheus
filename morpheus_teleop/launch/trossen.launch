@@ -14,7 +14,7 @@
     <arg name="dof"                                 default="6"/>
     <arg name="motor_configs"                       default="$(find morpheus_teleop)/config/$(arg robot_model).yaml"/>
     <arg name="mode_configs"                        default="$(find interbotix_xsarm_control)/config/modes.yaml"/>
-    <arg name="load_configs"                        default="true"/>
+    <arg name="load_configs"                        default="false"/>
     <arg name="robot_mode"                          default="fake"/>
     <arg name="control_mode"                        default="interbotix"/>
 
@@ -44,13 +44,6 @@
                                                          external_urdf_loc:=$(arg external_urdf_loc)
                                                          load_gazebo_configs:=$(arg load_gazebo_configs)"/>
 
-<<<<<<< HEAD
-    <!-- Resolve real/fake control -->
-    <arg name="xs_sdk_type" value="xs_sdk" unless="$(eval arg('robot_mode') == 'fake')"/>
-    <arg name="xs_sdk_type" value="xs_sdk_sim" if="$(eval arg('robot_mode') == 'fake')"/>
-    
-=======
->>>>>>> fdd5f0dd7b4c4965dc942172e600e3182105520a
     <!-- Resolve robot mode (real/fake) launch settings -->
     <arg name="use_gazebo"  value="false" unless="$(eval arg('robot_mode') == 'gazebo')"/>
     <arg name="use_actual"  value="false" unless="$(eval arg('robot_mode') == 'real')"/>
@@ -139,7 +132,7 @@
     </group>
 
     <!-- Launch interbotix xsarm control -->
-    <include if="$(eval arg('control_mode') == 'interbotix')" file="$(find interbotix_xsarm_joy)/launch/xsarm_joy.launch">
+    <include if="$(eval arg('control_mode') == 'interbotix')" file="$(find morpheus_teleop)/launch/xsarm_joy.launch">
         <arg name="robot_model"                         value="$(arg robot_model)"/>
         <arg name="robot_name"                          value="$(arg robot_name)"/>
         <arg name="base_link_frame"                     value="$(arg base_link_frame)"/>
