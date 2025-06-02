@@ -4,8 +4,8 @@
 from readchar import readkey, key
 
 def get_key():
-    key = readkey()
-    return key
+    k = readkey()
+    return k
 
 def input_args(func, keywords=[]):
     # Call a function and prompt the user to input argument values

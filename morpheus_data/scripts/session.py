@@ -45,11 +45,11 @@ class Session():
                 elif k == key.ENTER: # If key==enter, accept input and move on
                     id = sanitize_filename(id)
                     self._id = id
-                    print("Subject ID is %s" % (id))
+                    print("\rSubject ID is %s" % (id))
                     self.prompt_task(id)
                     break
                 elif k == key.ESC: # If key==esc, exit
-                    print("Ending recording session.")
+                    print("\rEnding recording session.")
                     return
                 print("\x1b[2K", id, end="\r")
     
@@ -67,11 +67,11 @@ class Session():
                 elif k == key.ENTER: # If key==enter, accept input and move on
                     task = sanitize_filename(task)
                     self._task = task
-                    print("Task is %s" % (task))
+                    print("\rTask is %s" % (task))
                     self.prompt_trial(id, task)
                     break
                 elif k == key.ESC: # If key==esc, exit
-                    print("Cancelling task selection")
+                    print("\rCancelling task selection")
                     return
                 print("\x1b[2K", task, end="\r")
     
@@ -91,16 +91,16 @@ class Session():
                     if trial_string:
                         trial_number = int(trial_string)
                     self._trial_number = trial_number
-                    print("Trial number is %s" % (trial_number))
+                    print("\rTrial number is %s" % (trial_number))
                     filename = self.create_filename(id, task, trial_number)
-                    print("Filename is %s" % (filename))
+                    print("\rFilename is %s" % (filename))
                     filepath = self.create_filepath(filename)
                     trial = self.create_trial(filepath)
                     self._save_trial(trial, id, task, trial_number) # Save trial w/o starting to record
                     self.prompt_record(id, task, trial_number) # Prompt user to start/stop recording
                     break
                 elif k == key.ESC: # If key==esc, exit
-                    print("Cancelling trial selection")
+                    print("\rCancelling trial selection")
                     return
                 print("\x1b[2K", trial_string, end="\r")
 
@@ -112,15 +112,15 @@ class Session():
             k = readchar()
             if k == key.ENTER: # If key==enter, toggle record
                 if not recording:
-                    print("Starting recording (id=%s, task=%s, trial_number=%s)" % (id, task, trial_number))
+                    print("\rStarting recording (id=%s, task=%s, trial_number=%s)" % (id, task, trial_number))
                     self.start_trial(id, task, trial_number)
                     recording = True
                 else:
-                    print("Stopping recording (id=%s, task=%s, trial_number=%s)" % (id, task, trial_number))
+                    print("\rStopping recording (id=%s, task=%s, trial_number=%s)" % (id, task, trial_number))
                     self.stop_trial(id, task, trial_number)
                     recording = False
             elif k == key.ESC: # If key==esc, exit
-                print("Exiting recording (id=%s, task=%s, trial_number=%s)" % (id, task, trial_number))
+                print("\rExiting recording (id=%s, task=%s, trial_number=%s)" % (id, task, trial_number))
                 if recording:
                     self.stop_trial(id, task, trial_number)
                 recording = False
