@@ -84,7 +84,8 @@ RUN pip install --upgrade \
     numpy-quaternion \
     scipy \
     readchar \
-    pynput
+    pynput \
+    pygame-ce
 RUN pip install --upgrade importlib_metadata
 RUN pip install --upgrade six
 RUN pip install --upgrade setuptools

@@ -7,6 +7,7 @@ import logging
 import rospy
 # Keyboard input imports
 from readchar import readkey, readchar, key
+import pygame as pg
 # Local imports
 from data import Data
 from utils import *
@@ -26,6 +27,16 @@ class Session():
 
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
+
+        # pygame setup
+        # self.screen = pg.display.set_mode((1280, 720))
+        self.clock = pg.time.Clock()
+        self.running = True
+        self.dt = 0
+
+        # self.screen.fill((30, 30, 30))
+
+        self.input_boxes = [InputBox(100, 100, 140, 32), InputBox(100, 200, 140, 32), InputBox(100, 300, 140, 32)]
     
     def prompt_session(self):
         print("Starting recording session.")
@@ -194,12 +205,72 @@ class Session():
                     trial_number = max(self._data_dict[task].keys()) - 1
         return id, task, trial_number
 
+    def handle_events(self):
+        self.screen.fill((30, 30, 30))
+        for event in pg.event.get():
+            if event.type == pg.QUIT:
+                self.running = False
+                for input_box in self.input_boxes:
+                    input_box.done = True
+            if event.type == pg.MOUSEBUTTONDOWN:
+                # If the user clicked on the input_box rect.
+                for input_box in self.input_boxes:
+                    if input_box.input_box.collidepoint(event.pos):
+                        # Activate when clicked on
+                        input_box.active = True
+                    else:
+                        # Deactivate when clicked off
+                        input_box.active = False
+                    # Change the current color of the input box.
+                    input_box.color = input_box.color_active if input_box.active else input_box.color_inactive
+            if event.type == pg.KEYDOWN:
+                for input_box in self.input_boxes:
+                    if input_box.active:
+                        if event.key == pg.K_RETURN:
+                            print(input_box.text)
+                            input_box.text = ''
+                        elif event.key == pg.K_BACKSPACE:
+                            input_box.text = input_box.text[:-1]
+                        else:
+                            input_box.text += event.unicode
+        for input_box in self.input_boxes:
+            self.step(input_box)
+        
+        pg.display.flip()
+        self.clock.tick(30)
+
+    def step(self, input_box):
+        # Render the current text.
+        txt_surface = input_box.font.render(input_box.text, True, input_box.color)
+        # Resize the box if the text is too long.
+        width = max(200, txt_surface.get_width()+10)
+        input_box.input_box.w = width
+        # Blit the text.
+        self.screen.blit(txt_surface, (input_box.input_box.x+5, input_box.input_box.y+5))
+        # Blit the input_box rect.
+        pg.draw.rect(self.screen, input_box.color, input_box.input_box, 2)
+
+class InputBox():
+    def __init__(self, left, top, width, height):
+        self.input_box = pg.Rect(left, top, width, height)
+        self.font = pg.font.Font(None, 32)
+        self.color_inactive = pg.Color('lightskyblue3')
+        self.color_active = pg.Color('dodgerblue2')
+        self.color = self.color_inactive
+        self.active = False
+        self.text = ''
+        self.done = False
 
 def main():
     rospy.init_node('session')
+    pg.init()
     session = Session()
 
+    # while session.running:
+    #     session.handle_events()
+
     session.prompt_session()
+    pg.quit()
 
 if __name__=='__main__':
     main()
