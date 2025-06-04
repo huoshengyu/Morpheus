@@ -4,7 +4,7 @@ import rospy
 import sensor_msgs.msg
 
 # Keyboard input imports
-from readchar import readkey, key
+from readchar import readchar, readkey, key
 
 import sys
 from select import select
@@ -56,8 +56,21 @@ class KeyToJoy():
         self.joy.buttons = [0,0,0,0,0,0,0,0,0,0,0]
 
     def get_key(self):
-        k = readchar()
-        return k
+        if sys.platform == 'win32':
+            # getwch() returns a string on Windows
+            key = msvcrt.getwch()
+        else:
+            key_timeout = 0.1
+            settings = termios.tcgetattr(sys.stdin)
+            tty.setraw(sys.stdin.fileno())
+            # sys.stdin.read() returns a string on Linux
+            rlist, _, _ = select([sys.stdin], [], [], key_timeout)
+            if rlist:
+                key = sys.stdin.read(1)
+            else:
+                key = ''
+            termios.tcsetattr(sys.stdin, termios.TCSADRAIN, settings)
+        return key
     
     def key_to_joy(self):
         self.joy = sensor_msgs.msg.Joy()

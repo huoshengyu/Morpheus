@@ -58,7 +58,6 @@
   <depend>joy</depend>
   <depend>roscpp</depend>
   <depend>rospy</depend>
-  <depend>readchar</depend>
   <exec_depend>message_runtime</exec_depend>
 
 

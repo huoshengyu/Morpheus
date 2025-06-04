@@ -59,7 +59,6 @@
   <depend>std_msgs</depend>
   <depend>geometry_msgs</depend>
   <depend>morpheus_msgs</depend>
-  <depend>readchar</depend>
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>

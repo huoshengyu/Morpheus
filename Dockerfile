@@ -1,4 +1,4 @@
-FROM nvidia/cudagl:11.1.1-base-ubuntu20.04 AS base
+FROM nvidia/cuda:12.9.0-base-ubuntu20.04 AS base
 
 SHELL ["/bin/bash", "-c"]
 
@@ -111,7 +111,7 @@ RUN pip install -e ./src/gello_software/third_party/DynamixelSDK/python/.
 # General rosdep install
 RUN source /opt/ros/noetic/setup.bash \
     && apt-get update \
-    && rosdep update \
+    && rosdep update --rosdistro $ROS_DISTRO \
     && rosdep install -q -y \
       --from-paths ./src/ \
       --ignore-src \
