@@ -6,10 +6,11 @@
     <arg name="control_mode"                        default="interbotix"/>
     <arg name="controller"                          default="ps4"/>
     <arg name="use_keyboard"                        default="false"/>
-    <arg name="haptics"                             default="false"/>
+    <arg name="haptics"                             default="true"/> <!--This is for collison haptic feedback -->
 
     <arg name="xacro_path"                          default="$(find morpheus_description)/urdf/scenes/trossen_hera_scene.xacro"/>
     <arg name="srdf_path"                           default="$(find morpheus_description)/srdf/scenes/$(arg robot_model).srdf.xacro"/>
+    <arg name="trajvib"                             default="false"/>  <!--This is for trajectory haptic feedback -->
 
     <!-- Launch trossen and controls -->
     <include file="$(find morpheus_main)/launch/trossen_main.launch">
@@ -32,6 +33,7 @@
         <include file="$(find morpheus_trajectory)/launch/trajectory.launch">
             <arg name="arm_group"                       value="interbotix_arm"/>
             <arg name="gripper_group"                   value="interbotix_gripper"/>
+            <arg name="trajvib"                         value="$(arg trajvib)"/>  <!-- Pass it here -->
         </include>
 
     </group>

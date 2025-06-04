@@ -2,7 +2,7 @@
 
     <arg name="arm_group"                           default="arm"/>
     <arg name="gripper_group"                       default="gripper"/>
-    <arg name="trajvib"                             default="true"/>
+    <arg name="trajvib"                             default="false"/>
 
     <!-- launch goal_transform params -->
     <include file="$(find morpheus_trajectory)/launch/goal_transform.launch"/>
