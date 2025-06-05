@@ -26,7 +26,10 @@
     </include>
 
     <!-- Launch xbox360_swap -->
-    <include file="$(find morpheus_teleop)/launch/xbox360_swap_fake.launch">
+    <include file="$(find morpheus_teleop)/launch/teleop_main.launch">
+        <arg name="robot_model"                         value="$(arg robot_model)"/>
+        <arg name="controller_type"                     value="ps4"/>
+        <arg name="gripper_type"                        value="gazebo"/>
         <arg name="twist_topic"                         value="twist_controller/command"/>
         <arg name="arm_group"                           value="arm"/>
         <arg name="frame_id"                            value="base_link"/>

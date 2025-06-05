@@ -7,10 +7,12 @@ import quaternion
 import rospy
 import tf2_ros
 import moveit_commander
+import actionlib
 # ROS Messages
 import geometry_msgs.msg   
 import sensor_msgs.msg 
 import moveit_msgs.msg
+import control_msgs.msg
 # Individual Imports
 from threading import Lock
 from copy import deepcopy
@@ -128,6 +130,7 @@ class TeleopTwist(TeleopBase):
         self.twist_pub = rospy.Publisher(self.twist_topic, geometry_msgs.msg.Twist, queue_size=1)
         self.gripper_pub_robotiq = rospy.Publisher('robotiq_2f_85_gripper/control', Robotiq2FGripper_robot_output, queue_size=1)
         self.gripper_pub_onrobot = rospy.Publisher('onrobot_rg2ft/command', RG2FTCommand, queue_size=1)
+        self.gripper_pub_gazebo = actionlib.SimpleActionClient('gripper_action_controller/gripper_cmd', control_msgs.msg.GripperCommandAction)
         self.joy_sub = rospy.Subscriber("joy", sensor_msgs.msg.Joy, self.joy_callback)
 
         # Initialize variables for holding joystick inputs
@@ -307,6 +310,12 @@ class TeleopTwist(TeleopBase):
             # Command OnRobot RG2FT gripper
             if self.gripper_type == "onrobot":
                 command_onrobotRG2FT(publisher=self.gripper_pub_onrobot, position=position, force=force)
+            # Command either UR5e gripper type in Gazebo via action server
+            if self.gripper_type == "gazebo":
+                gripper_command = control_msgs.msg.GripperCommandGoal()
+                gripper_command.command.position = position
+                gripper_command.command.max_effort = force
+                self.gripper_pub_gazebo.send_goal(gripper_command)
         
         # Command Trossen robot
         if self.robot_model == "vx300s":

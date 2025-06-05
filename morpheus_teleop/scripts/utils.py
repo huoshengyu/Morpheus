@@ -54,18 +54,18 @@ def command_robotiq2F85(publisher=None, position=0, force=0, speed=0, publish=Tr
     #   speed           float [0,150]       [20,150] mm/s
 
     # Enforce limits
-    position = np.clip(position, 0, 50)
-    force = np.clip(force, 0, 40)
-    speed = np.clip(speed, 0, 150)
+    position = np.clip(position, 0, 1)
+    force = np.clip(force, 20, 40)
+    speed = np.clip(speed, 20, 150)
 
     # Write command
     command = Robotiq2FGripper_robot_output()
     command.rACT = 0x1 # Deactivate / Activate {0,1}
     command.rGTO = 0x1 # Stop / "Go To" {0,1}
     command.rATR = 0x0 # Normal / Emergency auto-release {0,1}
-    command.rSP = int(255 * speed / 150) # Minimum / Maximum speed [0,255] (20 to 150 mm/s)
-    command.rPR = int(255 * (1 - (position / 50))) # Open / Closed position [0,255] (50 to 0 mm)
-    command.rFR = int(255 * force / 255) # Minimum / Maximum force [0,255] (20 to 235 N)
+    command.rSP = int(255 * (speed - 20) / (150 - 20)) # Minimum / Maximum speed [0,255] (20 to 150 mm/s)
+    command.rPR = int(255 * (1 - position)) # Open / Closed position [0,255] (50 to 0 mm)
+    command.rFR = int(255 * (force - 20) / (235 - 20)) # Minimum / Maximum force [0,255] (20 to 235 N)
     if publish:
         try:
             publisher.publish(command)
@@ -83,7 +83,7 @@ def command_onrobotRG2FT(publisher=None, position=0, force=0, publish=True):
     #   ### https://onrobot.com/sites/default/files/documents/User_Manual_for_TECHMAN_OMRON_TM_v1.05_EN_0.pdf ###
 
     # Enforce limits
-    position = np.clip(position, 0, 100)
+    position = np.clip(position, 0, 1)
     force = np.clip(force, 0, 40)
 
     # Make a stop command to interrupt the current motion
@@ -94,7 +94,7 @@ def command_onrobotRG2FT(publisher=None, position=0, force=0, publish=True):
     # Make a motion command to move the OnRobot RG2FT gripper
     command = RG2FTCommand()
     command.Control = 0x0001 # Stop / Grip {0,1} (Gripper completes command before starting next one)
-    command.TargetWidth = int(10 * position) # Closed / Open position [0,1000] (0 to 100 mm)
+    command.TargetWidth = int(1000 * position) # Closed / Open position [0,1000] (0 to 100 mm)
     command.TargetForce = int(10 * force) # Minimum / Maximum force [0,400] (0 to 40 N)
     publisher.publish(stop)
     publisher.publish(command)

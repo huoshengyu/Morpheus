@@ -13,6 +13,7 @@ services:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=all
       - NVIDIA_DISABLE_REQUIRE=1
+      # Suppress ROS1 End of Life warning
       - DISABLE_ROS1_EOL_WARNINGS=1
     volumes:
       # Grant display access to X Server.
