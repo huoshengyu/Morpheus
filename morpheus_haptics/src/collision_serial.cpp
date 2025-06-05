@@ -168,7 +168,8 @@ public:
 
             float distancex = msg.normal.x * msg.depth;
             float distancey = msg.normal.y * msg.depth;
-            std::string pos_str = std::to_string(distancex) + "," + std::to_string(distancey) + "\n";
+            float distancez = msg.normal.z * msg.depth;
+            std::string pos_str = std::to_string(distancex) + "," + std::to_string(distancey) + "," + std::to_string(distancez) + "\n";
 
             if (end_effector_links.count(link1) || end_effector_links.count(link2)) {
                 ROS_INFO_STREAM("Collision with end effector. Sending '1'");
