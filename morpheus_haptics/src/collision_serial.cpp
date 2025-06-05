@@ -169,6 +169,11 @@ public:
             float distancex = msg.normal.x * msg.depth;
             float distancey = msg.normal.y * msg.depth;
             float distancez = msg.normal.z * msg.depth;
+            ROS_INFO_STREAM("Distance :" << msg.depth);
+            
+            ROS_INFO_STREAM("Distances - X: " << distancex 
+                << " | Y: " << distancey 
+                << " | Z: " << distancez);
             std::string pos_str = std::to_string(distancex) + "," + std::to_string(distancey) + "," + std::to_string(distancez) + "\n";
 
             if (end_effector_links.count(link1) || end_effector_links.count(link2)) {
