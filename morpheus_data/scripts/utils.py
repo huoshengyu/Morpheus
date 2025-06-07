@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
 # Keyboard input imports
-from readchar import readkey, key
+from readchar import readkey, readchar, key
 
 def get_key():
-    k = readkey()
+    k = readchar()
     return k
 
 def input_args(func, keywords=[]):
