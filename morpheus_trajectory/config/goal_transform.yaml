@@ -13,6 +13,27 @@ goal:
     position_weights: {x: 1.0, y: 1.0, z: 1.0}
     orientation_weights: {x: 0.0, y: 0.0, z: 0.0, w: 0.0}
     max_velocity_scaling_factor: 0.1
+  hera_ceiling:
+    goal_pose:
+      position: {x: 0.536494, y: 0.0, z: 1.47767}
+      orientation: {x: 0, y: 0, z: 0, w: 1}
+    position_weights: {x: 1.0, y: 1.0, z: 1.0}
+    orientation_weights: {x: 0.0, y: 0.0, z: 0.0, w: 0.0}
+    max_velocity_scaling_factor: 0.1
+  hera_floor:
+    goal_pose:
+      position: {x: 0.30705, y: 0.0, z: 0.94797}
+      orientation: {x: 0, y: 0.707106781, z: 0, w: 0.707106781}
+    position_weights: {x: 1.0, y: 1.0, z: 1.0}
+    orientation_weights: {x: 0.0, y: 0.0, z: 0.0, w: 0.0}
+    max_velocity_scaling_factor: 0.1
+  hera_arch:
+    goal_pose:
+      position: {x: -0.21556, y: -0.36857, z: 0.94797}
+      orientation: {x: -0.60384, y: -0.34637, z: 0.62273, w: -0.35721}
+    position_weights: {x: 1.0, y: 1.0, z: 1.0}
+    orientation_weights: {x: 0.0, y: 0.0, z: 0.0, w: 0.0}
+    max_velocity_scaling_factor: 0.1
   keyhole:
     goal_pose:
       position: {x: 0.350, y: 0.535, z: 0.86995}
