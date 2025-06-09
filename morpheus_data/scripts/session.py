@@ -3,6 +3,7 @@
 # General Packages
 import os
 import logging
+from collections import deque
 # ROS Packages
 import rospy
 # Keyboard input imports
@@ -11,6 +12,7 @@ import pygame as pg
 # Local imports
 from data import Data
 from utils import *
+from ui_strings import *
 
 # Documentation for rosbag py on ros wiki is poor, instead see source code here:
 # https://github.com/ros/ros_comm/blob/noetic-devel/tools/rosbag/src/rosbag/bag.py
@@ -47,7 +49,7 @@ class Session():
             id = ""
             print("Please enter subject ID: ")
             while not rospy.is_shutdown():
-                k = readchar()
+                k = get_key()
                 if k.isalnum() or k in "._ ": # If key==char, join to input string
                     id = id + k
                 elif k == key.BACKSPACE or k == key.DELETE:
@@ -69,7 +71,7 @@ class Session():
             task = ""
             print("Please enter task name: ")
             while not rospy.is_shutdown():
-                k = readchar()
+                k = get_key()
                 if k.isalnum() or k in "._ ": # If key==char, join to input string
                     task = task + k
                 elif k == key.BACKSPACE or k == key.DELETE:
@@ -92,7 +94,7 @@ class Session():
             trial_string = ""
             print("Please enter trial number (or press ENTER to use next index: %s): " % (trial_number))
             while not rospy.is_shutdown():
-                k = readchar()
+                k = get_key()
                 if k.isnumeric(): # If key==number, join to input string
                     trial_string = trial_string + k
                 elif k == key.BACKSPACE or k == key.DELETE:
@@ -103,9 +105,9 @@ class Session():
                         trial_number = int(trial_string)
                     self._trial_number = trial_number
                     print("\rTrial number is %s" % (trial_number))
-                    filename = self.create_filename(id, task, trial_number)
+                    filename = self.get_filename(id, task, trial_number)
                     print("\rFilename is %s" % (filename))
-                    filepath = self.create_filepath(filename)
+                    filepath = self.get_filepath(filename)
                     trial = self.create_trial(filepath)
                     self._save_trial(trial, id, task, trial_number) # Save trial w/o starting to record
                     self.prompt_record(id, task, trial_number) # Prompt user to start/stop recording
@@ -120,7 +122,7 @@ class Session():
         
         print("Press ENTER to toggle recording (id=%s, task=%s, trial_number=%s)" % (id, task, trial_number))
         while not rospy.is_shutdown():
-            k = readchar()
+            k = get_key()
             if k == key.ENTER: # If key==enter, toggle record
                 if not recording:
                     print("\rStarting recording (id=%s, task=%s, trial_number=%s)" % (id, task, trial_number))
@@ -136,10 +138,70 @@ class Session():
                     self.stop_trial(id, task, trial_number)
                 recording = False
                 return
+    
+    def prompt(self, state="", id=None, task=None, trial=None):
+        # Initialize input and output variables
+        queue = deque([], 3)
+        state = ""
+        input = ""
 
-    def get_data(self):
-        # Return data dict
-        return self._data_dict
+        # Handle state-related events
+        if state == "recording":
+            self.start_trial(id, task, trial)
+
+        # Add static strings to queue
+        queue = self.enqueue_header(queue, id, task, trial)
+        queue = self.enqueue_string(queue, state + "_description")
+        
+        # Get keyboard input events
+        event = None
+        input, event = self.handle_key_events(input, event)
+
+        # Respond to keyboard input events
+        if event == key.ENTER:
+            if state == "recording":
+                event == key.ESC
+            else:
+                for child_state in session_state_dict[state]:
+                    self.prompt(child_state, id, task, trial_number)
+        if event == key.ESC:
+            return
+
+    def handle_key_events(self, input="", event=None)
+        k = get_key()
+        if k.isalnum() or k in "._ ":
+            input += k
+        elif k == key.ENTER:
+            event = key.ENTER
+        elif k == key.ESC:
+            event = key.ESC
+        return input, event
+    
+    def enqueue_string(self, queue, key, suffix=""):
+        try:
+            queue.append(self.session_string_dict[key] + (suffix or "")) # OR statement to handle case when suffix==None
+        except KeyError: # If Key is missing, assume this is intended and add nothing
+            continue
+        return queue
+    
+    def enqueue_header(self, queue, id, task, trial):
+        queue = self.enqueue_string(queue, "header_title")
+        queue = self.enqueue_string(queue, "header_id", id)
+        queue = self.enqueue_string(queue, "header_task", task)
+        queue = self.enqueue_string(queue, "header_trial", trial)
+        return queue
+
+    def get_trial(self, id, task, trial_number):
+        # Retrieve data from file
+        data = None
+        filename = get_filename(id, task, trial_number)
+        filepath = get_filepath(filename)
+        filepath_exists = os.path.isfile(filepath)
+        if filepath_exists:
+            print("Filename already exists! Double check file number and try again.")
+        else:
+            data = create_trial(filepath)
+        return data
     
     def get_next_trial_number(self, id, task):
         # Get next available trial number (0 indexed)
@@ -147,25 +209,24 @@ class Session():
         filepath_exists = True
         while filepath_exists:
             trial_number = trial_number + 1 # Try next trial number
-            filepath = self.create_filepath(self.create_filename(id, task, trial_number))
+            filepath = self.get_filepath(self.get_filename(id, task, trial_number))
             filepath_exists = os.path.isfile(filepath) # Check if filepath is available
         return trial_number
 
-    def create_filename(self, id, task, trial_number):
-        # Create filename based on  subject id, task type, trial number (0 indexed)
+    def get_filename(self, id, task, trial_number):
+        # Get filename based on  subject id, task type, trial number (0 indexed)
         filename = "%s%s%s.bag" % (str(id), str(task), str(trial_number))
         return filename
     
-    def create_filepath(self, filename):
-        # Create new filepath (places filename in the data directory)
+    def get_filepath(self, filename):
+        # Get absolute filepath (places filename in the data directory)
         dirname = os.path.dirname(__file__)
         datadir = os.path.join(os.path.dirname(dirname), 'data')
         filepath = os.path.join(datadir, filename)
         return filepath
 
-    def create_trial(self, filename):
-        # Create new trial with given filename
-        filepath = self.create_filepath(filename)
+    def create_trial(self, filepath):
+        # Create new trial with given filepath
         trial = Data(filepath, mode='w') # Prepare to write
         return trial
 
@@ -205,7 +266,7 @@ class Session():
                     trial_number = max(self._data_dict[task].keys()) - 1
         return id, task, trial_number
 
-    def handle_events(self):
+    def handle_events_gui(self):
         self.screen.fill((30, 30, 30))
         for event in pg.event.get():
             if event.type == pg.QUIT:

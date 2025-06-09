@@ -15,12 +15,10 @@ As of 03/2025, the primary author and maintainer of this repository is Brian San
 Visit the Docker website and download the installer:  
 https://www.docker.com/products/docker-desktop/
 
-### Linux: Install Docker via apt-get
+### Linux: Install Docker Engine via apt
 
-```
-sudo apt-get update
-sudo apt-get install docker
-```
+Visit the Docker website and follow all instructions:
+https://docs.docker.com/engine/install/ubuntu/
 
 ## 2. Install Docker extension in VScode
 
