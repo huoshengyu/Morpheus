@@ -148,6 +148,15 @@ public:
     {
         if (isInSleepState()) {
             ROS_INFO_STREAM("Robot is in Sleep state. Skipping haptic feedback.");
+            float distancex = msg.normal.x * msg.depth;
+            float distancey = msg.normal.y * msg.depth;
+            float distancez = msg.normal.z * msg.depth;
+
+            ROS_INFO_STREAM("Distances - X: " << distancex 
+                << " | Y: " << distancey 
+
+                << " | Z: " << distancez);
+
             return;
         }
         std::string link1 = msg.contact_body_1;
@@ -162,8 +171,8 @@ public:
             "vx300s/wrist_link", "vx300s/lower_forearm_link"
         };
 
-        if (link1 != last_contact_link && link2 != last_contact_link)
-        {
+        // while (link1 != last_contact_link && link2 != last_contact_link)
+        // {
             last_contact_link = link1 + "_" + link2;
 
             float distancex = msg.normal.x * msg.depth;
@@ -204,8 +213,10 @@ public:
                 ROS_INFO_STREAM("Other collision: " << link1 << " vs " << link2 << ". Sending '0'");
                 char send_char = '0';
                 write(serial_port, &send_char, 1);
+                write(serial_port, pos_str.c_str(), pos_str.length());
+
             }
-        }
+        // }
     }
 };
 int main(int argc, char** argv)

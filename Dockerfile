@@ -1,4 +1,5 @@
 FROM nvidia/cuda:12.9.0-base-ubuntu20.04 AS base
+# RUN  rm /etc/apt/sources.list.d/nvidia-ml.list && apt-get clean && apt-get update
 
 SHELL ["/bin/bash", "-c"]
 
