@@ -208,7 +208,7 @@ public:
                 char send_char = '4';
                 write(serial_port, &send_char, 1);
                 write(serial_port, pos_str.c_str(), pos_str.length());
-            }
+            }   
             else {
                 ROS_INFO_STREAM("Other collision: " << link1 << " vs " << link2 << ". Sending '0'");
                 char send_char = '0';
