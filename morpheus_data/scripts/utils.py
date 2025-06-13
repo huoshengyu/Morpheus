@@ -7,10 +7,6 @@ def get_key():
     k = readchar()
     return k
 
-def input_args(func, keywords=[]):
-    # Call a function and prompt the user to input argument values
-    return
-
 def sanitize_filename(input):
     valid_punctuation = "._ "
     input = input.strip()

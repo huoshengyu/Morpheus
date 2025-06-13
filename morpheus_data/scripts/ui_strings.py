@@ -1,11 +1,11 @@
-session_state_dict = [
+session_state_dict = {
     "intro":["id"],
     "id":["task"],
     "task":["trial"],
     "trial":["ready"],
     "ready":["recording"],
     "recording":[],
-]
+}
 
 session_string_dict = {
     "header_title":"Morpheus Recording Session",
@@ -19,13 +19,14 @@ session_string_dict = {
     "task_description":"Please enter task name: ",
     "task_enter":"Task is ",
     "task_esc":"Cancelling task selection.",
-    "trial_description":"Please enter trial number (or press ENTER to use next available index: ",
+    "trial_description":"Please enter trial number (or leave blank to use next available index): ",
     "trial_enter":"Trial number is ",
     "trial_esc":"Cancelling task selection.",
-    "ready_description":"Ready to record. Press ENTER to start.",
+    "ready_description":"Ready to record. Press ENTER to start or ESC to go back.",
     "ready_enter":"Starting recording ",
     "ready_esc":"Exiting recording ",
     "recording_description":"Now recording. Press ENTER or ESC to stop.",
     "recording_enter":"Stopping recording ",
     "recording_esc":"Stopping recording ",
+    "recording_taken":"Filename already exists! Press ESC to re-enter trial number and try again.",
 }

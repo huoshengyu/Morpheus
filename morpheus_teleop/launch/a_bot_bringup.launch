@@ -40,7 +40,7 @@
         <arg name="use_tool_communication" value="true" />
         <arg name="tool_voltage" value="24" />
         <arg name="tool_device_name" value="$(arg tool_device_name)" />
-        <arg name="calibration_path" value="$(arg calibration_path)" />
+        <arg name="kinematics_config" value="$(arg calibration_path)" />
         <arg name="controllers" value="$(arg controllers)"/>
         <arg name="stopped_controllers" value="$(arg stopped_controllers)" />
         <arg name="controller_config_file" value="$(arg controller_config_file)"/>
