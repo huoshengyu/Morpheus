@@ -105,18 +105,20 @@ public:
             ROS_INFO("Sent '0' to Arduino (active)");
 
             // Send direction sequentially
-            sendDirectionComponent('X', latest_direction.x);
-            sendDirectionComponent('Y', latest_direction.y);
-            sendDirectionComponent('Z', latest_direction.z);
+            sendDirectionComponent(latest_direction.x,latest_direction.y,latest_direction.z);
+            // sendDirectionComponent(latest_direction.y);
+            // sendDirectionComponent(latest_direction.z);
         }
     }
 
-    void sendDirectionComponent(char axis, float value)
+    void sendDirectionComponent(float x, float y, float z)
     {
-        std::string out = std::string(1, axis) + ":" + std::to_string(value) + "\n";
+        std::string out = "START X:" + std::to_string(x) + " Y:" + std::to_string(y) + " Z:" + std::to_string(z) + " END\n";
         write(serial_port, out.c_str(), out.length());
+        usleep(100000);
+        tcflush(serial_port, TCOFLUSH); // Flush buffer
         ROS_INFO_STREAM("Sent to Arduino: " << out);
-        usleep(200000); // 100 ms
+        // usleep(200000); // 100 ms
     }
 };
 
