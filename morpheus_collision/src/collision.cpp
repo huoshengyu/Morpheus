@@ -1,5 +1,6 @@
 // General
 #include <algorithm>
+#include <chrono>
 
 // ROS
 #include <ros/ros.h>
@@ -66,7 +67,11 @@ class CollisionNode
         ros::Publisher g_nearest_contact_publisher;
         ros::Publisher g_nearest_distance_publisher;
         ros::Publisher g_nearest_direction_publisher;
-        ros::Publisher g_relativecontactmap_msg_publisher;
+        ros::Publisher g_yaw_contactmap_msg_publisher;
+        ros::Publisher g_yaw_contact_publisher;
+        ros::Publisher g_yaw_distance_publisher;
+        ros::Publisher g_yaw_direction_publisher;
+        ros::Publisher g_relative_contactmap_msg_publisher;
         ros::Publisher g_relative_contact_publisher;
         ros::Publisher g_relative_distance_publisher;
         ros::Publisher g_relative_direction_publisher;
@@ -75,6 +80,7 @@ class CollisionNode
         collision_detection::CollisionResult g_c_res;
         collision_detection::CollisionRequest g_c_req;
         std::vector<collision_detection::Contact> g_sorted_contacts;
+        std::vector<collision_detection::Contact> g_yaw_contacts;
         std::vector<collision_detection::Contact> g_relative_contacts;
 
         // Declare collision visualization variables
@@ -207,7 +213,11 @@ class CollisionNode
             g_nearest_distance_publisher = nh.advertise<std_msgs::Float64>("collision/nearest/distance", 0);
             g_nearest_direction_publisher = nh.advertise<geometry_msgs::Vector3>("collision/nearest/direction", 0);
             g_directional_distance_publisher = nh.advertise<geometry_msgs::Vector3>("collision/nearest/directional_distance", 0); //testing before full integration with arduino
-            g_relativecontactmap_msg_publisher = nh.advertise<morpheus_msgs::ContactMap>("collision/relativecontactmap/msg", 0);
+            g_yaw_contactmap_msg_publisher = nh.advertise<morpheus_msgs::ContactMap>("collision/yaw/contactmap/msg", 0);
+            g_yaw_contact_publisher = nh.advertise<moveit_msgs::ContactInformation>("collision/yaw/contact", 0);
+            g_yaw_distance_publisher = nh.advertise<std_msgs::Float64>("collision/yaw/distance", 0);
+            g_yaw_direction_publisher = nh.advertise<geometry_msgs::Vector3>("collision/yaw/direction", 0);
+            g_relative_contactmap_msg_publisher = nh.advertise<morpheus_msgs::ContactMap>("collision/relative/contactmap/msg", 0);
             g_relative_contact_publisher = nh.advertise<moveit_msgs::ContactInformation>("collision/relative/contact", 0);
             g_relative_distance_publisher = nh.advertise<std_msgs::Float64>("collision/relative/distance", 0);
             g_relative_direction_publisher = nh.advertise<geometry_msgs::Vector3>("collision/relative/direction", 0);
@@ -267,10 +277,20 @@ class CollisionNode
 
             // Get sorted contacts so that the top N can be selected
             g_sorted_contacts = get_sorted_contacts(g_c_res);
+            // Transform contacts based on yaw, which is assumed to be the first joint of the robot
+            g_yaw_contacts.clear();
+            std::string yaw_joint = g_arm_interface->getJointNames()[0];
+            const double* yaw = planning_scene_monitor::LockedPlanningSceneRO(g_planning_scene_monitor)->getCurrentState().getJointPositions(yaw_joint);
+            Eigen::Affine3d yaw_tf; // Must be first declared, then assigned since there is no implicit constructor from AngleAxis
+            yaw_tf = Eigen::AngleAxisd(*yaw, Eigen::Vector3d(0.0,0.0,1.0));
+            for (auto contact : g_sorted_contacts)
+            {
+                g_yaw_contacts.push_back(transformContact(contact, yaw_tf));
+            }
+            // Transform contacts to the frame of the link they are associated with
             g_relative_contacts.clear();
             for (auto contact : g_sorted_contacts)
             {
-                // TODO: Fix bug where contactToRelativeContact freezes at getGlobalLinkTransform()
                 g_relative_contacts.push_back(contactToRelativeContact(contact));
             }
 
@@ -308,7 +328,23 @@ class CollisionNode
             g_contactmap_msg_publisher.publish(contactmap_msg);
 
             // Publish link contact map just like regular contact map
-            morpheus_msgs::ContactMap relativecontactmap_msg;
+            morpheus_msgs::ContactMap yaw_contactmap_msg;
+            for (auto const& contact : g_yaw_contacts)
+            {
+                morpheus_msgs::StringPair msg_key;
+                msg_key.first = contact.body_name_1;
+                msg_key.second = contact.body_name_2;
+
+                moveit_msgs::ContactInformation msg_value;
+                collision_detection::contactToMsg(contact, msg_value);
+
+                yaw_contactmap_msg.keys.push_back(msg_key);
+                yaw_contactmap_msg.values.push_back(msg_value);
+            }
+            g_yaw_contactmap_msg_publisher.publish(yaw_contactmap_msg);
+
+            // Publish link contact map just like regular contact map
+            morpheus_msgs::ContactMap relative_contactmap_msg;
             for (auto const& contact : g_relative_contacts)
             {
                 morpheus_msgs::StringPair msg_key;
@@ -318,10 +354,10 @@ class CollisionNode
                 moveit_msgs::ContactInformation msg_value;
                 collision_detection::contactToMsg(contact, msg_value);
 
-                contactmap_msg.keys.push_back(msg_key);
-                contactmap_msg.values.push_back(msg_value);
+                relative_contactmap_msg.keys.push_back(msg_key);
+                relative_contactmap_msg.values.push_back(msg_value);
             }
-            g_relativecontactmap_msg_publisher.publish(relativecontactmap_msg);
+            g_relative_contactmap_msg_publisher.publish(relative_contactmap_msg);
 
             // Get nearest contact, break if none exist
             if (g_sorted_contacts.size() > 0)
@@ -351,6 +387,29 @@ class CollisionNode
                 directional_distance_msg.y = vec_point.y;//testing before full integration with arduino
                 directional_distance_msg.z = vec_point.z;//testing before full integration with arduino
                 g_directional_distance_publisher.publish(directional_distance_msg);//testing before full integration with arduino
+            }
+
+            // Get nearest yaw contact, break if none exist
+            if (g_yaw_contacts.size() > 0)
+            {
+                collision_detection::Contact yaw_contact = g_yaw_contacts[0];
+
+                // Publish contact object associated with yaw collision
+                moveit_msgs::ContactInformation yaw_msg;
+                collision_detection::contactToMsg(yaw_contact, yaw_msg);
+                g_yaw_contact_publisher.publish(yaw_msg);
+
+                // Publish distance associated with yaw contact
+                std_msgs::Float64 distance_msg;
+                distance_msg.data = yaw_contact.depth;
+                g_yaw_distance_publisher.publish(distance_msg);
+
+                // Publish direction associated with yaw contact
+                geometry_msgs::Vector3 direction_msg;
+                direction_msg.x = yaw_contact.normal[0];
+                direction_msg.y = yaw_contact.normal[1];
+                direction_msg.z = yaw_contact.normal[2];
+                g_yaw_direction_publisher.publish(direction_msg);
             }
 
             // Get nearest relative contact, break if none exist
@@ -534,23 +593,43 @@ class CollisionNode
             return point;
         }
 
+        collision_detection::Contact transformContact(collision_detection::Contact contact, Eigen::Affine3d tf)
+        {
+            // Returns a copy of contact where:
+            // contact.pos is given in the transformed reference frame
+            // contact.normal is given in the transformed reference frame
+            // contact.depth is the depth of collision as usual
+
+            // Transform the contact position and normal to the link frame
+            Eigen::Vector3d contact_pos_tf_frame = tf * contact.pos;
+            Eigen::Vector3d contact_normal_tf_frame = tf.linear() * contact.normal;
+
+            // Create a new contact object to be returned
+            collision_detection::Contact out;
+            out.body_name_1 = contact.body_name_1;
+            out.body_name_2 = contact.body_name_2;
+            out.body_type_1 = contact.body_type_1;
+            out.body_type_2 = contact.body_type_2;
+            out.depth = contact.depth;
+            out.pos = contact_pos_tf_frame;
+            out.normal = contact_normal_tf_frame;
+
+            return out;
+        }
+
         collision_detection::Contact contactToRelativeContact(collision_detection::Contact contact)
         {
             // Returns a copy of contact where:
             // contact.pos is given in the link's reference frame
             // contact.normal is given in the link's reference frame
-            // contact.depth is the height of the link model's bounding box
+            // contact.depth is the position of the contact relative to the height of the link model's bounding box
 
             // Get transformation matrix from world frame to link frame
             Eigen::Affine3d link_tf = planning_scene_monitor::LockedPlanningSceneRO(g_planning_scene_monitor)->getCurrentState().getGlobalLinkTransform(contact.body_name_1).inverse();
 
-            // Get contact.pos (robot end of the contact vector) and contact.normal (direction of the contact vector) as Eigen objects
-            Eigen::Vector3d contact_pos = contact.pos;
-            Eigen::Vector3d contact_normal = contact.normal;
-
             // Transform the contact position and normal to the link frame
-            Eigen::Vector3d contact_pos_link_frame = link_tf * contact_pos;
-            Eigen::Vector3d contact_normal_link_frame = link_tf.linear() * contact_normal;
+            Eigen::Vector3d contact_pos_link_frame = link_tf * contact.pos;
+            Eigen::Vector3d contact_normal_link_frame = link_tf.linear() * contact.normal;
 
             // Get the length of the link by finding the z_distance of the transform of the next link
             float z_extent = planning_scene_monitor::LockedPlanningSceneRO(g_planning_scene_monitor)->getRobotModel()->getLinkModel(contact.body_name_1)->getShapeExtentsAtOrigin()[2];
@@ -561,9 +640,9 @@ class CollisionNode
             out.body_name_2 = contact.body_name_2;
             out.body_type_1 = contact.body_type_1;
             out.body_type_2 = contact.body_type_2;
-            out.depth = contact.depth; // Get extent on z axis
-            out.normal = contact_normal_link_frame;
+            out.depth = contact.depth; // This is where z_extent goes if wanted instead of depth
             out.pos = contact_pos_link_frame;
+            out.normal = contact_normal_link_frame;
 
             return out;
         }
@@ -586,52 +665,43 @@ class CollisionNode
             // Select nearest n contacts
             std::vector<collision_detection::Contact>::size_type num_markers = std::min(g_max_markers, g_sorted_contacts.size());
             std::vector<collision_detection::Contact> nearest_n_contacts(g_sorted_contacts.begin(), g_sorted_contacts.begin() + num_markers);
-            std::vector<collision_detection::Contact> nearest_n_relative(g_relative_contacts.begin(), g_relative_contacts.begin() + num_markers);
+            // std::vector<collision_detection::Contact> nearest_n_relative(g_relative_contacts.begin(), g_relative_contacts.begin() + num_markers);
 
+            // Define colors for visualization
+            std_msgs::ColorRGBA color_near;
+            color_near.r = 1.0;
+            color_near.g = 0.0;
+            color_near.b = 0.0;
+            color_near.a = 0.5;
+            std_msgs::ColorRGBA color_far;
+            color_far.r = 0.0;
+            color_far.g = 1.0;
+            color_far.b = 0.0;
+            color_far.a = 0.5;
+            std::vector<std_msgs::ColorRGBA> colors = {color_near, color_far};
             // Visualize nearest n contacts
-            for (auto contact : nearest_n_contacts)
-            {
-                std::string frame_id = "world";
+            contactVectorToMarkerArray(nearest_n_contacts, markers, "world", colors, ns_counts);
 
-                double d = contact.depth; // get depth value for readibility
-
-                std_msgs::ColorRGBA color;
-                double color_d = std::max(0.0001, d); // Don't divide by 0
-                color.r = std::min(1.0, 1.0 * std::sqrt(0.050 / color_d)); // Use depth to determine color. Red should max out around 50 mm from collision, and shouldn't decay too fast.
-                color.g = 1 - color.r;
-                color.b = 0.0;
-                color.a = 0.5;
-
-                ros::Duration lifetime(1.0);
-                
-                visualization_msgs::Marker mk = contactToMarker(frame_id, contact, color, lifetime, ns_counts);
-                markers.markers.push_back(mk); // Add to MarkerArray markers
-            }
-
-            // Visualize nearest n relative contacts
-            for (auto contact : nearest_n_relative)
-            {
-                std::string frame_id = contact.body_name_1;
-
-                double d = contact.depth; // get depth value for readibility
-
-                std_msgs::ColorRGBA color;
-                double color_d = std::max(0.0001, d); // Don't divide by 0
-                color.r = 1; // Use depth to determine color. Red should max out around 50 mm from collision, and shouldn't decay too fast.
-                color.b = std::min(1.0, 1.0 * std::sqrt(0.050 / color_d));
-                color.g = 1 - color.b;
-                color.a = 0.0; // Change this to verify that relative contacts appear as intended
-
-                ros::Duration lifetime(1.0);
-                
-                visualization_msgs::Marker mk = contactToMarker(frame_id, contact, color, lifetime, ns_counts);
-                markers.markers.push_back(mk); // Add to MarkerArray markers
-            }
+            /*
+            // Visualize nearest n relative contacts (for validation, should output same as above)
+            std_msgs::ColorRGBA color_near_rel;
+            color_near_rel.r = 1.0;
+            color_near_rel.g = 0.0;
+            color_near_rel.b = 1.0;
+            color_near_rel.a = 0.5;
+            std_msgs::ColorRGBA color_far;
+            color_far_rel.r = 1.0;
+            color_far_rel.g = 1.0;
+            color_far_rel.b = 0.0;
+            color_far_rel.a = 0.5;
+            std::vector<std_msgs::ColorRGBA> colors_rel = {color_near_rel, color_far_rel};
+            contactVectorToMarkerArray(nearest_n_relative, markers, "", colors_rel, ns_counts); // Empty frame_id means use link frames
+            */
 
             publishMarkers(markers);
         }
 
-        visualization_msgs::Marker contactToMarker(std::string& frame_id, collision_detection::Contact& contact, std_msgs::ColorRGBA& color, ros::Duration& lifetime, std::map<std::string, unsigned>& ns_counts)
+        visualization_msgs::Marker contactToMarker(collision_detection::Contact& contact, std::string& frame_id, std_msgs::ColorRGBA& color, ros::Duration& lifetime, std::map<std::string, unsigned>& ns_counts)
         {
             Eigen::Vector3d p0 = contact.pos; // p0 is the position reported by the Contact
             Eigen::Vector3d p1; // p1 is p0 + depth * normal
@@ -678,9 +748,43 @@ class CollisionNode
             return mk;
         }
 
+        void contactVectorToMarkerArray(std::vector<collision_detection::Contact>& contact_vector, visualization_msgs::MarkerArray& markers, std::string frame_id, std::vector<std_msgs::ColorRGBA>& colors, std::map<std::string, unsigned>& ns_counts)
+        {
+            for (auto contact : contact_vector)
+            {
+                // Set the reference frame per link if given empty
+                std::string marker_frame = frame_id;
+                if (marker_frame == "")
+                {
+                    marker_frame = contact.body_name_1;
+                }
+
+                double d = contact.depth; // get depth value for readibility
+
+                // Use depth value to calculate a color along the spectrum given
+                double color_d = std::max(0.0001, d); // Don't divide by 0
+                double color_proportion = std::max(0.0, std::min(1.0, 1 - 1.0 * std::sqrt(0.050 / color_d))); // Use depth to determine color. Increases with distance For collisions, red should max out around 50 mm from collision, and shouldn't decay too fast.
+                int color_index_1 = std::min(static_cast<int>(std::floor(color_proportion * colors.size())), static_cast<int>(colors.size()) - 1);
+                int color_index_2 = color_index_1 + 1;
+                double color_interp_factor = color_proportion * colors.size() - color_index_1;
+                std_msgs::ColorRGBA color_1 = colors[color_index_1];
+                std_msgs::ColorRGBA color_2 = colors[color_index_2];
+                std_msgs::ColorRGBA color;
+                color.r = color_1.r * (1 - color_interp_factor) + color_2.r * color_interp_factor;
+                color.g = color_1.g * (1 - color_interp_factor) + color_2.g * color_interp_factor;
+                color.b = color_1.b * (1 - color_interp_factor) + color_2.b * color_interp_factor;
+                color.a = color_1.a * (1 - color_interp_factor) + color_2.a * color_interp_factor;
+
+                ros::Duration lifetime(1.0);
+                
+                visualization_msgs::Marker mk = contactToMarker(contact, marker_frame, color, lifetime, ns_counts);
+                markers.markers.push_back(mk); // Add to MarkerArray markers
+            }
+        }
+
         void publishMarkers(visualization_msgs::MarkerArray& markers)
         {
-            // delete old markers
+            // Delete old markers
             if (!g_collision_points.markers.empty())
             {
                 for (auto& marker : g_collision_points.markers)
@@ -689,10 +793,10 @@ class CollisionNode
                 // g_marker_array_publisher->publish(g_collision_points);
             }
 
-            // move new markers into g_collision_points
+            // Move new markers into g_collision_points
             std::swap(g_collision_points.markers, markers.markers);
 
-            // draw new markers (if there are any)
+            // Draw new markers (if there are any)
             if (!g_collision_points.markers.empty())
                 g_marker_array_publisher->publish(g_collision_points);
         }
