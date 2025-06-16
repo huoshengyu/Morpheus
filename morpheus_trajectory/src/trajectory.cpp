@@ -173,12 +173,23 @@ class TrajectoryNode
             else
             {
                 g_mode = "cartesian";
-                ROS_INFO("Using planning mode default (cartesian)");
+                ROS_INFO("Using planning mode default (Cartesian)");
             }
 
             // Get target vector from ros server, if possible
-            if (ros::param::get("goal/name_vector", g_goal_name_vector))
+            std::string goal_name_vector_param;
+            if (ros::param::get("goal/name_vector", goal_name_vector_param))
             {
+                // Split vector by delimiter ' '
+                char delimiter = ' ';
+                std::vector<std::string> tokens;
+                std::stringstream ss;
+                ss << goal_name_vector_param;
+                std::string token;
+                while (std::getline(ss, token, delimiter)) {
+                    tokens.push_back(token);
+                }
+                g_goal_name_vector = tokens;
                 ROS_INFO("Using GOAL_NAME_VECTOR from parameter server");
             }
             else
@@ -303,8 +314,6 @@ class TrajectoryNode
                 // Treat target vector's poses as waypoint vector
                 ROS_INFO_STREAM("Starting path computation");
                 std::vector<geometry_msgs::Pose> waypoints;
-                geometry_msgs::Pose start_pose = g_move_group_interface->getCurrentPose().pose;
-                waypoints.push_back(start_pose);
                 for (int i = 0; i < g_target_vector.size(); i++)
                 {
                     ROS_INFO_STREAM(std::to_string(g_target_vector[i].pose.position.x) + " " + std::to_string(g_target_vector[i].pose.position.y) + " " + std::to_string(g_target_vector[i].pose.position.z));

@@ -2,13 +2,15 @@
 
     <arg name="arm_group"                           default="arm"/>
     <arg name="gripper_group"                       default="gripper"/>
+    <arg name="goal_name_vector"                    default="trossen_home hera_ceiling"/>
     <arg name="trajvib"                             default="false"/>
 
     <!-- launch goal_transform params -->
     <include file="$(find morpheus_trajectory)/launch/goal_transform.launch"/>
+    <param name="goal/name_vector" value="$(arg goal_name_vector)"/>
 
     <!-- launch trajectory publisher -->
-    <node name="trajectory_server" pkg="morpheus_trajectory" type="morpheus_trajectory" output="screen">
+    <node name="trajectory" pkg="morpheus_trajectory" type="morpheus_trajectory" output="screen">
         <param name="arm_group" value="$(arg arm_group)"/>
         <param name="gripper_group" value="$(arg gripper_group)"/>
     </node>
