@@ -130,6 +130,8 @@ RUN echo "source /root/catkin_ws/devel/setup.bash" >> ~/.bashrc
 RUN echo "export LIBGL_ALWAYS_INDIRECT=" >> ~/.bashrc
 # Disable hardware acceleration to reduce Rviz graphical issues
 RUN echo "export LIBGL_ALWAYS_SOFTWARE=1" >> ~/.bashrc
+# Disable ROS1 EOL warnings
+RUN echo "export DISABLE_ROS1_EOL_WARNINGS=1" >> ~/.bashrc
 
 # Install Trossen Interbotix software
 # WORKDIR /root/catkin_ws/src/trossen
