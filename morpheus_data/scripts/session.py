@@ -27,6 +27,7 @@ class Session():
         self._rate = rate # loop rate for key press reading
         self._print_count = 0 # Number of lines last printed in the console
         self._queue = deque() # Queue for handling terminal printing
+        self._rate = rospy.Rate(60) # Hz, for keyboard reading loop rate
 
         #logging.basicConfig(level=logging.INFO)
         #self.logger = logging.getLogger(__name__)
@@ -77,6 +78,8 @@ class Session():
                 if state == "recording" and self._current_data is not None:
                     self._current_data.close()
                 break
+            # Limit loop rate
+            self._rate.sleep()
 
     def handle_key_events(self, input="", event=None):
         k = get_key()
