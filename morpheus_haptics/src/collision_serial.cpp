@@ -37,7 +37,7 @@ public:
     SerialCollisionSender()
     {
         // Open serial port
-        serial_port = open("/dev/ttyUSB0", O_RDWR); // << Change to your Arduino port!
+        serial_port = open("/dev/arduino", O_RDWR); // << Change to your Arduino port!
         if (serial_port < 0)
         {
             ROS_ERROR("Error %i from open: %s", errno, strerror(errno));
@@ -101,7 +101,7 @@ public:
         ROS_INFO("Serial port configured successfully!");
 
         // Subscribe to nearest collision contact
-        collision_sub = nh.subscribe("/vx300s/collision/nearest/contact", 10, &SerialCollisionSender::collisionCallback, this);
+        collision_sub = nh.subscribe("/vx300s/collision/yaw/contact", 10, &SerialCollisionSender::collisionCallback, this);
         joint_state_sub = nh.subscribe("/vx300s/joint_states", 10, &SerialCollisionSender::jointStateCallback, this);
     }
 
@@ -148,15 +148,6 @@ public:
     {
         if (isInSleepState()) {
             ROS_INFO_STREAM("Robot is in Sleep state. Skipping haptic feedback.");
-            float distancex = msg.normal.x * msg.depth;
-            float distancey = msg.normal.y * msg.depth;
-            float distancez = msg.normal.z * msg.depth;
-
-            ROS_INFO_STREAM("Distances - X: " << distancex 
-                << " | Y: " << distancey 
-
-                << " | Z: " << distancez);
-
             return;
         }
         std::string link1 = msg.contact_body_1;
@@ -170,53 +161,56 @@ public:
         static const std::set<std::string> lower_arm_links = {
             "vx300s/wrist_link", "vx300s/lower_forearm_link"
         };
+        char send_char = '0';  // default
 
         // while (link1 != last_contact_link && link2 != last_contact_link)
         // {
             last_contact_link = link1 + "_" + link2;
-
-            float distancex = msg.normal.x * msg.depth;
-            float distancey = msg.normal.y * msg.depth;
-            float distancez = msg.normal.z * msg.depth;
-            ROS_INFO_STREAM("Distance :" << msg.depth);
-            
-            ROS_INFO_STREAM("Distances - X: " << distancex 
-                << " | Y: " << distancey 
-                << " | Z: " << distancez);
-            std::string pos_str = std::to_string(distancex) + "," + std::to_string(distancey) + "," + std::to_string(distancez) + "\n";
-
             if (end_effector_links.count(link1) || end_effector_links.count(link2)) {
                 ROS_INFO_STREAM("Collision with end effector. Sending '1'");
-                char send_char = '1';
-                write(serial_port, &send_char, 1);
-                write(serial_port, pos_str.c_str(), pos_str.length());
+                send_char = '1';
+                // write(serial_port, &send_char, 1);
+                // write(serial_port, full_message.c_str(), full_message.length());
             }
             else if (lower_arm_links.count(link1) || lower_arm_links.count(link2)) {
                 ROS_INFO_STREAM("Collision with lower arm. Sending '2'");
-                char send_char = '2';
-                write(serial_port, &send_char, 1);
-                write(serial_port, pos_str.c_str(), pos_str.length());
+                send_char = '2';
+                // write(serial_port, &send_char, 1);
+                // write(serial_port, full_message.c_str(), full_message.length());
             }
             else if (link1 == "vx300s/upper_forearm_link" || link2 == "vx300s/upper_forearm_link") {
                 ROS_INFO_STREAM("Collision with upper forearm. Sending '3'");
-                char send_char = '3';
-                write(serial_port, &send_char, 1);
-                write(serial_port, pos_str.c_str(), pos_str.length());
+                send_char = '3';
+                // write(serial_port, &send_char, 1);
+                // write(serial_port, full_message.c_str(), full_message.length());
             }
             else if (link1 == "vx300s/upper_arm_link" || link2 == "vx300s/upper_arm_link") {
                 ROS_INFO_STREAM("Collision with upper arm. Sending '4'");
-                char send_char = '4';
-                write(serial_port, &send_char, 1);
-                write(serial_port, pos_str.c_str(), pos_str.length());
+                send_char = '4';
+                // write(serial_port, &send_char,s 1);
+                // write(serial_port, full_message.c_str(), full_message.length());
             }   
-            else {
-                ROS_INFO_STREAM("Other collision: " << link1 << " vs " << link2 << ". Sending '0'");
-                char send_char = '0';
-                write(serial_port, &send_char, 1);
-                write(serial_port, pos_str.c_str(), pos_str.length());
 
+            float distancex = msg.normal.x * msg.depth; //forward, backward
+            float distancey = msg.normal.y * msg.depth; //right, left
+            float distancez = msg.normal.z * msg.depth; //up, down
+            std::ostringstream oss;
+            oss << "<M:" << send_char
+                << " Y:" << std::showpos << std::fixed << std::setprecision(3) << distancey
+                << " Z:" << std::showpos << std::fixed << std::setprecision(3) << distancez
+                << ">";
+    
+            std::string full_msg = oss.str();
+            tcflush(serial_port, TCIOFLUSH);
+            ssize_t bytes_written = write(serial_port, full_msg.c_str(), full_msg.length());
+
+            // ✅ Optional debug check
+            if (bytes_written != (ssize_t)full_msg.length()) {
+                ROS_WARN_STREAM("Serial write mismatch! Expected " << full_msg.length()
+                                << ", wrote " << bytes_written);
+            } else {
+                ROS_INFO_STREAM("Sent to Arduino: " << full_msg);
             }
-        // }
     }
 };
 int main(int argc, char** argv)

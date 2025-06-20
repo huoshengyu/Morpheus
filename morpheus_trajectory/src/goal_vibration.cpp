@@ -23,10 +23,11 @@ public:
     double traj_distance;
     geometry_msgs::Vector3 latest_direction;
     struct termios tty;
+    ros::Time last_sent = ros::Time(0);
     serialTrajecSender()
     {
         // Open serial port
-        serial_port = open("/dev/ttyUSB0", O_RDWR); // << Change to your Arduino port!
+        serial_port = open("/dev/arduino", O_RDWR); // << Change to your Arduino port!
         if (serial_port < 0)
         {
             ROS_ERROR("Error %i from open: %s", errno, strerror(errno));
@@ -105,20 +106,30 @@ public:
             ROS_INFO("Sent '0' to Arduino (active)");
 
             // Send direction sequentially
-            sendDirectionComponent(latest_direction.x,latest_direction.y,latest_direction.z);
+            // sendDirectionComponent(latest_direction.x,latest_direction.y,latest_direction.z);
             // sendDirectionComponent(latest_direction.y);
             // sendDirectionComponent(latest_direction.z);
+            if ((ros::Time::now() - last_sent).toSec() > 0.2)
+            {
+                sendDirection(latest_direction.y, latest_direction.z, 100);
+                last_sent = ros::Time::now();
+            }
         }
     }
 
-    void sendDirectionComponent(float x, float y, float z)
+    void sendDirection( float y, float z, int mode)
     {
-        std::string out = "START X:" + std::to_string(x) + " Y:" + std::to_string(y) + " Z:" + std::to_string(z) + " END\n";
-        write(serial_port, out.c_str(), out.length());
-        usleep(100000);
-        tcflush(serial_port, TCOFLUSH); // Flush buffer
-        ROS_INFO_STREAM("Sent to Arduino: " << out);
-        // usleep(200000); // 100 ms
+        if (!std::isfinite(y) || !std::isfinite(z))
+        {
+            ROS_WARN("Skipping invalid vector");
+            return;
+        }
+
+        std::ostringstream out;
+        out << "<M:" << mode << " Y:" << y << " Z:" << z << ">";
+        std::string packet = out.str();
+        write(serial_port, packet.c_str(), packet.length());
+        ROS_INFO_STREAM("Sent: " << packet);
     }
 };
 
