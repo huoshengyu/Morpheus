@@ -3,6 +3,7 @@
     <arg name="arm_group"                           default="arm"/>
     <arg name="gripper_group"                       default="gripper"/>
     <arg name="goal_name_vector"                    default="trossen_home hera_ceiling"/>
+    <arg name="mode"                                default="preset"/>
     <arg name="trajvib"                             default="false"/>
 
     <!-- launch goal_transform params -->
@@ -11,8 +12,9 @@
 
     <!-- launch trajectory publisher -->
     <node name="trajectory" pkg="morpheus_trajectory" type="morpheus_trajectory" output="screen">
-        <param name="arm_group" value="$(arg arm_group)"/>
-        <param name="gripper_group" value="$(arg gripper_group)"/>
+        <param name="arm_group"                     value="$(arg arm_group)"/>
+        <param name="gripper_group"                 value="$(arg gripper_group)"/>
+        <param name="mode"                          value="$(arg mode)"/>
     </node>
 
     <group if="$(arg trajvib)">

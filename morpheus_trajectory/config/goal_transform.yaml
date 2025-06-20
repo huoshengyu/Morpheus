@@ -3,6 +3,13 @@ goal:
     goal_pose:
       position: {x: 0.13709, y: 0.0, z: 0.988091}
       orientation: {x: 0.0, y: 0.247404, z: 0, w: 0.968912}
+    goal_state:
+      waist: 0.0
+      shoulder: -1.76
+      elbow: 1.55
+      forearm_roll: 0.0
+      wrist_angle: 0.8
+      wrist_rotate: 0.0
     position_weights: {x: 1.0, y: 1.0, z: 1.0}
     orientation_weights: {x: 0.0, y: 0.0, z: 0.0, w: 0.0}
     max_velocity_scaling_factor: 0.1
@@ -10,27 +17,97 @@ goal:
     goal_pose:
       position: {x: 0.536494, y: 0.0, z: 1.3097}
       orientation: {x: 0, y: 0, z: 0, w: 1}
+    goal_state:
+      waist: 0.0
+      shoulder: 0.0
+      elbow: 0.0
+      forearm_roll: 0.0
+      wrist_angle: 0.0
+      wrist_rotate: 0.0
     position_weights: {x: 1.0, y: 1.0, z: 1.0}
     orientation_weights: {x: 0.0, y: 0.0, z: 0.0, w: 0.0}
     max_velocity_scaling_factor: 0.1
   hera_ceiling:
     goal_pose:
-      position: {x: 0.536494, y: 0.0, z: 1.47767}
+      position: {x: 0.536494, y: 0.0, z: 1.469296}
       orientation: {x: 0, y: 0, z: 0, w: 1}
+    goal_state:
+      waist: 0.0
+      shoulder: 0.196085
+      elbow: -0.826927
+      forearm_roll: 0.0
+      wrist_angle: 0.630842
+      wrist_rotate: 0.0
     position_weights: {x: 1.0, y: 1.0, z: 1.0}
     orientation_weights: {x: 0.0, y: 0.0, z: 0.0, w: 0.0}
     max_velocity_scaling_factor: 0.1
   hera_floor:
     goal_pose:
-      position: {x: 0.30705, y: 0.0, z: 0.94797}
+      position: {x: 0.276464, y: 0.0, z: 0.929587}
       orientation: {x: 0, y: 0.707106781, z: 0, w: 0.707106781}
+    goal_state:
+      waist: 0.0
+      shoulder: -0.016186
+      elbow: 0.764423
+      forearm_roll: 0.0
+      wrist_angle: 0.811763
+      wrist_rotate: 0.0
     position_weights: {x: 1.0, y: 1.0, z: 1.0}
     orientation_weights: {x: 0.0, y: 0.0, z: 0.0, w: 0.0}
     max_velocity_scaling_factor: 0.1
-  hera_arch:
+  hera_crouch_front:
     goal_pose:
-      position: {x: -0.21556, y: -0.36857, z: 0.94797}
-      orientation: {x: -0.60384, y: -0.34637, z: 0.62273, w: -0.35721}
+      position: {x: 0.126469, y: 0.0, z: 1.309532}
+      orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}
+    goal_state:
+      waist: 0.0
+      shoulder: -1.391214
+      elbow: 0.715423
+      forearm_roll: 0.0
+      wrist_angle: 0.675791
+      wrist_rotate: 0.0
+    position_weights: {x: 1.0, y: 1.0, z: 1.0}
+    orientation_weights: {x: 0.0, y: 0.0, z: 0.0, w: 0.0}
+    max_velocity_scaling_factor: 0.1
+  hera_crouch_right:
+    goal_pose:
+      position: {x: 0.0, y: -0.126469, z: 1.309532}
+      orientation: {x: 0.0, y: 0.0, z: -0.707106781, w: 0.707106781}
+    goal_state:
+      waist: -1.570796
+      shoulder: -1.330593
+      elbow: 0.725618
+      forearm_roll: 0.0
+      wrist_angle: 0.604975
+      wrist_rotate: 0.0
+    position_weights: {x: 1.0, y: 1.0, z: 1.0}
+    orientation_weights: {x: 0.0, y: 0.0, z: 0.0, w: 0.0}
+    max_velocity_scaling_factor: 0.1
+  hera_arch_over:
+    goal_pose:
+      position: {x: 0.0, y: -0.366365, z: 1.129200}
+      orientation: {x: 0.5, y: 0.5, z: -0.5, w: 0.5}
+    goal_state:
+      waist: -1.570796
+      shoulder:  0.0
+      elbow: 0.0
+      forearm_roll: 0.0
+      wrist_angle: 1.570796
+      wrist_rotate: 0.0
+    position_weights: {x: 1.0, y: 1.0, z: 1.0}
+    orientation_weights: {x: 0.0, y: 0.0, z: 0.0, w: 0.0}
+    max_velocity_scaling_factor: 0.1
+  hera_arch_pick:
+    goal_pose:
+      position: {x: 0.0, y: -0.36857, z: 0.939398}
+      orientation: {x: 0.5, y: 0.5, z: -0.5, w: 0.5}
+    goal_state:
+      waist: -1.560001
+      shoulder:  0.208543
+      elbow: 0.412394
+      forearm_roll: 0.0
+      wrist_angle: 0.939062
+      wrist_rotate: 0.0
     position_weights: {x: 1.0, y: 1.0, z: 1.0}
     orientation_weights: {x: 0.0, y: 0.0, z: 0.0, w: 0.0}
     max_velocity_scaling_factor: 0.1
