@@ -141,9 +141,9 @@ void joy_state_cb(const sensor_msgs::Joy &msg)
     // Xbox trigger values are 1.0 when unpressed, 0.0 when fully pressed
     // Note that if default_trig_val==false in joy node, they will incorrectly report 0.0 until pressed
     // default_trig_val is set when initializing joy node, in morpheus_teleop/xsarm_joy.launch
-    if (msg.axes.at(cntlr["EE_Y_INC"]) <= 1.0 - 1.0 * threshold)
+    if (msg.axes.at(cntlr["EE_Y_INC"]) <= 1.0 - 2.0 * threshold)
       joy_cmd.ee_y_cmd = interbotix_xs_msgs::ArmJoy::EE_Y_INC;
-    else if (msg.axes.at(cntlr["EE_Y_DEC"]) <= 1.0 - 1.0 * threshold)
+    else if (msg.axes.at(cntlr["EE_Y_DEC"]) <= 1.0 - 2.0 * threshold)
       joy_cmd.ee_y_cmd = interbotix_xs_msgs::ArmJoy::EE_Y_DEC;
   }
 
