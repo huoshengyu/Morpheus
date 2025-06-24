@@ -16,7 +16,7 @@ class ArmRobot(object):
         self.gripper_pressure_step = 0.125
         self.current_loop_rate = 10
         self.current_torque_status = True
-        self.current_gripper_pressure = 0.5
+        self.current_gripper_pressure = 1.0
         self.loop_rates = {"coarse" : 25, "fine" : 10}
         self.joy_msg = ArmJoy()
         self.joy_mutex = threading.Lock()

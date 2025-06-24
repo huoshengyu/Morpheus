@@ -153,6 +153,7 @@ void joy_state_cb(const sensor_msgs::Joy &msg)
   else if (msg.axes.at(cntlr["EE_Z"]) <= -threshold)
     joy_cmd.ee_z_cmd = interbotix_xs_msgs::ArmJoy::EE_Z_DEC;
 
+  /* Disable flipping axes. Pressing the sticks can be remapped.
   // Check if the ee_roll_cmd should be flipped
   if (msg.buttons.at(cntlr["FLIP_EE_ROLL"]) == 1 && flip_ee_roll_cmd_last_state == false)
     flip_ee_roll_cmd = true;
@@ -160,6 +161,7 @@ void joy_state_cb(const sensor_msgs::Joy &msg)
     flip_ee_roll_cmd = false;
   else if (msg.buttons.at(cntlr["FLIP_EE_ROLL"]) == 0)
     flip_ee_roll_cmd_last_state = flip_ee_roll_cmd;
+  */
 
   // Check the ee_roll_cmd
   if (msg.axes.at(cntlr["EE_ROLL"]) >= threshold && flip_ee_roll_cmd == false)
