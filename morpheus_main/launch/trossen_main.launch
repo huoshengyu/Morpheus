@@ -6,6 +6,7 @@
     <arg name="control_mode"                        default="interbotix"/>
     <arg name="controller"                          default="ps4"/>
     <arg name="use_keyboard"                        default="false"/>
+    <arg name="spawn"                               default="false"/>
     <arg name="haptics"                             default="true"/>
 
     <arg name="xacro_path"                          default="$(find morpheus_description)/urdf/scenes/trossen_hera_scene.xacro"/>
@@ -34,8 +35,9 @@
         </include>
 
         <!-- Launch spawner node -->
-        <include file="$(find morpheus_spawner)/launch/spawner.launch">
+        <include if="$(arg spawn)" file="$(find morpheus_spawner)/launch/spawner.launch">
             <arg name="arm_group"                       value="interbotix_arm"/>
+            <arg name="mode"                            value="spawn"/>
         </include>
 
         <!-- Launch arduino haptics node -->
