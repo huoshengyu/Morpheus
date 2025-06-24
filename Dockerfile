@@ -38,7 +38,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-wstool \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
-
+# RUN apt-get update && apt-get install -y --no-install-recommends \
+#     ros-noetic-rosserial \
+#     ros-noetic-rosserial-python \
+#     ros-noetic-rosserial-arduino \
+#     && rm -rf /var/lib/apt/lists/*
 # Initialize rosdep
 RUN rosdep init \
  && rosdep fix-permissions \

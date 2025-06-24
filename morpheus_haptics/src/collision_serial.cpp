@@ -36,8 +36,9 @@ public:
 
     SerialCollisionSender()
     {
-        // Open serial port
-        serial_port = open("/dev/arduino", O_RDWR); // << Change to your Arduino port!
+        std::string port_name;
+        nh.param<std::string>("serial_port", port_name, "/dev/arduino"); // Use ROS param if available
+        serial_port = open(port_name.c_str(), O_RDWR | O_NOCTTY | O_SYNC);
         if (serial_port < 0)
         {
             ROS_ERROR("Error %i from open: %s", errno, strerror(errno));
@@ -75,8 +76,8 @@ public:
         tty.c_cc[VTIME] = 10;    // Wait for up to 1 second (10 deciseconds)
         tty.c_cc[VMIN] = 0;
 
-        cfsetispeed(&tty, B9600);
-        cfsetospeed(&tty, B9600);
+        cfsetispeed(&tty, B115200);
+        cfsetospeed(&tty, B115200);
 
         if (tcsetattr(serial_port, TCSANOW, &tty) != 0)
         {
@@ -144,6 +145,16 @@ public:
         return true;
     }
 
+    std::string make_serial_message(char mode, float y, float z)
+    {
+        std::ostringstream oss;
+        oss << "<M:" << mode
+            << " Y:" << std::showpos << std::fixed << std::setprecision(3) << y
+            << " Z:" << std::showpos << std::fixed << std::setprecision(3) << z
+            << ">";
+        return oss.str();
+    }
+
     void collisionCallback(const moveit_msgs::ContactInformation& msg)
     {
         if (isInSleepState()) {
@@ -194,15 +205,10 @@ public:
             float distancex = msg.normal.x * msg.depth; //forward, backward
             float distancey = msg.normal.y * msg.depth; //right, left
             float distancez = msg.normal.z * msg.depth; //up, down
-            std::ostringstream oss;
-            oss << "<M:" << send_char
-                << " Y:" << std::showpos << std::fixed << std::setprecision(3) << distancey
-                << " Z:" << std::showpos << std::fixed << std::setprecision(3) << distancez
-                << ">";
-    
-            std::string full_msg = oss.str();
+            std::string full_msg = make_serial_message(send_char, distancey, distancez);      
             tcflush(serial_port, TCIOFLUSH);
             ssize_t bytes_written = write(serial_port, full_msg.c_str(), full_msg.length());
+            usleep(200000);
 
             // ✅ Optional debug check
             if (bytes_written != (ssize_t)full_msg.length()) {

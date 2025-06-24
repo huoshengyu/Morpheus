@@ -1,142 +1,159 @@
 #include <ros/ros.h>
-#include <moveit/planning_scene_monitor/planning_scene_monitor.h>
-#include <moveit_msgs/ContactInformation.h>
 #include <std_msgs/Float64.h>
 #include <geometry_msgs/Vector3.h>
 
-#include <fcntl.h>      // File control (open)
-#include <termios.h>    // Terminal control
-#include <unistd.h>     // Write, close
-#include <errno.h>      // Error number
-#include <string.h>     // String operations
-#include <iostream>     // IO Stream
+#include <fcntl.h>      // open()
+#include <termios.h>    // serial port control
+#include <unistd.h>     // write(), close()
+#include <errno.h>      // errno
+#include <string.h>     // strerror()
+#include <sstream>
+#include <iomanip>
+#include <sys/ioctl.h>
 
-
-class serialTrajecSender
+class SerialTrajecSender
 {
 public:
-    ros::NodeHandle nh;
-    ros::Subscriber goal_dist_sub;
-    ros::Subscriber goal_direc_sub;
-
-    int serial_port;
-    double traj_distance;
-    geometry_msgs::Vector3 latest_direction;
-    struct termios tty;
-    ros::Time last_sent = ros::Time(0);
-    serialTrajecSender()
+    SerialTrajecSender()
+      : nh_("~"),
+        send_interval_(0.05) // 20 Hz
     {
-        // Open serial port
-        serial_port = open("/dev/arduino", O_RDWR); // << Change to your Arduino port!
-        if (serial_port < 0)
+        // --- Serial port setup ---
+        nh_.param<std::string>("serial_port", port_name_, "/dev/arduino");
+        serial_fd_ = open(port_name_.c_str(), O_RDWR | O_NOCTTY | O_SYNC);
+        if (serial_fd_ < 0)
         {
-            ROS_ERROR("Error %i from open: %s", errno, strerror(errno));
-            exit(1);
-        }
-
-        memset(&tty, 0, sizeof tty);
-
-        if (tcgetattr(serial_port, &tty) != 0)
-        {
-            ROS_ERROR("Error %i from tcgetattr: %s", errno, strerror(errno));
-            exit(1);
-        }
-
-        // Setup serial parameters
-        tty.c_cflag &= ~PARENB; // No parity bit
-        tty.c_cflag &= ~CSTOPB; // 1 stop bit
-        tty.c_cflag &= ~CSIZE;
-        tty.c_cflag |= CS8;     // 8 bits per byte
-        tty.c_cflag &= ~CRTSCTS;// No flow control
-        tty.c_cflag |= CREAD | CLOCAL; // Turn on READ & ignore control lines
-
-        tty.c_lflag &= ~ICANON;
-        tty.c_lflag &= ~ECHO;   // Disable echo
-        tty.c_lflag &= ~ECHOE;  
-        tty.c_lflag &= ~ECHONL;
-        tty.c_lflag &= ~ISIG;   // Disable interpretation of INTR, QUIT, SUSP
-
-        tty.c_iflag &= ~(IXON | IXOFF | IXANY); // Turn off software flow control
-        tty.c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL);
-
-        tty.c_oflag &= ~OPOST; // Prevent special interpretation of output bytes
-        tty.c_oflag &= ~ONLCR; 
-
-        tty.c_cc[VTIME] = 10;    // Wait for up to 1 second (10 deciseconds)
-        tty.c_cc[VMIN] = 0;
-
-        cfsetispeed(&tty, B9600);
-        cfsetospeed(&tty, B9600);
-
-        if (tcsetattr(serial_port, TCSANOW, &tty) != 0)
-        {
-            ROS_ERROR("Error %i from tcsetattr: %s", errno, strerror(errno));
-            exit(1);
-        }
-
-        ROS_INFO("Serial port configured successfully!");
-
-        // Subscribe to nearest collision contact
-        goal_dist_sub = nh.subscribe("/vx300s/trajectory/goal/distance", 10, &serialTrajecSender::distanceCallback, this);
-        goal_direc_sub = nh.subscribe("/vx300s/trajectory/goal/vector", 10, &serialTrajecSender::directionCallback, this);
-
-    }
-    void directionCallback(const geometry_msgs::Vector3& msg)
-    {
-        // Just store the latest direction
-        latest_direction = msg;
-    }
-
-    void distanceCallback(const std_msgs::Float64::ConstPtr& msg)
-    {
-        traj_distance = msg->data;
-        ROS_INFO_STREAM("Received forward distance: " << traj_distance);
-
-        if (traj_distance <= 0.1)
-        {
-            char send_char = '1';  // Inactivation
-            write(serial_port, &send_char, 1);
-            ROS_INFO("Sent '1' to Arduino (inactive)");
-        }
-        else
-        {
-            char send_char = '0';  // Activation
-            write(serial_port, &send_char, 1);
-            usleep(150000);  // 150 ms
-            ROS_INFO("Sent '0' to Arduino (active)");
-
-            // Send direction sequentially
-            // sendDirectionComponent(latest_direction.x,latest_direction.y,latest_direction.z);
-            // sendDirectionComponent(latest_direction.y);
-            // sendDirectionComponent(latest_direction.z);
-            if ((ros::Time::now() - last_sent).toSec() > 0.2)
-            {
-                sendDirection(latest_direction.y, latest_direction.z, 100);
-                last_sent = ros::Time::now();
-            }
-        }
-    }
-
-    void sendDirection( float y, float z, int mode)
-    {
-        if (!std::isfinite(y) || !std::isfinite(z))
-        {
-            ROS_WARN("Skipping invalid vector");
+            ROS_FATAL("Failed to open %s: %s", port_name_.c_str(), strerror(errno));
+            ros::shutdown();
             return;
         }
+        configurePort();
+        ros::Duration(2.0).sleep();  // wait for Arduino reset
+        ROS_INFO("Serial port %s opened at 115200 baud", port_name_.c_str());
 
-        std::ostringstream out;
-        out << "<M:" << mode << " Y:" << y << " Z:" << z << ">";
-        std::string packet = out.str();
-        write(serial_port, packet.c_str(), packet.length());
-        ROS_INFO_STREAM("Sent: " << packet);
+        // --- Subscribers ---
+        dist_sub_   = nh_.subscribe("/vx300s/trajectory/goal/distance",  10,
+                                    &SerialTrajecSender::distanceCallback, this);
+        direc_sub_  = nh_.subscribe("/vx300s/trajectory/goal/vector",   10,
+                                    &SerialTrajecSender::directionCallback, this);
+    }
+
+    ~SerialTrajecSender()
+    {
+        if (serial_fd_ >= 0) close(serial_fd_);
+    }
+
+private:
+    ros::NodeHandle       nh_;
+    ros::Subscriber       dist_sub_, direc_sub_;
+    int                   serial_fd_{-1};
+    std::string           port_name_;
+    termios               tty_;
+    geometry_msgs::Vector3 latest_direction_;
+    ros::Time             last_send_time_;
+    ros::Duration         send_interval_;
+
+    // Configure baud & raw mode
+    void configurePort()
+    {
+        memset(&tty_, 0, sizeof tty_);
+        if (tcgetattr(serial_fd_, &tty_) != 0)
+        {
+            ROS_FATAL("tcgetattr error: %s", strerror(errno));
+            return;
+        }
+        cfsetospeed(&tty_, B115200);
+        cfsetispeed(&tty_, B115200);
+        tty_.c_cflag = (tty_.c_cflag & ~CSIZE) | CS8; // 8-bit chars
+        tty_.c_iflag &= ~IGNBRK;                     // disable break processing
+        tty_.c_lflag = 0;                            // no signaling chars, no echo
+        tty_.c_oflag = 0;                            // no remapping, no delays
+        tty_.c_cc[VMIN]  = 0;                        // read doesn't block
+        tty_.c_cc[VTIME] = 5;                        // 0.5s read timeout
+        tty_.c_cflag |= CLOCAL | CREAD;              // ignore modem controls
+        tty_.c_cflag &= ~(PARENB | PARODD);          // shut off parity
+        tty_.c_cflag &= ~CSTOPB;
+        tty_.c_cflag &= ~CRTSCTS;
+        tcsetattr(serial_fd_, TCSANOW, &tty_);
+    }
+
+    // Attempts to write all bytes; returns false on unrecoverable error
+    bool robustWrite(const char* buf, size_t len)
+    {
+        size_t written = 0;
+        while (written < len)
+        {
+            ssize_t n = write(serial_fd_, buf + written, len - written);
+            if (n < 0)
+            {
+                if (errno == EINTR) continue;
+                ROS_ERROR("Serial write error: %s", strerror(errno));
+                return false;
+            }
+            written += n;
+        }
+        return true;
+    }
+
+    // Build "<ACT:0>" or "<ACT:1>"
+    std::string makeActMsg(bool active)
+    {
+        std::ostringstream oss;
+        oss << '<' << "ACT:" << (active ? '1' : '0') << '>';
+        return oss.str();
+    }
+
+    // Build "<DIR X:0.123 Y:−0.456 Z:0.789>"
+    std::string makeDirMsg(const geometry_msgs::Vector3& v)
+    {
+        std::ostringstream oss;
+        oss << '<'
+            << "DIR"
+            << " X:" << std::fixed << std::setprecision(3) << v.x
+            << " Y:" << std::fixed << std::setprecision(3) << v.y
+            << " Z:" << std::fixed << std::setprecision(3) << v.z
+            << '>';
+        return oss.str();
+    }
+
+    // Received new distance; send ACT + DIR if needed
+    void distanceCallback(const std_msgs::Float64::ConstPtr& msg)
+    {
+        // Rate-limit
+        if ((ros::Time::now() - last_send_time_) < send_interval_) return;
+        last_send_time_ = ros::Time::now();
+
+        double d = msg->data;
+        bool active = (d > 0.1);
+
+        // Send activation message
+        std::string act_msg = makeActMsg(active);
+        robustWrite(act_msg.c_str(), act_msg.size());
+        ROS_INFO_STREAM("Sent " << act_msg);
+
+        if (active)
+        {
+            // Slight delay for Arduino to process
+            usleep(200000);
+
+            // Send the latest direction
+            std::string dir_msg = makeDirMsg(latest_direction_);
+            robustWrite(dir_msg.c_str(), dir_msg.size());
+            ROS_INFO_STREAM("Sent " << dir_msg);
+        }
+    }
+
+    // Just store the latest direction vector
+    void directionCallback(const geometry_msgs::Vector3::ConstPtr& msg)
+    {
+        latest_direction_ = *msg;
     }
 };
 
 int main(int argc, char** argv)
 {
     ros::init(argc, argv, "serial_trajec_sender");
-    serialTrajecSender node;
+    SerialTrajecSender node;
     ros::spin();
     return 0;
 }

@@ -16,6 +16,7 @@ find_package(catkin REQUIRED COMPONENTS
   moveit_msgs
   geometry_msgs
   morpheus_msgs
+  message_generation
 )
 
 ## System dependencies are found with CMake's conventions
@@ -57,7 +58,10 @@ find_package(catkin REQUIRED COMPONENTS
 #   Message1.msg
 #   Message2.msg
 # )
-
+# add_message_files(
+#   FILES
+#   HapticCommand.msg
+# )
 ## Generate services in the 'srv' folder
 # add_service_files(
 #   FILES
@@ -75,7 +79,7 @@ find_package(catkin REQUIRED COMPONENTS
 ## Generate added messages and services with any dependencies listed here
 # generate_messages(
 #   DEPENDENCIES
-#   geometry_msgs
+#   std_msgs
 # )
 
 ################################################
@@ -139,6 +143,7 @@ include_directories(
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
 add_executable(collision_serial src/collision_serial.cpp)
+add_executable(collision_simple src/collision_simple.cpp)
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
 ## target back to the shorter version for ease of user use
@@ -151,7 +156,7 @@ add_executable(collision_serial src/collision_serial.cpp)
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(collision_serial ${catkin_LIBRARIES})
-
+target_link_libraries(collision_simple ${catkin_LIBRARIES})
 #############
 ## Install ##
 #############

@@ -76,6 +76,8 @@ class CollisionNode
         ros::Publisher g_relative_distance_publisher;
         ros::Publisher g_relative_direction_publisher;
         ros::Publisher g_directional_distance_publisher; //testing before full integration with arduino
+        ros::Publisher yaw_directional_distance_publisher; //testing before full integration with arduino
+
         // Declare collision info variables
         collision_detection::CollisionResult g_c_res;
         collision_detection::CollisionRequest g_c_req;
@@ -221,6 +223,7 @@ class CollisionNode
             g_relative_contact_publisher = nh.advertise<moveit_msgs::ContactInformation>("collision/relative/contact", 0);
             g_relative_distance_publisher = nh.advertise<std_msgs::Float64>("collision/relative/distance", 0);
             g_relative_direction_publisher = nh.advertise<geometry_msgs::Vector3>("collision/relative/direction", 0);
+            yaw_directional_distance_publisher = nh.advertise<geometry_msgs::Vector3>("collision/yaw/yaw_distance", 0); //testing before full integration with arduino
 
             
             // Create a marker array publisher for publishing shapes to Rviz
@@ -279,7 +282,7 @@ class CollisionNode
             g_sorted_contacts = get_sorted_contacts(g_c_res);
             // Transform contacts based on yaw, which is assumed to be the first joint of the robot
             g_yaw_contacts.clear();
-            std::string yaw_joint = g_arm_interface->getJointNames()[0];
+            std::string yaw_joint = g_arm_interface->getVariableNames()[0];
             const double* yaw = planning_scene_monitor::LockedPlanningSceneRO(g_planning_scene_monitor)->getCurrentState().getJointPositions(yaw_joint);
             Eigen::Affine3d yaw_tf; // Must be first declared, then assigned since there is no implicit constructor from AngleAxis
             yaw_tf = Eigen::AngleAxisd(*yaw, Eigen::Vector3d(0.0,0.0,1.0));
@@ -410,6 +413,13 @@ class CollisionNode
                 direction_msg.y = yaw_contact.normal[1];
                 direction_msg.z = yaw_contact.normal[2];
                 g_yaw_direction_publisher.publish(direction_msg);
+                geometry_msgs::Point yaw_vec_point = contactToPoint(yaw_contact); //testing before full integration with arduino
+
+                geometry_msgs::Vector3 yaw_distance_msg;//testing before full integration with arduino
+                yaw_distance_msg.x = yaw_vec_point.x;//testing before full integration with arduino
+                yaw_distance_msg.y = yaw_vec_point.y;//testing before full integration with arduino
+                yaw_distance_msg.z = yaw_vec_point.z;//testing before full integration with arduino
+                yaw_directional_distance_publisher.publish(yaw_distance_msg);//testing before full integration with arduino
             }
 
             // Get nearest relative contact, break if none exist
