@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="trossen_node2_scene">
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="vx300s">
 
     <xacro:arg name="robot_name" default="vx300s"/>
     <xacro:arg name="base_link_frame" default="base_link"/>
