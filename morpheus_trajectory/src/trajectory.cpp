@@ -165,8 +165,24 @@ class TrajectoryNode
             // Create a marker array publisher for publishing shapes to Rviz
             g_marker_array_publisher = nh.advertise<visualization_msgs::MarkerArray>("visualization_marker_array", 100);
             
+            // Get robot model from the current planning scene
+            const robot_model::RobotModelConstPtr robot_model = g_planning_scene_monitor->getRobotModel();
+
+            // Get the current robot state once so that it does not vary over time
+            // A LockedPlanningSceneRO is used to avoid modifying the planning scene.
+            // Alternatively, the robot state can be set from a given joint state or from a given pose (using IK)
+            robot_state::RobotStatePtr robot_state(
+                new moveit::core::RobotState(planning_scene_monitor::LockedPlanningSceneRO(g_planning_scene_monitor)->getCurrentState()));
+            robot_state::RobotStatePtr robot_state_home(new moveit::core::RobotState(robot_model));
+            robot_state_home->setToDefaultValues();
+
+            // Create a joint model group for tracking the current robot pose and planning group
+            const moveit::core::JointModelGroup* joint_model_group =
+                robot_state->getJointModelGroup(g_arm_group);
+            std::vector<std::string> joint_names = joint_model_group->getActiveJointModelNames();
+
             // Get target vector from ros server, if possible
-            if (ros::param::get("mode", g_mode))
+            if (ros::param::get("~mode", g_mode))
             {
                 ROS_INFO("Using planning mode from parameter server");
             }
@@ -199,6 +215,10 @@ class TrajectoryNode
             }
 
             // Get goal transforms and associated parameters from parameter server
+            trajectory_msgs::JointTrajectory preset_trajectory;
+            preset_trajectory.header.stamp = ros::Time::now();
+            preset_trajectory.header.frame_id = "world";
+            preset_trajectory.joint_names = joint_names;
             for (std::string goal_name : g_goal_name_vector)
             {
                 if (ros::param::has("goal/" + goal_name))
@@ -215,6 +235,16 @@ class TrajectoryNode
                     ros::param::get("goal/" + goal_name + "/goal_pose/orientation/z", target.pose.orientation.z);
                     ros::param::get("goal/" + goal_name + "/goal_pose/orientation/w", target.pose.orientation.w);
                     g_target_vector.push_back(target);
+
+                    // Get goal transform from parameter server
+                    trajectory_msgs::JointTrajectoryPoint joint_target;
+                    std::vector<double> joint_positions(6);
+                    for (int i = 0; i < joint_names.size(); i++)
+                    {
+                        ros::param::get("goal/" + goal_name + "/goal_state/" + joint_names[i], joint_positions[i]);
+                    }
+                    joint_target.positions = joint_positions;
+                    preset_trajectory.points.push_back(joint_target);
 
                     // Get goal weights from parameter server
                     geometry_msgs::PoseStamped weights;
@@ -296,20 +326,19 @@ class TrajectoryNode
                 ROS_INFO_STREAM("Velocity vector empty, using default velocity scaling factor");
             }
 
-            // Get robot model from the current planning scene
-            const robot_model::RobotModelConstPtr robot_model = g_planning_scene_monitor->getRobotModel();
-
-            // Get the current robot state once so that it does not vary over time
-            // A LockedPlanningSceneRO is used to avoid modifying the planning scene.
-            // Alternatively, the robot state can be set from a given joint state or from a given pose (using IK)
-            robot_state::RobotStatePtr robot_state(
-                new moveit::core::RobotState(planning_scene_monitor::LockedPlanningSceneRO(g_planning_scene_monitor)->getCurrentState()));
-
-            // Create a joint model group for tracking the current robot pose and planning group
-            const moveit::core::JointModelGroup* joint_model_group =
-                robot_state->getJointModelGroup(g_arm_group);
-            
-            if (g_mode == "cartesian")
+            // Just use waypoints directly without planning
+            if (g_mode == "preset" or g_mode == "")
+            {
+                ROS_INFO_STREAM("Using preset path");
+                ROS_INFO_STREAM("Setting msg");
+                moveit_msgs::RobotTrajectory msg;
+                msg.joint_trajectory = preset_trajectory;
+                robot_trajectory::RobotTrajectory trajectory(robot_model, joint_model_group);
+                trajectory.setRobotTrajectoryMsg(*robot_state, msg);
+                g_trajectory_vector.push_back(trajectory);
+            }
+            // Plan a cartesian trajectory. More prone to failed planning.
+            else if (g_mode == "cartesian")
             {
                 // Treat target vector's poses as waypoint vector
                 ROS_INFO_STREAM("Starting path computation");
@@ -319,7 +348,7 @@ class TrajectoryNode
                     ROS_INFO_STREAM(std::to_string(g_target_vector[i].pose.position.x) + " " + std::to_string(g_target_vector[i].pose.position.y) + " " + std::to_string(g_target_vector[i].pose.position.z));
                     waypoints.push_back(g_target_vector[i].pose);
                 }
-                double step = 0.01;
+                double step = 0.05;
                 moveit_msgs::RobotTrajectory msg;
                 // const moveit_msgs::Constraints path_constraints;
                 // bool avoid_collisions = true;
@@ -332,6 +361,7 @@ class TrajectoryNode
                 trajectory.setRobotTrajectoryMsg(*robot_state, msg);
                 g_trajectory_vector.push_back(trajectory); // Add current trajectory to vector of all trajectories
             }
+            // Plan a joint space trajectory. Less intuitive, more curved paths.
             else if (g_mode == "joint")
             {
                 // Iterate over all goal poses
@@ -362,7 +392,7 @@ class TrajectoryNode
             }
             else
             {
-                ROS_ERROR("Morpheus trajectory node requires one of the following modes: (cartesian, joint)");
+                ROS_ERROR("Morpheus trajectory node requires one of the following modes: (preset, cartesian, joint)");
                 return;
             }
 
@@ -516,7 +546,7 @@ class TrajectoryNode
             Eigen::Affine3d A_nearest;
             Eigen::Affine3d B_nearest;
             // Loop over transform_deque to find where the trajectory is nearest to P
-            for (int i = 0; i < transform_deque.size(); i++) // TODO Fix this to prevent SIGSEGV errors
+            for (int i = 0; i < transform_deque.size(); i++)
             {
                 // Use loop to walk through the deque, trying every consecutive segment AB
                 Eigen::Affine3d A_loop = transform_deque[i];

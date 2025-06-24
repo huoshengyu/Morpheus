@@ -31,7 +31,7 @@
   </node>
 
   <node
-    pkg="interbotix_xsarm_joy"
+    pkg="morpheus_teleop"
     type="xsarm_joy"
     name="xsarm_joy"
     output="screen"
@@ -42,8 +42,8 @@
   </node>
 
   <node
-    pkg="interbotix_xsarm_joy"
-    type="xsarm_robot"
+    pkg="morpheus_teleop"
+    type="xsarm_robot.py"
     name="xsarm_robot"
     output="screen"
     ns="$(arg robot_name)">
