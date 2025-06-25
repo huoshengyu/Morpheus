@@ -36,9 +36,9 @@ public:
 
     SerialCollisionSender()
     {
-        std::string port_name;
-        nh.param<std::string>("serial_port", port_name, "/dev/arduino"); // Use ROS param if available
-        serial_port = open(port_name.c_str(), O_RDWR | O_NOCTTY | O_SYNC);
+            std::string port_name;
+            nh.param<std::string>("serial_port", port_name, "/dev/arduino"); // Use ROS param if available
+            serial_port = open(port_name.c_str(), O_RDWR | O_NOCTTY | O_SYNC);
         if (serial_port < 0)
         {
             ROS_ERROR("Error %i from open: %s", errno, strerror(errno));
@@ -94,7 +94,7 @@ public:
         ioctl(serial_port, TIOCMSET, &flags);
 
         // === Flush garbage and wait for Arduino to boot ===
-        tcflush(serial_port, TCIOFLUSH);          // Clean buffer
+        tcflush(serial_port, TCIFLUSH);          // Clean buffer
         ros::Duration(2.0).sleep();               // Wait for Arduino to be ready
 
         ROS_INFO("Serial port configured and Arduino reset successfully!");
@@ -102,7 +102,7 @@ public:
         ROS_INFO("Serial port configured successfully!");
 
         // Subscribe to nearest collision contact
-        collision_sub = nh.subscribe("/vx300s/collision/yaw/contact", 10, &SerialCollisionSender::collisionCallback, this);
+        collision_sub = nh.subscribe("/vx300s/collision/nearest/contact", 10, &SerialCollisionSender::collisionCallback, this);
         joint_state_sub = nh.subscribe("/vx300s/joint_states", 10, &SerialCollisionSender::jointStateCallback, this);
     }
 
@@ -208,7 +208,7 @@ public:
             std::string full_msg = make_serial_message(send_char, distancey, distancez);      
             tcflush(serial_port, TCIOFLUSH);
             ssize_t bytes_written = write(serial_port, full_msg.c_str(), full_msg.length());
-            usleep(200000);
+            usleep(100000);
 
             // ✅ Optional debug check
             if (bytes_written != (ssize_t)full_msg.length()) {

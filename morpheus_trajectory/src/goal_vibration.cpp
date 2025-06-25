@@ -134,7 +134,7 @@ private:
         if (active)
         {
             // Slight delay for Arduino to process
-            usleep(200000);
+            usleep(400000);
 
             // Send the latest direction
             std::string dir_msg = makeDirMsg(latest_direction_);
