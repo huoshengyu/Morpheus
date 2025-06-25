@@ -285,7 +285,7 @@ class CollisionNode
             std::string yaw_joint = g_arm_interface->getVariableNames()[0];
             const double* yaw = planning_scene_monitor::LockedPlanningSceneRO(g_planning_scene_monitor)->getCurrentState().getJointPositions(yaw_joint);
             Eigen::Affine3d yaw_tf; // Must be first declared, then assigned since there is no implicit constructor from AngleAxis
-            yaw_tf = Eigen::AngleAxisd(*yaw, Eigen::Vector3d(0.0,0.0,1.0));
+            yaw_tf = Eigen::AngleAxisd(-*yaw, Eigen::Vector3d(0.0,0.0,1.0));
             for (auto contact : g_sorted_contacts)
             {
                 g_yaw_contacts.push_back(transformContact(contact, yaw_tf));
