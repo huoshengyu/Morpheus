@@ -4,7 +4,8 @@ FROM nvidia/cuda:12.9.0-base-ubuntu20.04 AS base
 SHELL ["/bin/bash", "-c"]
 
 # Install git and wget
-RUN apt-get update && apt-get install git wget -y
+RUN apt-get update && 
+    apt-get install git wget udev -y
 
 # Install Miniconda
 RUN wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda3.sh
