@@ -208,7 +208,7 @@ public:
             std::string full_msg = make_serial_message(send_char, distancey, distancez);      
             tcflush(serial_port, TCIOFLUSH);
             ssize_t bytes_written = write(serial_port, full_msg.c_str(), full_msg.length());
-            usleep(100000);
+            usleep(90000);
 
             // ✅ Optional debug check
             if (bytes_written != (ssize_t)full_msg.length()) {
