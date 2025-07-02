@@ -1,13 +1,13 @@
+// General Imports
 #include <ros/ros.h>
-
+// ROS Messages
 #include <std_msgs/String.h>
 #include <std_msgs/Float64.h>
 #include <geometry_msgs/Point.h>
 #include <visualization_msgs/Marker.h>
 #include <moveit_msgs/RobotState.h>
 #include <moveit_msgs/RobotTrajectory.h>
-#include <eigen_conversions/eigen_msg.h>
-
+// Moveit
 #include <moveit/moveit_cpp/moveit_cpp.h>
 #include <moveit/moveit_cpp/planning_component.h>
 #include <moveit/move_group_interface/move_group_interface.h>
@@ -18,6 +18,10 @@
 #include <moveit/robot_model_loader/robot_model_loader.h>
 #include <moveit/robot_model/robot_model.h>
 #include <moveit_visual_tools/moveit_visual_tools.h>
+// Geometry
+#include <eigen_conversions/eigen_msg.h>
+// Local Imports
+#include "morpheus_teleop/button_mappings.h"
 
 static const std::string ROBOT_DESCRIPTION =
     "robot_description";  // name of the robot description (a param name, so it can be changed externally)
@@ -28,12 +32,8 @@ static const std::string GRIPPER_GROUP_DEFAULT = "gripper";
 
 static const std::vector<std::string> GOAL_NAME_VECTOR_DEFAULT
 {
-    "trossen_home", // name of the scene associated with the goal pose
-};
-
-namespace trajectory
-{
-
+    "trossen_home",
+    "hera_ceiling",
 };
 
 class TrajectoryNode
@@ -41,6 +41,10 @@ class TrajectoryNode
     public:
         // Planning Scene Monitor
         std::shared_ptr<planning_scene_monitor::PlanningSceneMonitor> g_planning_scene_monitor;
+
+        // Subscribers
+        ros::Subscriber g_joy_subscriber;
+        ros::Subscriber g_gello_subscriber;
 
         // Publishers
         ros::Publisher g_marker_array_publisher;
@@ -78,6 +82,9 @@ class TrajectoryNode
         Eigen::Affine3d g_nearest;
         Eigen::Affine3d g_forward;
         Eigen::Affine3d g_goal;
+        int g_segment_index;
+        std::map<std::string, int> g_cntlr;                           // Holds the controller button mappings
+        bool g_segment_swapped;
 
         TrajectoryNode(int argc, char** argv)
         {
@@ -330,12 +337,20 @@ class TrajectoryNode
             if (g_mode == "preset" or g_mode == "")
             {
                 ROS_INFO_STREAM("Using preset path");
-                ROS_INFO_STREAM("Setting msg");
-                moveit_msgs::RobotTrajectory msg;
-                msg.joint_trajectory = preset_trajectory;
-                robot_trajectory::RobotTrajectory trajectory(robot_model, joint_model_group);
-                trajectory.setRobotTrajectoryMsg(*robot_state, msg);
-                g_trajectory_vector.push_back(trajectory);
+                for (int i = 0; i < preset_trajectory.points.size()-1; i++)
+                {
+                    // For each point in the preset trajectory, make a trajectory segment to be toggled between
+                    trajectory_msgs::JointTrajectory preset_segment;
+                    preset_segment.header.stamp = ros::Time::now();
+                    preset_segment.header.frame_id = "world";
+                    preset_segment.joint_names = joint_names;
+                    preset_segment.points = {preset_trajectory.points[i], preset_trajectory.points[i+1]};
+                    moveit_msgs::RobotTrajectory msg;
+                    msg.joint_trajectory = preset_segment;
+                    robot_trajectory::RobotTrajectory trajectory(robot_model, joint_model_group);
+                    trajectory.setRobotTrajectoryMsg(*robot_state, msg);
+                    g_trajectory_vector.push_back(trajectory);
+                }
             }
             // Plan a cartesian trajectory. More prone to failed planning.
             else if (g_mode == "cartesian")
@@ -349,22 +364,27 @@ class TrajectoryNode
                     waypoints.push_back(g_target_vector[i].pose);
                 }
                 double step = 0.05;
-                moveit_msgs::RobotTrajectory msg;
-                // const moveit_msgs::Constraints path_constraints;
-                // bool avoid_collisions = true;
-                // moveit_msgs::MoveItErrorCodes error_code;
-                g_move_group_interface->computeCartesianPath(waypoints, step, msg);
+                for (int i = 0; i < waypoints.size()-1; i++)
+                {
+                    moveit_msgs::RobotTrajectory msg;
+                    std::vector<geometry_msgs::Pose> segment = {waypoints[i], waypoints[i+1]};
+                    // const moveit_msgs::Constraints path_constraints;
+                    // bool avoid_collisions = true;
+                    // moveit_msgs::MoveItErrorCodes error_code;
+                    g_move_group_interface->computeCartesianPath(segment, step, msg);
 
-                // Set trajectory msg
-                ROS_INFO_STREAM("Setting msg");
-                robot_trajectory::RobotTrajectory trajectory(robot_model, joint_model_group);
-                trajectory.setRobotTrajectoryMsg(*robot_state, msg);
-                g_trajectory_vector.push_back(trajectory); // Add current trajectory to vector of all trajectories
+                    // Set trajectory msg
+                    ROS_INFO_STREAM("Setting msg");
+                    robot_trajectory::RobotTrajectory trajectory(robot_model, joint_model_group);
+                    trajectory.setRobotTrajectoryMsg(*robot_state, msg);
+                    g_trajectory_vector.push_back(trajectory); // Add current trajectory to vector of all trajectories
+                }
             }
             // Plan a joint space trajectory. Less intuitive, more curved paths.
             else if (g_mode == "joint")
             {
                 // Iterate over all goal poses
+                ROS_INFO_STREAM("Starting path computation");
                 robot_state::RobotState next_start_state = *robot_state;
                 for (int i = 0; i < g_target_vector.size(); i++)
                 {
@@ -392,12 +412,59 @@ class TrajectoryNode
             }
             else
             {
-                ROS_ERROR("Morpheus trajectory node requires one of the following modes: (preset, cartesian, joint)");
+                ROS_ERROR("Morpheus Trajectory node requires one of the following modes: (preset, cartesian, joint)");
                 return;
             }
 
             // Instantiate visual tools for visualizing markers in Rviz
             g_visual_tools = std::make_shared<moveit_visual_tools::MoveItVisualTools>("/world", "visualization_marker_array", g_planning_scene_monitor);
+
+            // Set current tracked trajectory segment to index 0
+            g_segment_index = 0;
+            g_segment_swapped = false;
+
+            // Set controller type based on params
+            std::string controller_type;
+            bool use_joy = false;
+            bool use_gello = false;
+            if (ros::param::get("~controller", controller_type))
+            {
+                if (button_mappings.find(controller_type) != button_mappings.end())
+                {
+                    ROS_INFO_STREAM("Controller type is " + controller_type + ". Joystick commands will be accepted by Morpheus Trajectory.");
+                    g_cntlr = button_mappings.find(controller_type)->second;
+                    use_joy = true;
+                }
+                else if (controller_type == "gello")
+                {
+                    ROS_INFO_STREAM("Controller type is gello. Joystick commands will be ignored by Morpheus Trajectory.");
+                    use_gello = true;
+                }
+                else
+                {
+                    std::stringstream controller_ss;
+                    for (std::map<std::string, std::map<std::string, int>>::const_iterator it = button_mappings.begin(); it != button_mappings.end(); ++it)
+                    {
+                        controller_ss << it->first;
+                    }
+                    ROS_INFO_STREAM("Controller type " + controller_type + " not recognized. Accepted controllers are: " + controller_ss.str() + ". Joystick commands will be ignored by Morpheus Trajectory.");
+                }
+            }
+            else
+            {
+                ROS_INFO_STREAM("Controller type not received from parameter server. Defaulting to ps4.");
+                controller_type = "ps4";
+            }
+
+            // Create controller msg subscribers
+            if (use_joy)
+            {
+                g_joy_subscriber = nh.subscribe("joy", 10, &TrajectoryNode::joyCallback, this);
+            }
+            if (use_gello)
+            {
+                g_gello_subscriber = nh.subscribe("gello/joint_state", 10, &TrajectoryNode::gelloCallback, this);
+            }
 
             spin();
             // ros::shutdown();
@@ -405,7 +472,6 @@ class TrajectoryNode
 
         void spin()
         {
-            ROS_INFO_STREAM("Starting spin()");
             // Loop collision requests and publish at specified rate
             ros::Rate loop_rate(10);
             while (ros::ok())
@@ -414,8 +480,7 @@ class TrajectoryNode
                 auto current_state = planning_scene_monitor::LockedPlanningSceneRO(g_planning_scene_monitor)->getCurrentState();
                 current_state.updateLinkTransforms();
 
-                // Plan trajectory
-                // auto plan = g_planning_components->getLastMotionPlanResponse();
+                // Get waypoints of all trajectory segments
                 std::vector<moveit::core::RobotState> waypoints;
                 for (robot_trajectory::RobotTrajectory trajectory : g_trajectory_vector)
                 {
@@ -424,15 +489,19 @@ class TrajectoryNode
                 }
                 auto transform_deque = getTransforms(waypoints, g_move_group_interface->getEndEffectorLink());
 
-                // Find relative transforms to nearest and forward sections of trajectory
+                // Get waypoints of selected trajectory segment
+                robot_trajectory::RobotTrajectory trajectory_segment = g_trajectory_vector[g_segment_index];
+                std::vector<moveit::core::RobotState> waypoints_segment = getWaypoints(trajectory_segment);
+                auto transform_deque_segment = getTransforms(waypoints_segment, g_move_group_interface->getEndEffectorLink());
+
+                // Find relative transforms to nearest and forward sections of trajectory segment
                 Eigen::Affine3d tcp_transform = current_state.getGlobalLinkTransform(g_move_group_interface->getEndEffectorLink());
-                std::vector<Eigen::Affine3d> transform_vector = getNearestTransform(transform_deque, tcp_transform);
+                std::vector<Eigen::Affine3d> transform_vector = getNearestTransform(transform_deque_segment, tcp_transform);
                 g_nearest = transform_vector[0];
                 g_forward = transform_vector[1];
 
                 // Find relative transform to goal
-                Eigen::Affine3d target_transform;
-                tf::poseMsgToEigen(g_target_vector.back().pose, target_transform);
+                Eigen::Affine3d target_transform = waypoints_segment.back().getGlobalLinkTransform(g_move_group_interface->getEndEffectorLink());
                 g_goal = getRelativeTransform(tcp_transform, target_transform);
 
                 // Print tcp transform matrix and quaternion for debugging
@@ -452,9 +521,6 @@ class TrajectoryNode
 
                 loop_rate.sleep();
             }
-
-            // Spin the ROS node
-            ros::spin();
         }
 
         // Generate target poses for planning
@@ -818,6 +884,16 @@ class TrajectoryNode
                 point_B.y = translation_B[1];
                 point_B.z = translation_B[2];
 
+                // If this is the target segment, increase the alpha
+                if (i == g_segment_index-1)
+                {
+                    traj_color.a = 0.5;
+                }
+                else
+                {
+                    traj_color.a = 0.25;
+                }
+
                 // Create a marker for this segment AB
                 std::vector<geometry_msgs::Point> points; // Put points in the array type accepted by Marker
                 points.push_back(point_A);
@@ -976,10 +1052,63 @@ class TrajectoryNode
         }
         
     private:
-        // Define a callback to update to be called when the PlanningSceneMonitor receives an update
-        static void planningSceneMonitorCallback(const moveit_msgs::PlanningScene::ConstPtr& planning_scene, planning_scene_monitor::PlanningSceneMonitorPtr& planning_scene_monitor)
+        // Define a callback to be called when the PlanningSceneMonitor receives an update
+        void planningSceneMonitorCallback(const moveit_msgs::PlanningScene::ConstPtr& planning_scene, planning_scene_monitor::PlanningSceneMonitorPtr& planning_scene_monitor)
         {
             ROS_INFO("Updating...");
+        }
+
+        // Define a callback to use joystick inputs to control trajectory segment selection
+        void joyCallback(const sensor_msgs::Joy& msg)
+        {
+            // If left stick is pressed, decrement trajectory segment and lock
+            if (msg.buttons.at(g_cntlr["FLIP_EE_X"]) == 1 && g_segment_swapped == false)
+            {
+                int new_index = (g_segment_index - 1);
+                while (new_index < 0)
+                {
+                    new_index += static_cast<int>(g_goal_name_vector.size() - 1);
+                }
+                g_segment_index = new_index;
+                g_segment_swapped = true;
+            }
+            // Else if right stick is pressed, increment trajectory segment and lock
+            else if (msg.buttons.at(g_cntlr["FLIP_EE_ROLL"]) == 1 && g_segment_swapped == false)
+            {
+                int new_index = (g_segment_index + 1) % (static_cast<int>(g_goal_name_vector.size() - 1));
+                g_segment_index = new_index;
+                g_segment_swapped = true;
+            }
+            // Else if neither stick is pressed, unlock
+            else if (msg.buttons.at(g_cntlr["FLIP_EE_X"]) == 0 && 
+                    msg.buttons.at(g_cntlr["FLIP_EE_ROLL"]) == 0 && 
+                    g_segment_swapped == true)
+            {
+                g_segment_swapped = false;
+            }
+        }
+
+        // Define a callback to use GELLO controller inputs to control trajectory segment selection
+        void gelloCallback(const sensor_msgs::JointState& msg)
+        {
+            // If GELLO gripper is closed, increment trajectory segment and lock
+            if (msg.position.back() > 0.95 && g_segment_swapped == false)
+            {
+                g_segment_index = (g_segment_index + 1) % static_cast<int>(g_goal_name_vector.size());
+                g_segment_swapped = true;
+            }
+            // Else if right stick is pressed, increment trajectory segment and lock
+            else if (msg.position.back() > 0.95 && g_segment_swapped == false)
+            {
+                g_segment_index = (g_segment_index + 1) % static_cast<int>(g_goal_name_vector.size());
+                g_segment_swapped = true;
+            }
+            // Else if neither stick is pressed, unlock
+            else if (msg.position.back() <= 0.95 &&
+                    g_segment_swapped == true)
+            {
+                g_segment_swapped = false;
+            }
         }
 
 

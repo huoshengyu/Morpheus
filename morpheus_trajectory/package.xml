@@ -59,6 +59,7 @@
   <depend>moveit_visual_tools</depend>
   <depend>moveit_msgs</depend>
   <depend>eigen_conversions</depend>
+  <depend>morpheus_teleop</depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->

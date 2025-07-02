@@ -231,7 +231,7 @@ class CollisionNode
                 new ros::Publisher(nh.advertise<visualization_msgs::MarkerArray>("visualization_marker_array", 0));
             
             // Subscribe to fake planning scene for recognizing "fake" attached collision objects
-            g_planning_scene_fake_subscriber = nh.subscribe<moveit_msgs::PlanningScene>("planning_scene_fake", 1, &CollisionNode::planning_scene_fake_callback, this);
+            g_planning_scene_fake_subscriber = nh.subscribe("planning_scene_fake", 1, &CollisionNode::planning_scene_fake_callback, this);
 
             // Set robot link vector to include all parts of the robot
             // Get all links in the robot arm

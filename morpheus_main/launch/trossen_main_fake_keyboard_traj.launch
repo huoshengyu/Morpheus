@@ -4,7 +4,7 @@
 
     <arg name="robot_mode"                          default="fake"/>
     <arg name="control_mode"                        default="interbotix"/>
-    <arg name="controller"                          default="xbox360"/>
+    <arg name="controller"                          default="ps4"/>
     <arg name="use_keyboard"                        default="true"/>
     <arg name="haptics"                             default="false"/>
 
@@ -27,10 +27,13 @@
 
     <group ns="$(arg robot_name)">
 
+        <param name="controller"                        value="$(arg controller)"/>
+
         <!-- Launch trajectory node -->
         <include file="$(find morpheus_trajectory)/launch/trajectory.launch">
             <arg name="arm_group"                       value="interbotix_arm"/>
             <arg name="gripper_group"                   value="interbotix_gripper"/>
+            <arg name="controller"                      value="$(arg controller)"/>
         </include>
 
     </group>

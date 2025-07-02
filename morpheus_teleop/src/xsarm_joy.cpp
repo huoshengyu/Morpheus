@@ -110,6 +110,7 @@ void joy_state_cb(const sensor_msgs::Joy &msg)
     timer_started = false;
   }
 
+  /* Disable flipping axes. Pressing the sticks can be remapped.
   // Check if the ee_x_cmd should be flipped
   if (msg.buttons.at(cntlr["FLIP_EE_X"]) == 1 && flip_ee_x_cmd_last_state == false)
     flip_ee_x_cmd = true;
@@ -117,6 +118,7 @@ void joy_state_cb(const sensor_msgs::Joy &msg)
     flip_ee_x_cmd = false;
   else if (msg.buttons.at(cntlr["FLIP_EE_X"]) == 0)
     flip_ee_x_cmd_last_state = flip_ee_x_cmd;
+  */
 
   // Check the ee_x_cmd
   if (msg.axes.at(cntlr["EE_X"]) >= threshold && flip_ee_x_cmd == false)
