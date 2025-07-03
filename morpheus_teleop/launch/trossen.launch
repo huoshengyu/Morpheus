@@ -130,7 +130,7 @@
         </include>
 
         <!-- Launch trossen_joy -->
-        <include file="$(find morpheus_teleop)/launch/trossen_joy.launch" ns="$(arg robot_name)"/>
+        <include unless="$(arg use_keyboard)" file="$(find morpheus_teleop)/launch/trossen_joy.launch" ns="$(arg robot_name)"/>
     </group>
 
     <!-- Launch interbotix xsarm control -->
@@ -143,6 +143,7 @@
         <arg name="threshold"                           value="$(arg threshold)"/>
         <arg name="controller"                          value="$(arg controller)"/>
         <arg name="launch_driver"                       value="false"/>
+        <arg name="use_keyboard"                        value="$(arg use_keyboard)"/>
     </include>
 
     <!-- Launch key_to_joy -->
