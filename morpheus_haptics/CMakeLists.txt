@@ -144,6 +144,8 @@ include_directories(
 ## The recommended prefix ensures that target names across packages don't collide
 add_executable(collision_serial src/collision_serial.cpp)
 add_executable(collision_simple src/collision_simple.cpp)
+add_executable(collision_haptics src/collision_haptics.cpp)
+
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
 ## target back to the shorter version for ease of user use
@@ -157,6 +159,8 @@ add_executable(collision_simple src/collision_simple.cpp)
 ## Specify libraries to link a library or executable target against
 target_link_libraries(collision_serial ${catkin_LIBRARIES})
 target_link_libraries(collision_simple ${catkin_LIBRARIES})
+target_link_libraries(collision_haptics ${catkin_LIBRARIES})
+
 #############
 ## Install ##
 #############

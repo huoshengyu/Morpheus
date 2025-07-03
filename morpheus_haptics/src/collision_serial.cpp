@@ -12,6 +12,7 @@
 #include <map>
 #include <cmath>
 #include <sys/ioctl.h>  // ✅ Add this line to fix your build
+#include <thread>
 
 class SerialCollisionSender
 {
@@ -38,7 +39,7 @@ public:
     {
             std::string port_name;
             nh.param<std::string>("serial_port", port_name, "/dev/arduino"); // Use ROS param if available
-            serial_port = open(port_name.c_str(), O_RDWR | O_NOCTTY | O_SYNC);
+            serial_port = open(port_name.c_str(), O_RDWR | O_NOCTTY | O_SYNC | O_NONBLOCK);
         if (serial_port < 0)
         {
             ROS_ERROR("Error %i from open: %s", errno, strerror(errno));
@@ -205,20 +206,66 @@ public:
             float distancex = msg.normal.x * msg.depth; //forward, backward
             float distancey = msg.normal.y * msg.depth; //right, left
             float distancez = msg.normal.z * msg.depth; //up, down
-            std::string full_msg = make_serial_message(send_char, distancey, distancez);      
-            tcflush(serial_port, TCIOFLUSH);
-            ssize_t bytes_written = write(serial_port, full_msg.c_str(), full_msg.length());
-            usleep(90000);
+            // float angle = std::atan2(distancez,distancey) * 180.0f / M_PI; 
+            // ROS_INFO_STREAM("What is the angle:" << msg.depth);
 
-            // ✅ Optional debug check
-            if (bytes_written != (ssize_t)full_msg.length()) {
-                ROS_WARN_STREAM("Serial write mismatch! Expected " << full_msg.length()
-                                << ", wrote " << bytes_written);
-            } else {
-                ROS_INFO_STREAM("Sent to Arduino: " << full_msg);
+            if (msg.depth < 1.0f){
+                float angle = std::atan2(distancez, distancey) * 180.0f / M_PI;  
+                // 2) normalize to [0,360)
+                float ang = std::fmod(angle + 360.0f, 360.0f);
+                ROS_INFO_STREAM("What is the angle:" << ang);
+                // Region 1: right (–22.5°…+22.5° ⇒ 337.5…360 or 0…22.5)
+                if (ang < 22.5f || ang >= 337.5f) {
+                    distancez = 1.0f;
+                    ROS_INFO_STREAM("What is the y distance::" << distancey);
+                    // std::string full_msg = make_serial_message(send_char,distancey,distancez);
+                }
+                // Region 2: up (+67.5…112.5)
+                else if (ang >= 67.5f && ang < 112.5f) {
+                    distancey = 1.0f;
+                    ROS_INFO_STREAM("What is the z distance:" << distancez);
+                    // std::string full_msg = make_serial_message(send_char, distancey,distancez);
+                }
+                // Region 3: left (+157.5…202.5)
+                else if (ang >= 157.5f && ang < 202.5f) {
+                    distancez = 1.0f;
+                    ROS_INFO_STREAM("What is the y distance::" << distancey);
+                    // std::string full_msg = make_serial_message(send_char, distancey,distancez);
+                }
+                // Region 4: down (+247.5…292.5)
+                else if (ang >= 247.5f && ang < 292.5f) {
+                    distancey = 1.0f;
+                    ROS_INFO_STREAM("What is the z distance:" << distancez);
+                    // std::string full_msg = make_serial_message(send_char, distancey,distancez);
+                }
+                std::string full_msg = make_serial_message(send_char,distancey,distancez);
+                ssize_t bytes_written = write(serial_port,full_msg.c_str(),full_msg.length());
+                std::this_thread::yield();
+                if (bytes_written != (ssize_t)full_msg.length()) {
+                    ROS_WARN_STREAM("Serial write mismatch! Expected " << full_msg.length()
+                                    << ", wrote " << bytes_written);
+                } else {
+                    ROS_INFO_STREAM("Sent to Arduino: " << full_msg);
+                }
             }
+
+            // std::string full_msg = make_serial_message(send_char, distancey, distancez);      
+            // tcflush(serial_port, TCIOFLUSH);
+            // ssize_t bytes_written = write(serial_port, full_msg.c_str(), full_msg.length());
+            // usleep(5000);
+            // ssize_t bytes_written = write(serial_port, full_msg.c_str(),full_msg.length());
+            // std::this_thread::yield();
+            // ✅ Optional debug check
+        
+            // if (bytes_written != (ssize_t)full_msg.length()) {
+            //     ROS_WARN_STREAM("Serial write mismatch! Expected " << full_msg.length()
+            //                     << ", wrote " << bytes_written);
+            // } else {
+            //     ROS_INFO_STREAM("Sent to Arduino: " << full_msg);
+            // }
     }
 };
+
 int main(int argc, char** argv)
 {
     ros::init(argc, argv, "serial_collision_sender");
