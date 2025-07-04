@@ -6,7 +6,11 @@
     <arg name="control_mode"                        default="interbotix"/>
     <arg name="controller"                          default="ps4"/>
     <arg name="use_keyboard"                        default="false"/>
-    <arg name="haptics"                             default="false"/>
+    <arg name="collision"                           default="true"/>
+    <arg name="collision_haptics"                   default="true"/>
+    <arg name="spawner"                             default="false"/>
+    <arg name="trajectory"                          default="false"/>
+    <arg name="trajectory_haptics"                  default="false"/>
 
     <arg name="xacro_path"                          default="$(find morpheus_description)/urdf/scenes/trossen_hera_scene.xacro"/>
     <arg name="srdf_path"                           default="$(find morpheus_description)/srdf/scenes/$(arg robot_model).srdf.xacro"/>
@@ -24,6 +28,12 @@
 
         <arg name="xacro_path"                          value="$(arg xacro_path)"/>
         <arg name="srdf_path"                           value="$(arg srdf_path)"/>
+
+        <arg name="collision"                           value="$(arg collision)"/>
+        <arg name="collision_haptics"                   value="$(arg collision_haptics)"/>
+        <arg name="spawner"                             value="$(arg spawner)"/>
+        <arg name="trajectory"                          value="$(arg trajectory)"/>
+        <arg name="trajectory_haptics"                  value="$(arg trajectory_haptics)"/>
     </include>
 
 </launch>

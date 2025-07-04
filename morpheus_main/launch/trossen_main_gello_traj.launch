@@ -2,21 +2,21 @@
     <arg name="robot_model"                         default="vx300s"/>
     <arg name="robot_name"                          default="$(arg robot_model)"/>
 
-    <arg name="robot_mode"                          default="fake"/>
-    <arg name="control_mode"                        default="interbotix"/>
-    <arg name="controller"                          default="ps4"/>
-    <arg name="use_keyboard"                        default="true"/>
+    <arg name="robot_mode"                          default="real"/>
+    <arg name="control_mode"                        default="gello"/>
+    <arg name="controller"                          default="gello"/>
+    <arg name="use_keyboard"                        default="false"/>
     <arg name="collision"                           default="false"/>
     <arg name="collision_haptics"                   default="false"/>
     <arg name="spawner"                             default="false"/>
     <arg name="trajectory"                          default="true"/>
-    <arg name="trajectory_haptics"                  default="false"/>
+    <arg name="trajectory_haptics"                  default="true"/>
 
     <arg name="xacro_path"                          default="$(find morpheus_description)/urdf/scenes/trossen_hera_scene.xacro"/>
     <arg name="srdf_path"                           default="$(find morpheus_description)/srdf/scenes/$(arg robot_model).srdf.xacro"/>
 
     <!-- Launch trossen and controls -->
-    <include file="$(find morpheus_main)/launch/trossen_main.launch">
+    <include file="$(find morpheus_teleop)/launch/trossen.launch">
         <arg name="robot_model"                         value="$(arg robot_model)"/>
         <arg name="robot_name"                          value="$(arg robot_name)"/>
 
