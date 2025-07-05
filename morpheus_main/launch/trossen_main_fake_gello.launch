@@ -2,14 +2,14 @@
     <arg name="robot_model"                         default="vx300s"/>
     <arg name="robot_name"                          default="$(arg robot_model)"/>
 
-    <arg name="robot_mode"                          default="real"/>
+    <arg name="robot_mode"                          default="fake"/>
     <arg name="control_mode"                        default="gello"/>
     <arg name="controller"                          default="gello"/>
     <arg name="use_keyboard"                        default="false"/>
-    <arg name="collision"                           default="false"/>
+    <arg name="collision"                           default="true"/>
     <arg name="collision_haptics"                   default="false"/>
     <arg name="spawner"                             default="false"/>
-    <arg name="trajectory"                          default="true"/>
+    <arg name="trajectory"                          default="false"/>
     <arg name="trajectory_haptics"                  default="false"/>
 
     <arg name="xacro_path"                          default="$(find morpheus_description)/urdf/scenes/trossen_hera_scene.xacro"/>
