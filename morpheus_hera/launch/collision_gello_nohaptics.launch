@@ -10,7 +10,7 @@
     <arg name="collision_haptics"                   default="false"/>
     <arg name="spawner"                             default="false"/>
     <arg name="trajectory"                          default="false"/>
-    <arg name="trajectory_name"                     default=""/>
+    <arg name="trajectory_name"                   default=""/>
     <arg name="trajectory_haptics"                  default="false"/>
 
     <arg name="xacro_path"                          default="$(find morpheus_description)/urdf/scenes/trossen_hera_scene.xacro"/>
@@ -35,12 +35,6 @@
         <arg name="trajectory"                          value="$(arg trajectory)"/>
         <arg name="trajectory_name"                     value="$(arg trajectory_name)"/>
         <arg name="trajectory_haptics"                  value="$(arg trajectory_haptics)"/>
-    </include>
-
-    <!-- Launch gello -->
-    <include file="$(find gello)/launch/gello.launch">
-        <arg name="robot_name"                          value="$(arg robot_name)"/>
-        <arg name="robot"                               value="trossen"/>
     </include>
 
 </launch>

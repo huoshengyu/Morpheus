@@ -3,11 +3,11 @@
     <arg name="robot_name"                          default="$(arg robot_model)"/>
 
     <arg name="robot_mode"                          default="real"/>
-    <arg name="control_mode"                        default="gello"/>
-    <arg name="controller"                          default="gello"/>
+    <arg name="control_mode"                        default="interbotix"/>
+    <arg name="controller"                          default="ps4"/>
     <arg name="use_keyboard"                        default="false"/>
     <arg name="collision"                           default="true"/>
-    <arg name="collision_haptics"                   default="false"/>
+    <arg name="collision_haptics"                   default="true"/>
     <arg name="spawner"                             default="false"/>
     <arg name="trajectory"                          default="false"/>
     <arg name="trajectory_name"                     default=""/>
@@ -35,12 +35,6 @@
         <arg name="trajectory"                          value="$(arg trajectory)"/>
         <arg name="trajectory_name"                     value="$(arg trajectory_name)"/>
         <arg name="trajectory_haptics"                  value="$(arg trajectory_haptics)"/>
-    </include>
-
-    <!-- Launch gello -->
-    <include file="$(find gello)/launch/gello.launch">
-        <arg name="robot_name"                          value="$(arg robot_name)"/>
-        <arg name="robot"                               value="trossen"/>
     </include>
 
 </launch>

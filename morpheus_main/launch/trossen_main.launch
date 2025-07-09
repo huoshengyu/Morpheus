@@ -10,7 +10,7 @@
     <arg name="collision_haptics"                   default="false"/>
     <arg name="spawner"                             default="false"/>
     <arg name="trajectory"                          default="false"/>
-    <arg name="trajectory_preset"                   default=""/>
+    <arg name="trajectory_name"                     default=""/>
     <arg name="trajectory_haptics"                  default="false"/>
 
     <arg name="xacro_path"                          default="$(find morpheus_description)/urdf/scenes/trossen_hera_scene.xacro"/>
@@ -47,7 +47,7 @@
 
         <!-- Launch trajectory node -->
         <include if="$(arg trajectory)" file="$(find morpheus_trajectory)/launch/trajectory.launch">
-            <arg name="trajectory_preset"               value="$(arg trajectory_preset)"/>
+            <arg name="trajectory_name"                 value="$(arg trajectory_name)"/>
             <arg name="arm_group"                       value="interbotix_arm"/>
             <arg name="gripper_group"                   value="interbotix_gripper"/>
             <arg name="controller"                      value="$(arg controller)"/>

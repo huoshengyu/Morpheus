@@ -1,3 +1,4 @@
 trajectory_presets:
   ceiling:  "trossen_home hera_ceiling hera_floor trossen_home"
-  arch:     "trossen_home hera_ceiling hera_floor hera_crouch_front hera_crouch_right hera_arch_over hera_arch_pick"
+  floor:    "trossen_home hera_floor hera_ceiling trossen_home"
+  arch:     "trossen_home hera_ceiling hera_crouch_front hera_crouch_right hera_arch_over hera_arch_pick hera_arch_over hera_crouch_right hera_crouch_front trossen_home"

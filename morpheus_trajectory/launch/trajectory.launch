@@ -1,5 +1,5 @@
 <launch>
-    <arg name="trajectory_preset"                   default=""/>
+    <arg name="trajectory_name"                     default=""/>
     <arg name="goal_name_vector"                    default="trossen_home hera_ceiling hera_floor hera_crouch_front hera_crouch_right hera_arch_over hera_arch_pick"/>
 
     <arg name="arm_group"                           default="arm"/>
@@ -13,7 +13,7 @@
     <rosparam command="load" file="$(find morpheus_trajectory)/config/trajectory_presets.yaml"/>
     <!-- Assign goal trajectory (preset overrides name vector) -->
     <param name="goal/name_vector" value="$(arg goal_name_vector)"/>
-    <param name="goal/trajectory_preset" value="$(arg trajectory_preset)"/>
+    <param name="goal/trajectory_name" value="$(arg trajectory_name)"/>
 
     <!-- Launch trajectory publisher -->
     <node name="trajectory" pkg="morpheus_trajectory" type="morpheus_trajectory" output="screen">

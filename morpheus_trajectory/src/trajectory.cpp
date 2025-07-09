@@ -203,16 +203,16 @@ class TrajectoryNode
             std::string goal_preset_param;
             std::string goal_name_vector_param;
             // If preset trajectory name is retrieved, then try getting the actual preset trajectory
-            if (ros::param::get("goal/trajectory_preset", goal_preset_param) && 
+            if (ros::param::get("goal/trajectory_name", goal_preset_param) && 
                 ros::param::get("trajectory_presets/" + goal_preset_param, goal_name_vector_param))
             {
-                g_goal_name_vector = splitString(goal_name_vector_param, ' ')
-                ROS_INFO("Using goal/trajectory_preset from parameter server");
+                g_goal_name_vector = splitString(goal_name_vector_param, ' ');
+                ROS_INFO("Using goal/trajectory_name from parameter server");
             }
             // Else try getting the explicitly defined target vector
             else if (ros::param::get("goal/name_vector", goal_name_vector_param))
             {
-                g_goal_name_vector = splitString(goal_name_vector_param, ' ')
+                g_goal_name_vector = splitString(goal_name_vector_param, ' ');
                 ROS_INFO("Using goal/name_vector from parameter server");
             }
             // Else fall back to the hardcoded default
@@ -1062,7 +1062,7 @@ class TrajectoryNode
             while (std::getline(ss, token, delimiter)) {
                 tokens.push_back(token);
             }
-            return tokens
+            return tokens;
         }
         
     private:
