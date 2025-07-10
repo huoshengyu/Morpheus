@@ -2,6 +2,8 @@
 <robot name="hera_obstacle_course" xmlns:xacro="http://www.ros.org/wiki/xacro">
 
     <xacro:include filename="$(find morpheus_description)/urdf/macros/box.xacro" />
+    <xacro:include filename="$(find morpheus_description)/urdf/macros/hera_pick_goal.xacro" />
+    <xacro:include filename="$(find morpheus_description)/urdf/macros/hera_place_goal.xacro" />
 
     <xacro:macro name="hera_obstacle_course"
         params="prefix parent *origin">
@@ -117,6 +119,30 @@
             size="${0.91440} ${0.015 * 1} ${0.015 * 1}">
             <origin xyz="${-0.32385 + 0.91440 * 0.5} ${-0.22455 + 0.015 * 0.5} ${0.60150 - 0.015 * 0.5}" rpy="0 0 0" />
         </xacro:box>
+
+        <xacro:hera_pick_goal
+            prefix="${prefix}hera_obstacle_course_easy_pick_goal"
+            parent="${prefix}hera_obstacle_course_base_link"
+            radius="${0.0254 * 1.0}"
+            length="${0.0254 * 0.5}">
+            <origin xyz="${0.59055 - 0.015 * 1.5} ${0} ${0.60150 - 0.015 * 0.5}" rpy="0 ${pi/2} 0" />
+        </xacro:hera_pick_goal>
+
+        <xacro:hera_pick_goal
+            prefix="${prefix}hera_obstacle_course_hard_pick_goal"
+            parent="${prefix}hera_obstacle_course_base_link"
+            radius="${0.0254 * 1.0}"
+            length="${0.0254 * 0.5}">
+            <origin xyz="${-0.32385 + 0.31980 * 0.5} ${-0.22455 + 0.015 * 0.5 + (0.0254 * -4)} ${0.015 * 1.5}" rpy="0 0 0" />
+        </xacro:hera_pick_goal>
+
+        <xacro:hera_place_goal
+            prefix="${prefix}hera_obstacle_course_place_goal"
+            parent="${prefix}hera_obstacle_course_base_link"
+            radius="${0.0254 * 1.0}"
+            length="${0.0254 * 0.5}">
+            <origin xyz="${0.0254 * 10} 0.0 ${0.015 * 0.5}" rpy="0 0 0" />
+        </xacro:hera_place_goal>
 
     </xacro:macro>
 </robot>
