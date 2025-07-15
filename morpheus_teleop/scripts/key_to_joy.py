@@ -6,17 +6,9 @@ import rospy
 import sensor_msgs.msg
 
 # Keyboard input imports
-from readchar import readchar, readkey, key
 from pynput import keyboard
 
 import sys
-from select import select
-
-if sys.platform == 'win32':
-    import msvcrt
-else:
-    import termios
-    import tty
 
 xbox360 = {
     # 'key':[i,j,k]
@@ -107,7 +99,10 @@ class KeyToJoy():
         rospy.loginfo("Key to Joy using controller " + controller + ".")
 
         # Keep a record of what keys should be when not pressed
-        self._default_axes = np.array([0.0,0.0,1.0,0.0,0.0,1.0,0.0,0.0]) # Triggers should be 1 when unpressed
+        if controller == "xbox360":
+            self._default_axes = np.array([0.0,0.0,1.0,0.0,0.0,1.0,0.0,0.0]) # Triggers should be 1 when unpressed
+        else:
+            self._default_axes = np.array([0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]) # Triggers should be 1 when unpressed
         self._default_buttons = np.array([0,0,0,0,0,0,0,0,0,0,0,0,0,0]) # Need 13 buttons to accomodate PS4 controller (Xbox needs 11)
         # Initialize joystick values
         self.joy.axes = np.copy(self._default_axes)
