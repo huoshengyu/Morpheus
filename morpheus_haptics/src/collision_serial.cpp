@@ -211,30 +211,37 @@ public:
 
             if (msg.depth < 1.0f){
                 float angle = std::atan2(distancez, distancey) * 180.0f / M_PI;  
+                float angle_x= std::atan2(distancex, distancez) * 180.0f / M_PI;  
                 // 2) normalize to [0,360)
                 float ang = std::fmod(angle + 360.0f, 360.0f);
                 ROS_INFO_STREAM("What is the angle:" << ang);
+                ROS_INFO_STREAM("What is the angleX:" << angle_x);
+
                 // Region 1: right (–22.5°…+22.5° ⇒ 337.5…360 or 0…22.5)
                 if (ang < 22.5f || ang >= 337.5f) {
                     distancez = 1.0f;
+                    ROS_INFO_STREAM("What is the x distance::" << distancex);
                     ROS_INFO_STREAM("What is the y distance::" << distancey);
                     // std::string full_msg = make_serial_message(send_char,distancey,distancez);
                 }
                 // Region 2: up (+67.5…112.5)
                 else if (ang >= 67.5f && ang < 112.5f) {
                     distancey = 1.0f;
+                    ROS_INFO_STREAM("What is the x distance::" << distancex);
                     ROS_INFO_STREAM("What is the z distance:" << distancez);
                     // std::string full_msg = make_serial_message(send_char, distancey,distancez);
                 }
                 // Region 3: left (+157.5…202.5)
                 else if (ang >= 157.5f && ang < 202.5f) {
                     distancez = 1.0f;
+                    ROS_INFO_STREAM("What is the x distance::" << distancex);
                     ROS_INFO_STREAM("What is the y distance::" << distancey);
                     // std::string full_msg = make_serial_message(send_char, distancey,distancez);
                 }
                 // Region 4: down (+247.5…292.5)
                 else if (ang >= 247.5f && ang < 292.5f) {
                     distancey = 1.0f;
+                    ROS_INFO_STREAM("What is the x distance::" << distancex);
                     ROS_INFO_STREAM("What is the z distance:" << distancez);
                     // std::string full_msg = make_serial_message(send_char, distancey,distancez);
                 }
