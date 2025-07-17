@@ -103,7 +103,7 @@ public:
         ROS_INFO("Serial port configured successfully!");
 
         // Subscribe to nearest collision contact
-        collision_sub = nh.subscribe("/vx300s/collision/nearest/contact", 10, &SerialCollisionSender::collisionCallback, this);
+        collision_sub = nh.subscribe("/vx300s/collision/yaw/contact", 10, &SerialCollisionSender::collisionCallback, this);
         joint_state_sub = nh.subscribe("/vx300s/joint_states", 10, &SerialCollisionSender::jointStateCallback, this);
     }
 
