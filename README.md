@@ -223,6 +223,35 @@ Inside the Docker container:
 3. Check the joint angles. The IRSS will not start unless the joint angles of the controller also match the home position.
 4. Repeat steps 2-3 until the IRSS is correctly launched.
 
+# Morpheus Software Arduino Side
+Before running the experiment, provide one of two sleeves (collision avoidance = long sleeve, trajectory guidance = short sleeve)
+Set up the Arduino serial connectivity:
+1. Ctrl + T (open terminal on the UBUNTU)
+2. Type
+```
+ls -l /dev/arduino
+```
+3. Expected output:
+```
+/dev/arduino -> ttyUSB1 or ttyUSB0
+```
+Optional 4. If output does not look like the above:
+```
+sudo nano /etc/udev/rules.d/99-arduino.rules
+```
+Optional 5. Copy and paste it, then save it (Ctrl+S -> Ctrl+X)
+```
+SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="7523", SYMLINK+="arduino"
+```
+5. If output does look like the above: (you can skip Optional 4 & Optional 5) Type the below
+```
+sudo udevadm control --reload-rules
+```
+```
+sudo udevadm trigger
+```
+
+
 # Additional Installation Notes
 
 Morpheus Student Group Notion:  
