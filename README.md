@@ -4,7 +4,7 @@ This repository combines UR and Trossen robot drivers, multiple hand controller 
 
 All software and documentation herein is distributed under a GPLv3 License. See file "COPYING" for details.
 
-As of 03/2025, the primary author and maintainer of this repository is Brian Sanyu Huo (bshuo@ucdavis.edu) at the Human/Robotics/Vehicle Integration & Performance Laboratory at the University of California, Davis (https://hrvip.ucdavis.edu/).
+As of 07/2025, the primary author and maintainer of this repository is Brian Sanyu Huo (bshuo@ucdavis.edu) at the Human/Robotics/Vehicle Integration & Performance Laboratory at the University of California, Davis (https://hrvip.ucdavis.edu/).
 
 # Morpheus Install Instructions
 
@@ -111,27 +111,32 @@ catkin build
 ## 1. Power on the computer
 
 <div class="alert alert-block alert-info">
-<b>NOTE:</b> Turn on the computer first to ensure all connections to it are powered on. If the computer boots into the wrong OS, hold F12 on startup to access the boot menu.
+<b>NOTE:</b> Turn on the computer first so that indicator lights on any connected devices will also power on. The computer should boot into Ubuntu. If it is a dual boot and boots into the wrong OS, hold F12 on startup to access the boot menu.
 </div>
 
 ## 2. Power on the controller  
 
 IRSS (miniature robot) controller:  
-1. Plug power cable into power outlet
-2. Plug USB cable into computer's USB port
-3. Flip the power switch ON (dot side pressed down)
+1. Plug power cable into a power outlet and the power supply board (larger board)
+2. Plug USB cable into the computer's USB port and the U2D2 board (smaller plastic-cased board)
+3. Flip the power supply board's power switch ON (dot side pressed down)
+4. Verify that the red light on the power supply board is on.
 
-Xbox/Playstation controller:  
+Playstation 4 controller:  
 1. Plug into computer's USB port.  
+2. Verify that the blue light on the front of the controller is on.
 
 ## 3. Power on the robot   
 
-UR robots:  
+UR robot:  
 1. Press the power button on the Universal Robots Teach Pendant (the small monitor attached to the UR's control box). Wait for the teach pendant to start up.   
 2. Open the boot menu (red dot in the bottom left corner) and start the robot itself.
 
-Trossen robots:  
-1. Press the power button on the side of the robot
+Trossen robot:  
+1. Plug power cable into a power outlet and the power supply board (larger board)
+2. Plug USB cable into the computer's USB port and the U2D2 board (smaller plastic-cased board)
+3. Press the power button on the side of the robot
+4. Verify that the red light on the power supply board is on.
 
 ## 4. Power on the gripper 
 
@@ -139,9 +144,11 @@ OnRobot RG2-FT gripper:
 1. Plug power cable into power outlet
 2. Plug green control cable into OnRobot gripper
 3. Plug ethernet cable into ethernet adapter (which is also plugged in to the computer and robot control box)
+4. Verify that light on side of gripper turns on.
 
 Robotiq 2f-85 gripper:
 1. Powered automatically by the robot.
+2. Verify that light on side of gripper turns on.
 
 <div class="alert alert-block alert-info">
 <b>NOTE:</b> You may need to run ```gello_software/tool_communication.py``` to use the Robotiq gripper with the IRSS (but this should be run automatically by the launch files).
@@ -150,10 +157,10 @@ Robotiq 2f-85 gripper:
 ## 5. UR5e: Set the robot control mode
 
 If using IRSS controller:  
-1. Set the robot to remote control. The button is near the top right of the Teach Pendant's screen.
+1. Set the robot to remote control using the Teach Pendant. The button is near the top right of the Teach Pendant's screen.
 
 If using Xbox/Playstation controller:  
-1. Set the robot to local control. The button is near the top right of the Teach Pendant's screen.
+1. Set the robot to local control using the Teach Pendant. The button is near the top right of the Teach Pendant's screen.
 2. On the Programs tab, load and start ros_control. You may need to perform this step after the Morpheus bringup launch file is running.
 
 # Morpheus Software Launch Instructions
