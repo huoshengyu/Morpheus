@@ -46,7 +46,7 @@ OR
 ## 2. Start the Docker container
 
 In VSCode, on the left sidebar:
-1. Select the Containers extension tab (a box with vertical lines on its sides).
+1. Select the Containers sidebar tab (a box with vertical lines on its sides).
 2. Under the "Containers" dropdown menu, right click on the container with "morpheus" in its name and select "Start".
 3. Wait a moment and click the "Refresh" button until the red square becomes a green triangle.
 4. Right click again on the same container and select "Attach Visual Studio Code". Any instruction labeled "Inside the Docker container" is to be carried out in this newly opened window, which is distinguishable by the blue bar in the bottom left which shows the container name.
@@ -54,7 +54,7 @@ In VSCode, on the left sidebar:
 ## 3. Identify the correct launch filename:
 
 Inside the Docker container: 
-1. Check the morpheus_hera/launch folder for a list of valid launch files.
+1. Select the "Explorer" sidebar tab and check the src/morpheus_hera/launch folder for a list of valid launch files.
 2. Combine the following to find the corresponding `<filename>`:  
     |   |   |
     |---|---|
@@ -116,9 +116,10 @@ Playstation 4 controller:
 
 ## 2. Power down laptop
 
-1. Navigate to the taskbar on the top right of the laptop's screen.
-2. Select "Shut down".
-3. If prompted further, select "Shut down now".
+1. Navigate to the taskbar on the top right of the Ubuntu desktop screen.
+2. Click on "Power Off/Log Out" and select "Power Off...".
+3. If prompted further, select "Power Off" to shutdown immediately.
+4. Close the laptop when not in use to minimize wear and tear.
 
 # Troubleshooting
 
@@ -135,8 +136,8 @@ Inside the Docker container, the correct directory is:
 
 Outside the Docker container, enter:  
 `xhost +`  
-then try again.
+then try again. This command permits programs in the Docker container to access the display.
 
-If the issue persists, check that the DISPLAY environment variable is set correctly. Outside the Docker container, enter "w" to list active displays. Inside the Docker container, enter:  
+If the issue persists, check that the DISPLAY environment variable is set correctly inside the Docker container. Outside the Docker container, enter "w" to list active displays. Inside the Docker container, enter:  #TODO Check these commands
 `export DISPLAY=<display>`  
-where <display> is the first listed display, usually `:0` or `:1`.
+where `<display>` is the first listed display, usually `:0` or `:1`.
