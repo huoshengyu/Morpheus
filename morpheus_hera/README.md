@@ -51,29 +51,26 @@ In VSCode, on the left sidebar:
 3. Wait a moment and click the "Refresh" button until the red square becomes a green triangle.
 4. Right click again on the same container and select "Attach Visual Studio Code". Any instruction labeled "Inside the Docker container" is to be carried out in this newly opened window, which is distinguishable by the blue bar in the bottom left which shows the container name.
 
-## 3. Identify the correct launch command:
-
-### 3.a. Identify the correct launch filename:
+## 3. Identify the correct launch filename:
 
 Inside the Docker container: 
 1. Check the morpheus_hera/launch folder for a list of valid launch files.
-2. Combine your task type (collision, trajectory), controller type (ps4, gello), and haptics condition (haptics, nohaptics) to find the corresponding launch file.  
-For example, for a trajectory task, ps4 controller, and with haptic feedback, the correct `<filename>` is `trajectory_ps4_haptics.launch`.
-
-### 3.b. If using trajectory guidance, identify the correct argument for the task type:
-
-Inside the Docker container:
-1. Identify the `<task type>` (easy, medium, hard).
-2. Note that the following must be appended to the launch argument in the next section:  
-`trajectory_name:=<task_type>`
+2. Combine the following to find the corresponding `<filename>`:  
+    |   |   |
+    |---|---|
+    | task type | (c=collision, t=trajectory) |
+    | controller type | (p=ps4, g=gello) |
+    | haptics condition | (y=yes haptics, n=no haptics) |  
+    | task difficulty | (e=easy, m=medium, h=hard) |
+For example, for a trajectory task, ps4 controller, with haptic feedback, and easy task, the correct `<filename>` is `tpye.launch`.
 
 ## 4. Launch Morpheus ROS:
 
 Inside the Docker container:
 1. Using the launch file name found in the previous step, enter the launch command:  
-`roslaunch morpheus_hera <filename> trajectory_name:=<task_type>`  
-For example, for trajectory guidance, ps4 controller, with haptic feedback, and an easy task, the correct launch command is:  
-`roslaunch morpheus_hera trajectory_ps4_haptics.launch trajectory_name:=easy`  
+`roslaunch morpheus_hera <filename>`  
+For example, for trajectory guidance, ps4 controller, with haptic feedback, and easy task, the correct launch command is:  
+`roslaunch morpheus_hera tpye.launch`  
 Be sure to include the entire filename, including the underscores and the `.launch` suffix.
 2. Visually verify that the robot activates and responds to controller inputs.
 3. Visually verify that an RVIZ window opens and visualizes the robot, obstacle course, and either collision or trajectory arrows.
@@ -82,7 +79,7 @@ Be sure to include the entire filename, including the underscores and the `.laun
 
 Inside the Docker container:
 1. In the terminal, follow the displayed instructions to input your subject ID, task name, and trial number in order to prepare for data recording.
-2. Use the controller to move the robot to the prescribed starting position (#TODO home or sleep?).
+2. Visually verify that the robot lifts slightly from the off position to the sleep position.
 3. In the terminal follow the displayed instructions and press ENTER to begin recording a trial.
 4. Use the controller to complete the task.
 5. After completing the task, press ENTER or ESC to stop recording and end the trial.
