@@ -62,7 +62,8 @@ Inside the Docker container:
     | controller type | (p=ps4, g=gello) |
     | haptics condition | (y=yes haptics, n=no haptics) |  
     | task difficulty | (e=easy, m=medium, h=hard) |
-For example, for a trajectory task, ps4 controller, with haptic feedback, and easy task, the correct `<filename>` is `tpye.launch`.
+For example, for a trajectory task, ps4 controller, with haptic feedback, and easy task, the correct `<filename>` is `tpye.launch`.  
+Note that specifying the task, besides determining trajectory feedback, helps ensure your data recordings are properly categorized later.
 
 ## 4. Launch Morpheus ROS:
 

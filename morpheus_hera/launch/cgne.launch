@@ -16,6 +16,8 @@
     <arg name="xacro_path"                          default="$(find morpheus_description)/urdf/scenes/trossen_hera_scene.xacro"/>
     <arg name="srdf_path"                           default="$(find morpheus_description)/srdf/scenes/$(arg robot_model).srdf.xacro"/>
 
+    <arg name="data"                                default="true"/>
+
     <!-- Launch trossen and controls -->
     <include file="$(find morpheus_main)/launch/trossen_main.launch">
         <arg name="robot_model"                         value="$(arg robot_model)"/>
@@ -34,6 +36,8 @@
         <arg name="spawner"                             value="$(arg spawner)"/>
         <arg name="trajectory_name"                     value="$(arg task)"/>
         <arg name="trajectory_haptics"                  value="$(arg trajectory_haptics)"/>
+
+        <arg name="data"                                value="$(arg data)"/>
     </include>
 
 </launch>
