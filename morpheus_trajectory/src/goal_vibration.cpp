@@ -129,7 +129,7 @@ private:
   // Received new distance; send ACT once on edge and DIR at 20 Hz while active
   void distanceCallback(const std_msgs::Float64::ConstPtr& msg)
   {
-    bool active = (msg->data > 0.1);
+    bool active = (msg->data > 0.02);
     if (active != prev_active_) {
       // only send ACT when the boolean changes
       std::string act_msg = makeActMsg(active);

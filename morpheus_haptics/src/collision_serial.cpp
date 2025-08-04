@@ -158,6 +158,20 @@ public:
 
     void collisionCallback(const moveit_msgs::ContactInformation& msg)
     {
+        static const std::set<std::string> ignored_links = {
+            "hera_obstacle_course_easy_pick_goal",
+            "hera_obstacle_course_hard_pick_goal",
+            "hera_obstacle_course_place_goal"
+        };
+    if (ignored_links.count(msg.contact_body_1) ||
+        ignored_links.count(msg.contact_body_2))
+    {
+        ROS_INFO_STREAM("Ignoring collision with goal link "
+                         << msg.contact_body_1 << " / "
+                         << msg.contact_body_2);
+        return;                         // ← nothing is sent to the Arduino
+    }
+
         if (isInSleepState()) {
             ROS_INFO_STREAM("Robot is in Sleep state. Skipping haptic feedback.");
             return;
@@ -184,7 +198,7 @@ public:
                 // write(serial_port, &send_char, 1);
                 // write(serial_port, full_message.c_str(), full_message.length());
             }
-            else if (lower_arm_links.count(link1) || lower_arm_links.count(link2)) {
+            else if (lower_arm_links.count(link1) || lower_arm_links.count(link2)||link1 == "vx300s/upper_forearm_link" || link2 == "vx300s/upper_forearm_link") {
                 ROS_INFO_STREAM("Collision with lower arm. Sending '2'");
                 send_char = '2';
                 // write(serial_port, &send_char, 1);
@@ -192,13 +206,13 @@ public:
             }
             else if (link1 == "vx300s/upper_forearm_link" || link2 == "vx300s/upper_forearm_link") {
                 ROS_INFO_STREAM("Collision with upper forearm. Sending '3'");
-                send_char = '3';
+                send_char = '0';
                 // write(serial_port, &send_char, 1);
                 // write(serial_port, full_message.c_str(), full_message.length());
             }
             else if (link1 == "vx300s/upper_arm_link" || link2 == "vx300s/upper_arm_link") {
                 ROS_INFO_STREAM("Collision with upper arm. Sending '4'");
-                send_char = '4';
+                send_char = '3';
                 // write(serial_port, &send_char,s 1);
                 // write(serial_port, full_message.c_str(), full_message.length());
             }   
