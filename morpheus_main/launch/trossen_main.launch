@@ -16,7 +16,7 @@
     <arg name="xacro_path"                          default="$(find morpheus_description)/urdf/scenes/trossen_hera_scene.xacro"/>
     <arg name="srdf_path"                           default="$(find morpheus_description)/srdf/scenes/trossen_hera_scene.srdf.xacro"/>
 
-    <arg name="data"                                default="false"/>
+    <arg name="data"                                default="true"/>
 
     <!-- Launch trossen and controls -->
     <include file="$(find morpheus_teleop)/launch/trossen.launch">

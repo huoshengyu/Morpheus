@@ -235,18 +235,18 @@ void joy_state_cb(const sensor_msgs::Joy &msg)
     joy_cmd.gripper_pwm_cmd = interbotix_xs_msgs::ArmJoy::GRIPPER_PWM_DEC;
 
   // Only publish a ArmJoy message if any of the following fields have changed.
-  if (!(prev_joy_cmd.ee_x_cmd == joy_cmd.ee_x_cmd &&
-      prev_joy_cmd.ee_y_cmd == joy_cmd.ee_y_cmd &&
-      prev_joy_cmd.ee_z_cmd == joy_cmd.ee_z_cmd &&
-      prev_joy_cmd.ee_roll_cmd == joy_cmd.ee_roll_cmd &&
-      prev_joy_cmd.ee_pitch_cmd == joy_cmd.ee_pitch_cmd &&
-      prev_joy_cmd.waist_cmd == joy_cmd.waist_cmd &&
-      prev_joy_cmd.gripper_cmd == joy_cmd.gripper_cmd &&
-      prev_joy_cmd.pose_cmd == joy_cmd.pose_cmd &&
-      prev_joy_cmd.speed_cmd == joy_cmd.speed_cmd &&
-      prev_joy_cmd.speed_toggle_cmd == joy_cmd.speed_toggle_cmd &&
-      prev_joy_cmd.gripper_pwm_cmd == joy_cmd.gripper_pwm_cmd &&
-      prev_joy_cmd.torque_cmd == joy_cmd.torque_cmd))
+  // if (!(prev_joy_cmd.ee_x_cmd == joy_cmd.ee_x_cmd &&
+  //     prev_joy_cmd.ee_y_cmd == joy_cmd.ee_y_cmd &&
+  //     prev_joy_cmd.ee_z_cmd == joy_cmd.ee_z_cmd &&
+  //     prev_joy_cmd.ee_roll_cmd == joy_cmd.ee_roll_cmd &&
+  //     prev_joy_cmd.ee_pitch_cmd == joy_cmd.ee_pitch_cmd &&
+  //     prev_joy_cmd.waist_cmd == joy_cmd.waist_cmd &&
+  //     prev_joy_cmd.gripper_cmd == joy_cmd.gripper_cmd &&
+  //     prev_joy_cmd.pose_cmd == joy_cmd.pose_cmd &&
+  //     prev_joy_cmd.speed_cmd == joy_cmd.speed_cmd &&
+  //     prev_joy_cmd.speed_toggle_cmd == joy_cmd.speed_toggle_cmd &&
+  //     prev_joy_cmd.gripper_pwm_cmd == joy_cmd.gripper_pwm_cmd &&
+  //     prev_joy_cmd.torque_cmd == joy_cmd.torque_cmd))
       pub_joy_cmd.publish(joy_cmd);
   prev_joy_cmd = joy_cmd;
 }

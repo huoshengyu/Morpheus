@@ -59,6 +59,13 @@
   <depend>std_msgs</depend>
   <depend>geometry_msgs</depend>
   <depend>morpheus_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>interbotix_xs_msgs</depend>
+  <depend>interbotix_xsarm_control</depend>
+  <depend>message_generation</depend>
+  <depend>joy</depend>
+  <depend>tf</depend>
+  <exec_depend>message_runtime</exec_depend>
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>

@@ -21,7 +21,7 @@ class Data():
 
         self._bag = None
         self._is_open = False
-
+    
     def read(self):
         self.open(self.f, 'r', self.allow_unindexed)
     
