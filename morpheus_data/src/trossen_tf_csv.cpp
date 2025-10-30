@@ -78,7 +78,7 @@ public:
     std::lock_guard<std::mutex> lk(mtx_);
     if (!ofs_ || header_written_) return;
 
-    ofs_ << "stamp";
+    ofs_ << "stamp,t_rel";
     auto add_pose_cols = [&](const std::string& base){
       ofs_ << "," << base << "_x"
            << "," << base << "_y"
@@ -101,8 +101,9 @@ public:
     header_written_ = true;
   }
 
-  // Log a row using the exact messages that were published
-  void writeRowFromMsgs(
+  // New: write a row including t_rel
+  void writeRowFromMsgsWithTRel(
+    double t_stamp, double t_rel,
     const geometry_msgs::TransformStamped& gr,
     const geometry_msgs::TransformStamped& wr,
     const geometry_msgs::TransformStamped& sh,
@@ -114,7 +115,8 @@ public:
     std::lock_guard<std::mutex> lk(mtx_);
     if (!ofs_) return;
 
-    ofs_ << std::fixed << std::setprecision(csv_precision_) << gr.header.stamp.toSec();
+    ofs_ << std::fixed << std::setprecision(csv_precision_) << t_stamp
+         << "," << t_rel;
 
     auto clamp_pos = [&](double v) {
       if (v < save_pos_min_m_) v = save_pos_min_m_;
@@ -205,24 +207,29 @@ public:
     ee_arm_pos_pub          = nh.advertise<geometry_msgs::TransformStamped>("ee_arm_pos", 10);
     lower_forearm_pos_pub   = nh.advertise<geometry_msgs::TransformStamped>("lower_forearm_pos", 10);
 
-    // Uniform sampling via WallTimer
+    // Uniform sampling via ROS Timer (ROS time, not wall time)
     const double hz = std::max(1e-6, log_rate_hz_);
-    timer_ = nh.createWallTimer(ros::WallDuration(1.0 / hz),
-                                &TopicPublisher::onTimer, this, /*oneshot=*/false, /*autostart=*/true);
+    timer_ = nh.createTimer(ros::Duration(1.0 / hz),
+                            &TopicPublisher::onTimer, this, /*oneshot=*/false, /*autostart=*/true);
 
     ROS_INFO_STREAM("[TFPoseLogger] world=" << world_
                     << " | log_rate_hz=" << log_rate_hz_);
   }
 
+  // Called by node wrapper on session start/end to align t0 with joy logger
+  void startSessionT0() { session_t0_ = ros::Time::now(); have_t0_ = true; }
+  void endSession()     { have_t0_ = false; }
+
 private:
-  void onTimer(const ros::WallTimerEvent&) {
-    if (!csv_.isActive()) return;  // only when a trial is active
+  void onTimer(const ros::TimerEvent&) {
+    if (!csv_.isActive() || !have_t0_) return;  // only when a trial is active and we have t0
     publishOnce();
   }
 
   void publishOnce() {
     // Use a uniform, timer-based stamp for the row
     const ros::Time row_stamp = ros::Time::now();
+    const double t_rel = (row_stamp - session_t0_).toSec();
 
     // Lookup latest-available transforms (Time(0))
     tf::StampedTransform gr, wr, sh, ua, uf, ee, lf;
@@ -282,7 +289,10 @@ private:
 
     // Ensure header then log row
     csv_.writeHeaderIfNeeded();
-    csv_.writeRowFromMsgs(gr_msg, wr_msg, sh_msg, ua_msg, uf_msg, ee_msg, lf_msg);
+    csv_.writeRowFromMsgsWithTRel(
+      row_stamp.toSec(), t_rel,
+      gr_msg, wr_msg, sh_msg, ua_msg, uf_msg, ee_msg, lf_msg
+    );
   }
 
   CSVLogger& csv_;
@@ -292,8 +302,8 @@ private:
   std::string world_;
   double log_rate_hz_{10.0};
 
-  // Timer
-  ros::WallTimer timer_;
+  // Timer (ROS time)
+  ros::Timer timer_;
 
   // Pose publishers (optional)
   ros::Publisher gripper_pos_pub, wrist_pos_pub, shoulder_pos_pub, upper_arm_pos_pub;
@@ -301,6 +311,10 @@ private:
 
   // Frames
   std::vector<std::string> children_;
+
+  // Session origin
+  ros::Time session_t0_;
+  bool have_t0_{false};
 };
 
 // ============================= Node wrapper (basename rotation) =============================
@@ -318,9 +332,11 @@ public:
     const std::string s = msg->data;
     if (s.empty()) {
       csv_.endSession();
+      pub_.endSession(); // stop using old t0
       ROS_INFO("[TFPoseLogger] Session ended → closed CSV; waiting for next basename.");
     } else {
       csv_.reopenWithBase(s);
+      pub_.startSessionT0(); // align origin with joy logger
       ROS_INFO_STREAM("[TFPoseLogger] Session started → base=" << s);
     }
   }

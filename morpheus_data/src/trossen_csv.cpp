@@ -49,7 +49,7 @@ class JoyDualLogger {
 public:
   JoyDualLogger(ros::NodeHandle& nh, ros::NodeHandle& pnh)
   : nh_(nh), pnh_(pnh) {
-    // ------------ Parameters (minimal) ------------
+    // ------------ Parameters ------------
     pnh_.param<std::string>("basename_topic", basename_topic_, std::string("/session/csv_basename"));
     pnh_.param<std::string>("joy_topic", joy_topic_, std::string("/vx300s/joy"));
     pnh_.param<std::string>("armjoy_topic", armjoy_topic_, std::string("/vx300s/commands/joy_processed"));
@@ -59,6 +59,7 @@ public:
     pnh_.param<bool>("write_combined", write_combined_, true);
     pnh_.param<bool>("append", append_, false);               // per trial, we truncate by default
     pnh_.param<bool>("flush_each_row", flush_each_row_, false);
+    pnh_.param<double>("log_rate_hz", log_rate_hz_, 10.0);    // 10 Hz => 0.1s
 
     // Controller mapping
     if (controller_type_ == "ps4") {
@@ -71,11 +72,18 @@ public:
     // ------------ Subscriptions ------------
     joy_sub_       = nh_.subscribe(joy_topic_, 200, &JoyDualLogger::joyCb, this);
     armjoy_sub_    = nh_.subscribe(armjoy_topic_, 100, &JoyDualLogger::armjoyCb, this);
-    csv_base_sub_ = nh_.subscribe(basename_topic_, 1, &JoyDualLogger::csvBaseCb, this);
+    csv_base_sub_  = nh_.subscribe(basename_topic_, 1, &JoyDualLogger::csvBaseCb, this);
+
+    // ------------ Fixed-rate timer for logging ------------
+    const double safe_rate = std::max(1e-6, log_rate_hz_);
+    timer_ = nh_.createTimer(ros::Duration(1.0 / safe_rate),
+                             &JoyDualLogger::timerCb, this);
 
     ROS_INFO_STREAM("JoyDualLogger starting. base_dir=" << base_dir_
-                    << " controller=" << controller_type_ << " on_threshold=" << on_thr_
-                    << " write_combined=" << (write_combined_ ? "true" : "false"));
+                    << " controller=" << controller_type_
+                    << " on_threshold=" << on_thr_
+                    << " write_combined=" << (write_combined_ ? "true" : "false")
+                    << " log_rate_hz=" << log_rate_hz_);
   }
 
   ~JoyDualLogger() {
@@ -92,12 +100,16 @@ private:
       closeAllCsv();
       joy_header_written_ = armjoy_header_written_ = combined_header_written_ = false;
       active_base_.clear();
+      have_t0_ = false;  // reset session origin
       ROS_INFO("[JoyDualLogger] Session ended → closed CSVs; waiting for next basename.");
     } else {
       // New trial: rotate files
       active_base_ = s;
       reopenAllCsvWithBase(active_base_);
-      ROS_INFO_STREAM("[JoyDualLogger] Session started → base=" << active_base_);
+      session_t0_ = ros::Time::now();   // session origin for t_rel
+      have_t0_ = true;
+      ROS_INFO_STREAM("[JoyDualLogger] Session started → base=" << active_base_
+                      << " t0=" << session_t0_.toSec());
     }
   }
 
@@ -199,67 +211,73 @@ private:
   }
 
   // ========================= ROS Callbacks =========================
+  // Note: no file writes here; we cache the latest state only.
   void joyCb(const sensor_msgs::Joy::ConstPtr& msg) {
-    const double t_recv = ros::Time::now().toSec();
     std::lock_guard<std::mutex> lk(mtx_);
-
-    // If we don't have an active base (no current trial), we still keep a snapshot but don't write
     last_joy_ = *msg;
     have_joy_ = true;
-
-    if (active_base_.empty()) return; // idle between trials
-
-    // Ensure headers exist (now that we know sizes)
-    if (!joy_header_written_) {
-      writeJoyHeader();
-      joy_header_written_ = true;
-    }
-
-    // Raw Joy
-    writeJoyRow(t_recv, *msg);
-
-    // Calibration axes (handy to inspect thresholds)
-    writeCalRow(t_recv, *msg);
-
-    // Derive ArmJoy-like commands
-    interbotix_xs_msgs::ArmJoy derived = deriveArmJoy(*msg);
-    last_armjoy_  = derived;
-    have_armjoy_  = true;
-
-    if (!armjoy_header_written_) {
-      writeArmJoyHeader();
-      armjoy_header_written_ = true;
-    }
-    writeArmJoyRow(t_recv, derived);
-
-    // Combined
-    if (write_combined_) {
-      if (!combined_header_written_) {
-        writeCombinedHeader();
-        combined_header_written_ = true;
-      }
-      writeCombinedRow(t_recv, "joy");
-    }
   }
 
   void armjoyCb(const interbotix_xs_msgs::ArmJoy::ConstPtr& msg) {
-    // Optional pass-through logging (we only write rows when Joy drives combined)
+    // Optional pass-through caching (combined uses derived cmd by default)
     std::lock_guard<std::mutex> lk(mtx_);
     last_armjoy_ = *msg;
     have_armjoy_ = true;
   }
 
+  // ========================= Timer: periodic writers (10 Hz default) =========================
+  void timerCb(const ros::TimerEvent&) {
+    const ros::Time now = ros::Time::now();
+    const double t_now = now.toSec();
+    std::lock_guard<std::mutex> lk(mtx_);
+
+    // Only log during an active session and if we have a Joy sample and t0
+    if (active_base_.empty() || !have_joy_ || !have_t0_) return;
+
+    const double t_rel = (now - session_t0_).toSec();
+
+    // Ensure headers now that we know vector sizes
+    if (!joy_header_written_) {
+      writeJoyHeader();
+      joy_header_written_ = true;
+    }
+    if (write_combined_ && !combined_header_written_) {
+      writeCombinedHeader();
+      combined_header_written_ = true;
+    }
+
+    // Log joy_raw at fixed rate
+    writeJoyRow(t_now, t_rel, last_joy_);
+
+    // Keep a cal snapshot at the same rate (useful for threshold tuning)
+    writeCalRow(t_now, t_rel, last_joy_);
+
+    // Derive ArmJoy from latest Joy for combined
+    interbotix_xs_msgs::ArmJoy derived = deriveArmJoy(last_joy_);
+    last_armjoy_  = derived;
+    have_armjoy_  = true;
+
+    // Log combined at fixed rate (joy_and_cmd)
+    if (write_combined_) {
+      writeCombinedRow(t_now, t_rel, "timer");
+    }
+
+    // If you also want armjoy-only CSV at 10 Hz, uncomment:
+    // if (!armjoy_header_written_) { writeArmJoyHeader(); armjoy_header_written_ = true; }
+    // writeArmJoyRow(t_now, derived);
+  }
+
   // ========================= CSV writers =========================
   void writeJoyHeader() {
     if (!joy_csv_) return;
-    joy_csv_ << "recv_time,joy_header_sec,joy_header_nsec,seq";
+    joy_csv_ << "recv_time,t_rel,joy_header_sec,joy_header_nsec,seq";
     for (size_t i = 0; i < last_joy_.axes.size(); ++i)    joy_csv_ << ",axes_"   << i;
     for (size_t j = 0; j < last_joy_.buttons.size(); ++j) joy_csv_ << ",button_" << j;
     joy_csv_ << "\n";
     if (flush_each_row_) joy_csv_.flush();
 
     if (cal_csv_) {
-      cal_csv_ << "recv_time,axes_EE_X,axes_EE_Z,axes_EE_ROLL,axes_EE_PITCH\n";
+      cal_csv_ << "recv_time,t_rel,axes_EE_X,axes_EE_Z,axes_EE_ROLL,axes_EE_PITCH\n";
       if (flush_each_row_) cal_csv_.flush();
     }
   }
@@ -276,7 +294,7 @@ private:
 
   void writeCombinedHeader() {
     if (!combined_csv_) return;
-    combined_csv_ << "recv_time,source,joy_header_sec,joy_header_nsec,"
+    combined_csv_ << "recv_time,t_rel,source,joy_header_sec,joy_header_nsec,"
                   << "ee_x_cmd,ee_y_cmd,ee_z_cmd,ee_roll_cmd,ee_pitch_cmd,"
                   << "waist_cmd,gripper_cmd,pose_cmd,speed_cmd,speed_toggle_cmd,"
                   << "gripper_pwm_cmd,torque_cmd";
@@ -286,10 +304,10 @@ private:
     if (flush_each_row_) combined_csv_.flush();
   }
 
-  void writeJoyRow(double t_recv, const sensor_msgs::Joy& joy) {
+  void writeJoyRow(double t_recv, double t_rel, const sensor_msgs::Joy& joy) {
     if (!joy_csv_) return;
     joy_csv_ << std::fixed << std::setprecision(6)
-             << t_recv << ","
+             << t_recv << "," << t_rel << ","
              << joy.header.stamp.sec << "," << joy.header.stamp.nsec << ","
              << joy.header.seq;
     for (double v : joy.axes)   joy_csv_ << "," << v;
@@ -298,14 +316,14 @@ private:
     if (flush_each_row_) joy_csv_.flush();
   }
 
-  void writeCalRow(double t_recv, const sensor_msgs::Joy& joy) {
+  void writeCalRow(double t_recv, double t_rel, const sensor_msgs::Joy& joy) {
     if (!cal_csv_) return;
     auto safeAxis = [&](const char* k)->double {
       int i = cntlr_.at(k);
       return (i >=0 && (size_t)i < joy.axes.size()) ? joy.axes[i] : 0.0;
     };
     cal_csv_ << std::fixed << std::setprecision(6)
-             << t_recv << ","
+             << t_recv << "," << t_rel << ","
              << safeAxis("EE_X")    << ","
              << safeAxis("EE_Z")    << ","
              << safeAxis("EE_ROLL") << ","
@@ -332,10 +350,10 @@ private:
     if (flush_each_row_) armjoy_csv_.flush();
   }
 
-  void writeCombinedRow(double t_recv, const char* source) {
+  void writeCombinedRow(double t_recv, double t_rel, const char* source) {
     if (!combined_csv_) return;
     combined_csv_ << std::fixed << std::setprecision(6)
-                  << t_recv << "," << source << ",";
+                  << t_recv << "," << t_rel << "," << source << ",";
     if (have_joy_) combined_csv_ << last_joy_.header.stamp.sec << "," << last_joy_.header.stamp.nsec << ",";
     else           combined_csv_ << "0,0,";
 
@@ -369,10 +387,11 @@ private:
   // ROS
   ros::NodeHandle nh_, pnh_;
   ros::Subscriber joy_sub_, armjoy_sub_, csv_base_sub_;
+  ros::Timer timer_;
   std::mutex mtx_;
 
   // Params / config
-  std::string basename_topic_;          // ← ADD THIS
+  std::string basename_topic_;
   std::string joy_topic_, armjoy_topic_;
   std::string base_dir_;
   std::string controller_type_;
@@ -381,6 +400,7 @@ private:
   bool write_combined_ = true;
   bool append_ = false;
   bool flush_each_row_ = false;
+  double log_rate_hz_ = 10.0;
 
   // CSV files and paths
   std::ofstream joy_csv_, armjoy_csv_, combined_csv_, cal_csv_;
@@ -393,6 +413,10 @@ private:
 
   // Active base (id_task_###) from session; empty means idle
   std::string active_base_;
+
+  // Session origin for t_rel
+  ros::Time session_t0_;
+  bool have_t0_ = false;
 
   // (TF objects kept for parity; not used here)
   tf::TransformListener tf_listener_;

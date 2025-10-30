@@ -13,7 +13,10 @@
     <arg name="trajectory_name"                     default=""/>
     <arg name="trajectory_haptics"                  default="false"/>
 
-    <arg name="xacro_path"                          default="$(find morpheus_description)/urdf/scenes/trossen_hera_scene.xacro"/>
+    <!-- <arg name="xacro_path"                          default="$(find morpheus_description)/urdf/scenes/trossen_hera_scene.xacro"/>
+    <arg name="srdf_path"                           default="$(find morpheus_description)/srdf/scenes/trossen_hera_scene.srdf.xacro"/> -->
+    <!-- UCD experiment-->
+    <arg name="xacro_path"                          default="$(find morpheus_description)/urdf/scenes/UCD_trossen_hera_scene.xacro"/>
     <arg name="srdf_path"                           default="$(find morpheus_description)/srdf/scenes/trossen_hera_scene.srdf.xacro"/>
 
     <arg name="data"                                default="true"/>
