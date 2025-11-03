@@ -198,18 +198,19 @@ public:
                 // write(serial_port, &send_char, 1);
                 // write(serial_port, full_message.c_str(), full_message.length());
             }
-            else if (lower_arm_links.count(link1) || lower_arm_links.count(link2)||link1 == "vx300s/upper_forearm_link" || link2 == "vx300s/upper_forearm_link") {
+            else if (lower_arm_links.count(link1) || lower_arm_links.count(link2) || link1 == "vx300s/upper_forearm_link" || link2 == "vx300s/upper_forearm_link") {
                 ROS_INFO_STREAM("Collision with lower arm. Sending '2'");
                 send_char = '2';
                 // write(serial_port, &send_char, 1);
                 // write(serial_port, full_message.c_str(), full_message.length());
             }
-            else if (link1 == "vx300s/upper_forearm_link" || link2 == "vx300s/upper_forearm_link") {
-                ROS_INFO_STREAM("Collision with upper forearm. Sending '3'");
-                send_char = '0';
-                // write(serial_port, &send_char, 1);
-                // write(serial_port, full_message.c_str(), full_message.length());
-            }
+            // else if (link1 == "vx300s/upper_forearm_link" || link2 == "vx300s/upper_forearm_link") {
+            //     ROS_INFO_STREAM("Collision with upper forearm. Sending '3'");
+            //     send_char = '3';
+            //     // send_char = '0';
+            //     // write(serial_port, &send_char, 1);
+            //     // write(serial_port, full_message.c_str(), full_message.length());
+            // }
             else if (link1 == "vx300s/upper_arm_link" || link2 == "vx300s/upper_arm_link") {
                 ROS_INFO_STREAM("Collision with upper arm. Sending '4'");
                 send_char = '3';

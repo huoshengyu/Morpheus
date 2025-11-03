@@ -10,7 +10,7 @@ from interbotix_xs_modules.arm import InterbotixManipulatorXS
 
 class ArmRobot(object):
     def __init__(self):
-        self.waist_step = 0.06
+        self.waist_step = 0.03
         self.rotate_step = 0.04
         self.translate_step = 0.01
         self.gripper_pressure_step = 0.125

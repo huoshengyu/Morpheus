@@ -89,26 +89,26 @@ void joy_state_cb(const sensor_msgs::Joy &msg)
   interbotix_xs_msgs::ArmJoy joy_cmd;
 
   // Check if the torque_cmd should be flipped
-  if (msg.buttons.at(cntlr["TORQUE_ENABLE"]) == 1 && flip_torque_cmd_last_state == false)
-  {
-    flip_torque_cmd = true;
-    joy_cmd.torque_cmd = interbotix_xs_msgs::ArmJoy::TORQUE_ON;
-  }
-  else if (msg.buttons.at(cntlr["TORQUE_ENABLE"]) == 1 && flip_torque_cmd_last_state == true)
-  {
-    time_start = ros::Time::now().toSec();
-    timer_started = true;
-  }
-  else if (msg.buttons.at(cntlr["TORQUE_ENABLE"]) == 0)
-  {
-    if (timer_started && ros::Time::now().toSec() - time_start > 3)
-    {
-      joy_cmd.torque_cmd = interbotix_xs_msgs::ArmJoy::TORQUE_OFF;
-      flip_torque_cmd = false;
-    }
-    flip_torque_cmd_last_state = flip_torque_cmd;
-    timer_started = false;
-  }
+  // if (msg.buttons.at(cntlr["TORQUE_ENABLE"]) == 1 && flip_torque_cmd_last_state == false)
+  // {
+  //   flip_torque_cmd = true;
+  //   joy_cmd.torque_cmd = interbotix_xs_msgs::ArmJoy::TORQUE_ON;
+  // }
+  // else if (msg.buttons.at(cntlr["TORQUE_ENABLE"]) == 1 && flip_torque_cmd_last_state == true)
+  // {
+  //   time_start = ros::Time::now().toSec();
+  //   timer_started = true;
+  // }
+  // else if (msg.buttons.at(cntlr["TORQUE_ENABLE"]) == 0)
+  // {
+  //   if (timer_started && ros::Time::now().toSec() - time_start > 3)
+  //   {
+  //     joy_cmd.torque_cmd = interbotix_xs_msgs::ArmJoy::TORQUE_OFF;
+  //     flip_torque_cmd = false;
+  //   }
+  //   flip_torque_cmd_last_state = flip_torque_cmd;
+  //   timer_started = false;
+  // }
 
   /* Disable flipping axes. Pressing the sticks can be remapped.
   // Check if the ee_x_cmd should be flipped
