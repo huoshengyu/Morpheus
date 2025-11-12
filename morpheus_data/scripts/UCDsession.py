@@ -286,41 +286,49 @@ class Session(object):
 # ==========================================================
 class MultiLSLRecorder(object):
     """
-    Writes rows whenever a sample arrives.
-    Columns:
-      ros_time,
-      sys_utc_ns,
-      neon_time, neon_ch0..,
-      evt_time, evt_ch0
+    Modes:
+      - combined:   <basename>_lsl.csv  (sparse rows; events one-shot; event rows also include latest Neon)
+      - split:      <basename>_gaze.csv, <basename>_controller.csv
+      - both:       all three files
+
+    Combined CSV columns:
+      ros_time, sys_utc_ns,
+      neon_time, neon_ch0..N,
+      evt_time,  evt_ch0..M
     """
-    def __init__(self, save_dir):
+    def __init__(self, save_dir, write_mode="combined"):
         self.save_dir = save_dir
         os.makedirs(self.save_dir, exist_ok=True)
+        self.write_mode = write_mode  # "combined" | "split" | "both"
 
         self.stream_specs = [
             {"match": "Neon Companion_Neon Gaze", "label": "neon"},
-            {"match": "Controller_Events", "label": "evt"},
+            {"match": "Controller_Events",        "label": "evt"},
         ]
-
         self.inlets = {}
         self.ch_counts = {}
         self.last_samples = {}
         self.last_ts = {}
 
-        self.current_file = None
-        self.current_writer = None
+        # Writers/paths
         self.current_basename = ""
+        self.comb_file = None
+        self.comb_writer = None
+        self.gaze_file = None
+        self.gaze_writer = None
+        self.ctrl_file = None
+        self.ctrl_writer = None
+
         self.lock = threading.Lock()
 
         self._connect_streams_once(print_all=True)
-
         rospy.Subscriber("csv_basename", String, self.basename_cb)
 
         self.keep_running = True
-        self.reconnect_thread = threading.Thread(target=self._reconnect_loop_safe)
-        self.reconnect_thread.daemon = True
-        self.reconnect_thread.start()
+        t = threading.Thread(target=self._reconnect_loop_safe, daemon=True)
+        t.start()
 
+    # ---------- LSL connect ----------
     def _connect_streams_once(self, print_all=False):
         try:
             streams = resolve_stream()
@@ -329,44 +337,33 @@ class MultiLSLRecorder(object):
             return
 
         if print_all:
-            rospy.loginfo("[MultiLSL] Available LSL streams right now:")
+            rospy.loginfo("[MultiLSL] Available LSL streams:")
             for s in streams:
                 rospy.loginfo("   - %s (%s)", s.name(), s.type())
 
         for spec in self.stream_specs:
-            match = spec["match"]
-            label = spec["label"]
+            match = spec["match"]; label = spec["label"]
             if label in self.inlets:
                 continue
-
             chosen = None
-            # exact match
             for s in streams:
                 if match.lower() == s.name().lower():
-                    chosen = s
-                    break
-            # substring match
+                    chosen = s; break
             if chosen is None:
                 for s in streams:
                     if match.lower() in s.name().lower():
-                        chosen = s
-                        break
-
+                        chosen = s; break
             if chosen is None:
                 rospy.logwarn("[MultiLSL] stream '%s' not found yet.", match)
                 continue
-
             try:
                 inlet = StreamInlet(chosen, max_buflen=360)
-                ch_count = inlet.info().channel_count()
+                ch = inlet.info().channel_count()
                 self.inlets[label] = inlet
-                self.ch_counts[label] = ch_count
-                self.last_samples[label] = ["" for _ in range(ch_count)]
-                self.last_ts[label] = ""
-                rospy.loginfo("[MultiLSL] CONNECTED to '%s' as '%s' with %d channels",
-                              chosen.name(), label, ch_count)
+                self.ch_counts[label] = ch
+                rospy.loginfo("[MultiLSL] CONNECTED to '%s' as '%s' (%d ch)", chosen.name(), label, ch)
             except Exception:
-                rospy.logerr("[MultiLSL] failed to connect to '%s':\n%s", match, traceback.format_exc())
+                rospy.logerr("[MultiLSL] failed to connect '%s':\n%s", match, traceback.format_exc())
 
     def _reconnect_loop_safe(self):
         try:
@@ -378,86 +375,154 @@ class MultiLSLRecorder(object):
         except Exception:
             rospy.logerr("[MultiLSL] reconnect crashed:\n%s", traceback.format_exc())
 
+    # ---------- File handling ----------
+    def _close_all_nolock(self):
+        for fattr, wattr in (("comb_file","comb_writer"),
+                             ("gaze_file","gaze_writer"),
+                             ("ctrl_file","ctrl_writer")):
+            f = getattr(self, fattr)
+            if f is not None:
+                f.close()
+                setattr(self, fattr, None)
+                setattr(self, wattr, None)
+        self.current_basename = ""
+        rospy.loginfo("[MultiLSL] closed files")
+
     def basename_cb(self, msg: String):
         name = msg.data.strip()
         with self.lock:
             if name == "":
-                if self.current_file is not None:
-                    self.current_file.close()
-                    self.current_file = None
-                    self.current_writer = None
-                    self.current_basename = ""
-                    rospy.loginfo("[MultiLSL] closed file")
+                self._close_all_nolock()
                 return
 
-            if self.current_file is not None:
-                self.current_file.close()
-
-            out_path = os.path.join(self.save_dir, f"{name}_lsl.csv")
-            self.current_file = open(out_path, "w")
-            self.current_writer = csv.writer(self.current_file)
-
-            # header: ros_time, sys_utc_ns, then per-stream
-            header = ["ros_time", "sys_utc_ns"]
-            for spec in self.stream_specs:
-                lbl = spec["label"]
-                header.append(f"{lbl}_time")
-                ch_n = self.ch_counts.get(lbl, 0)
-                for i in range(ch_n):
-                    header.append(f"{lbl}_ch{i}")
-            self.current_writer.writerow(header)
+            # rotate files
+            self._close_all_nolock()
             self.current_basename = name
-            rospy.loginfo("[MultiLSL] recording to %s", out_path)
 
+            neon_ch = self.ch_counts.get("neon", 0)
+            evt_ch  = self.ch_counts.get("evt",  0)
+
+            if self.write_mode in ("combined", "both"):
+                comb_path = os.path.join(self.save_dir, f"{name}_lsl.csv")
+                self.comb_file = open(comb_path, "w", newline="")
+                self.comb_writer = csv.writer(self.comb_file)
+                comb_header = (["ros_time","sys_utc_ns","neon_time"] +
+                               [f"neon_ch{i}" for i in range(neon_ch)] +
+                               ["evt_time"] +
+                               [f"evt_ch{i}" for i in range(evt_ch)])
+                self.comb_writer.writerow(comb_header)
+                rospy.loginfo("[MultiLSL] combined -> %s", comb_path)
+
+            if self.write_mode in ("split", "both"):
+                gaze_path = os.path.join(self.save_dir, f"{name}_gaze.csv")
+                self.gaze_file = open(gaze_path, "w", newline="")
+                self.gaze_writer = csv.writer(self.gaze_file)
+                self.gaze_writer.writerow(["ros_time","sys_utc_ns","neon_time"] +
+                                          [f"neon_ch{i}" for i in range(neon_ch)])
+                rospy.loginfo("[MultiLSL] gaze -> %s", gaze_path)
+
+                ctrl_path = os.path.join(self.save_dir, f"{name}_controller.csv")
+                self.ctrl_file = open(ctrl_path, "w", newline="")
+                self.ctrl_writer = csv.writer(self.ctrl_file)
+                self.ctrl_writer.writerow(["ros_time","sys_utc_ns","evt_time"] +
+                                          [f"evt_ch{i}" for i in range(evt_ch)])
+                rospy.loginfo("[MultiLSL] controller -> %s", ctrl_path)
+
+    # ---------- Helpers ----------
+    @staticmethod
+    def _round_neon(vals):
+        out = []
+        for i, v in enumerate(vals):
+            if isinstance(v, (int, float)) and i in (0, 1):
+                out.append(round(v, 4))   # neon ch0/ch1 → 4 decimals
+            elif isinstance(v, (int, float)):
+                out.append(v)
+            else:
+                out.append(str(v))
+        return out
+
+    def _write_gaze_row(self, ts, sample):
+        if self.gaze_writer is None: return
+        ch = self.ch_counts.get("neon", 0)
+        vals = list(sample[:ch]) + [""] * max(0, ch - len(sample))
+        row = [rospy.get_time(), time.time_ns(), ts] + self._round_neon(vals)
+        self.gaze_writer.writerow(row)
+
+    def _write_ctrl_row(self, ts, sample):
+        if self.ctrl_writer is None: return
+        ch = self.ch_counts.get("evt", 0)
+        vals = list(sample[:ch]) + [""] * max(0, ch - len(sample))
+        vals = [v if isinstance(v,(int,float)) else str(v) for v in vals]
+        row = [rospy.get_time(), time.time_ns(), ts] + vals
+        self.ctrl_writer.writerow(row)
+
+    def _write_combined_row(self, label, ts, sample):
+        if self.comb_writer is None: return
+
+        neon_ch = self.ch_counts.get("neon", 0)
+        evt_ch  = self.ch_counts.get("evt",  0)
+
+        # By default, put blanks for both blocks
+        neon_time, neon_vals = "", [""] * neon_ch
+        evt_time,  evt_vals  = "", [""] * evt_ch
+
+        # If Neon tick → fill neon block
+        if label == "neon":
+            nv = list(sample[:neon_ch]) + [""] * max(0, neon_ch - len(sample))
+            neon_time = ts
+            neon_vals = self._round_neon(nv)
+
+        # If Event tick → fill evt block AND snapshot latest Neon (if we have it)
+        elif label == "evt":
+            ev = list(sample[:evt_ch]) + [""] * max(0, evt_ch - len(sample))
+            evt_time = ts
+            evt_vals = [v if isinstance(v,(int,float)) else str(v) for v in ev]
+
+            # include freshest Neon snapshot if available
+            if "neon" in self.last_samples:
+                neon_time = self.last_ts.get("neon", "")
+                nv = list(self.last_samples["neon"][:neon_ch]) + [""] * max(0, neon_ch - len(self.last_samples["neon"]))
+                neon_vals = self._round_neon(nv)
+
+        row = [rospy.get_time(), time.time_ns(), neon_time] + neon_vals + [evt_time] + evt_vals
+        self.comb_writer.writerow(row)
+
+    # ---------- Main loop ----------
     def run(self):
         try:
             rate = rospy.Rate(300)
             while not rospy.is_shutdown():
-                for spec in self.stream_specs:
-                    label = spec["label"]
-                    inlet = self.inlets.get(label)
-                    if inlet is None:
-                        continue
-
+                for label, inlet in list(self.inlets.items()):
+                    if inlet is None: continue
                     sample, ts = inlet.pull_sample(timeout=0.0)
-                    if sample is None:
-                        continue
+                    if sample is None: continue
 
+                    # keep caches always updated
                     self.last_samples[label] = sample
                     self.last_ts[label] = ts
 
+                    # if an event arrived, greedily drain Neon to make snapshot fresher
+                    if label == "evt" and "neon" in self.inlets:
+                        nin = self.inlets["neon"]
+                        while True:
+                            ns, nt = nin.pull_sample(timeout=0.0)
+                            if ns is None: break
+                            self.last_samples["neon"] = ns
+                            self.last_ts["neon"] = nt
+
                     with self.lock:
-                        if self.current_writer is None:
-                            continue
+                        if self.write_mode in ("split", "both"):
+                            if label == "neon":
+                                self._write_gaze_row(ts, sample)
+                            elif label == "evt":
+                                self._write_ctrl_row(ts, sample)
 
-                        # 1) ROS time
-                        row = [rospy.get_time()]
-                        # 2) system UTC (epoch) in ns – the closest we can get in this script
-                        row.append(time.time_ns())
+                        if self.write_mode in ("combined", "both"):
+                            self._write_combined_row(label, ts, sample)
 
-                        # 3) all streams’ LSL times + channels
-                        for spec2 in self.stream_specs:
-                            lbl2 = spec2["label"]
-                            row.append(self.last_ts.get(lbl2, ""))
-                            ch_n = self.ch_counts.get(lbl2, 0)
-                            vals = list(self.last_samples.get(lbl2, []))
-                            if len(vals) < ch_n:
-                                vals += [""] * (ch_n - len(vals))
-
-                            for i, v in enumerate(vals[:ch_n]):
-                                # ✅ round neon_ch0 and neon_ch1 to 4 decimals
-                                if lbl2 == "neon" and i in (0, 1) and isinstance(v, (int, float)):
-                                    row.append(round(v, 3))
-                                elif isinstance(v, (int, float)):
-                                    row.append(v)
-                                else:
-                                    row.append(str(v))
-
-                        self.current_writer.writerow(row)
                 rate.sleep()
         except Exception:
             rospy.logerr("[MultiLSL] run crashed:\n%s", traceback.format_exc())
-# ==========================================================
 # main
 # ==========================================================
 def main():
@@ -466,7 +531,7 @@ def main():
     session = Session()
     rospy.Subscriber("/vx300s/joy", Joy, session.joy_cb)
 
-    recorder = MultiLSLRecorder(save_dir=session._base_dir)
+    recorder = MultiLSLRecorder(save_dir=session._base_dir,write_mode="both")
     rec_thread = threading.Thread(target=recorder.run)
     rec_thread.daemon = True
     rec_thread.start()

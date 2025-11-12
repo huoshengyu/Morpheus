@@ -10,7 +10,7 @@
     <arg name="collision_haptics"                   default="false"/>
     <arg name="spawner"                             default="false"/>
     <arg name="trajectory"                          default="false"/>
-    <arg name="task"                                default="easy"/>
+    <arg name="task"                                default="medium"/>
     <arg name="trajectory_haptics"                  default="false"/>
 
     <arg name="xacro_path"                          default="$(find morpheus_description)/urdf/scenes/UCD_trossen_hera_scene.xacro"/>

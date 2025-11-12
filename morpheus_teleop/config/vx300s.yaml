@@ -1,8 +1,9 @@
 # port: /dev/ttyDXL
 # Port below avoids needing udev rules by directly using device id
 # Compare to gello_software/gello/agents/gello_agent.py->PORT_CONFIG_MAP
-port: /dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FTA2U296-if00-port0
-
+port: /dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FT763HPG-if00-port0
+#/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FT763HPG-if00-port0
+#/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FTA2U296-if00-port0
 joint_order: [waist, shoulder, elbow, forearm_roll, wrist_angle, wrist_rotate, gripper]
 sleep_positions: [0, -1.85, 1.55, 0, 0.8, 0, 0]
 
