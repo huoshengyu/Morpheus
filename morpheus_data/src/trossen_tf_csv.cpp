@@ -323,7 +323,7 @@ public:
   TFPoseLoggerNode(ros::NodeHandle& nh, ros::NodeHandle& pnh)
   : nh_(nh), pnh_(pnh), csv_(pnh_), pub_(nh_, pnh_, csv_)
   {
-    pnh_.param<std::string>("basename_topic", basename_topic_, std::string("/session/csv_basename"));
+    pnh_.param<std::string>("basename_topic", basename_topic_, std::string("/UCDsession/csv_basename"));
     csv_base_sub_ = nh_.subscribe(basename_topic_, 1, &TFPoseLoggerNode::csvBaseCb, this);
     ROS_INFO_STREAM("[TFPoseLogger] starting. basename_topic=" << basename_topic_);
   }
@@ -333,11 +333,11 @@ public:
     if (s.empty()) {
       csv_.endSession();
       pub_.endSession(); // stop using old t0
-      ROS_INFO("[TFPoseLogger] Session ended → closed CSV; waiting for next basename.");
+      ROS_INFO("[TFPoseLogger] Session ended closed CSV; waiting for next basename.");
     } else {
       csv_.reopenWithBase(s);
       pub_.startSessionT0(); // align origin with joy logger
-      ROS_INFO_STREAM("[TFPoseLogger] Session started → base=" << s);
+      ROS_INFO_STREAM("[TFPoseLogger] Session started base=" << s);
     }
   }
 

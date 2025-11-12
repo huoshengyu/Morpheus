@@ -110,25 +110,26 @@ void joy_state_cb(const sensor_msgs::Joy &msg)
     timer_started = false;
   }
 
-  /* Disable flipping axes. Pressing the sticks can be remapped.
+  //Disable flipping axes. Pressing the sticks can be remapped.
+  
   // Check if the ee_x_cmd should be flipped
-  if (msg.buttons.at(cntlr["FLIP_EE_X"]) == 1 && flip_ee_x_cmd_last_state == false)
-    flip_ee_x_cmd = true;
-  else if (msg.buttons.at(cntlr["FLIP_EE_X"]) == 1 && flip_ee_x_cmd_last_state == true)
-    flip_ee_x_cmd = false;
-  else if (msg.buttons.at(cntlr["FLIP_EE_X"]) == 0)
-    flip_ee_x_cmd_last_state = flip_ee_x_cmd;
-  */
+  // if (msg.buttons.at(cntlr["FLIP_EE_X"]) == 1 && flip_ee_x_cmd_last_state == false)
+  //   flip_ee_x_cmd = true;
+  // else if (msg.buttons.at(cntlr["FLIP_EE_X"]) == 1 && flip_ee_x_cmd_last_state == true)
+  //   flip_ee_x_cmd = false;
+  // else if (msg.buttons.at(cntlr["FLIP_EE_X"]) == 0)
+  //   flip_ee_x_cmd_last_state = flip_ee_x_cmd;
+  
 
   // Check the ee_x_cmd
   if (msg.axes.at(cntlr["EE_X"]) >= threshold && flip_ee_x_cmd == false)
-    joy_cmd.ee_x_cmd = interbotix_xs_msgs::ArmJoy::EE_X_INC;
+    {joy_cmd.ee_x_cmd = interbotix_xs_msgs::ArmJoy::EE_X_INC;}
   else if (msg.axes.at(cntlr["EE_X"]) <= -threshold && flip_ee_x_cmd == false)
-    joy_cmd.ee_x_cmd = interbotix_xs_msgs::ArmJoy::EE_X_DEC;
+    {joy_cmd.ee_x_cmd = interbotix_xs_msgs::ArmJoy::EE_X_DEC;}
   else if (msg.axes.at(cntlr["EE_X"]) >= threshold && flip_ee_x_cmd == true)
-    joy_cmd.ee_x_cmd = interbotix_xs_msgs::ArmJoy::EE_X_DEC;
+    {joy_cmd.ee_x_cmd = interbotix_xs_msgs::ArmJoy::EE_X_DEC;}
   else if (msg.axes.at(cntlr["EE_X"]) <= -threshold && flip_ee_x_cmd == true)
-    joy_cmd.ee_x_cmd = interbotix_xs_msgs::ArmJoy::EE_X_INC;
+    {joy_cmd.ee_x_cmd = interbotix_xs_msgs::ArmJoy::EE_X_INC;}
 
   // Check the ee_y_cmd
   if (controller_type == "ps3" || controller_type == "ps4")

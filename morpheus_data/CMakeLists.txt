@@ -19,6 +19,7 @@ find_package(catkin REQUIRED COMPONENTS
   interbotix_xsarm_control
   sensor_msgs
   tf
+  rosbag
 )
 
 catkin_package(
@@ -41,6 +42,10 @@ add_executable(trossen_tf_csv  src/trossen_tf_csv.cpp)
 target_link_libraries(trossen_tf_csv ${catkin_LIBRARIES})
 add_dependencies(trossen_tf_csv ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
+add_executable(Backup_Bag     src/Backup_Bag.cpp)
+target_link_libraries(Backup_Bag ${catkin_LIBRARIES})
+add_dependencies(Backup_Bag ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+
 # If you’re on GCC < 9 and using <filesystem>, uncomment:
 # target_link_libraries(trossen_csv stdc++fs)
 # target_link_libraries(trossen_tf_csv stdc++fs)
@@ -58,6 +63,7 @@ add_dependencies(trossen_tf_csv ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXP
 install(TARGETS
   trossen_csv
   trossen_tf_csv
+  Backup_Bag
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

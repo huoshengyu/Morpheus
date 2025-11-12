@@ -50,7 +50,7 @@ public:
   JoyDualLogger(ros::NodeHandle& nh, ros::NodeHandle& pnh)
   : nh_(nh), pnh_(pnh) {
     // ------------ Parameters ------------
-    pnh_.param<std::string>("basename_topic", basename_topic_, std::string("/session/csv_basename"));
+    pnh_.param<std::string>("basename_topic", basename_topic_, std::string("/UCDsession/csv_basename"));
     pnh_.param<std::string>("joy_topic", joy_topic_, std::string("/vx300s/joy"));
     pnh_.param<std::string>("armjoy_topic", armjoy_topic_, std::string("/vx300s/commands/joy_processed"));
     pnh_.param<std::string>("base_dir", base_dir_, std::string("/root/catkin_ws/src/morpheus_data/data/"));
@@ -101,14 +101,14 @@ private:
       joy_header_written_ = armjoy_header_written_ = combined_header_written_ = false;
       active_base_.clear();
       have_t0_ = false;  // reset session origin
-      ROS_INFO("[JoyDualLogger] Session ended → closed CSVs; waiting for next basename.");
+      ROS_INFO("[JoyDualLogger] Session ended closed CSVs; waiting for next basename.");
     } else {
       // New trial: rotate files
       active_base_ = s;
       reopenAllCsvWithBase(active_base_);
       session_t0_ = ros::Time::now();   // session origin for t_rel
       have_t0_ = true;
-      ROS_INFO_STREAM("[JoyDualLogger] Session started → base=" << active_base_
+      ROS_INFO_STREAM("[JoyDualLogger] Session started base=" << active_base_
                       << " t0=" << session_t0_.toSec());
     }
   }

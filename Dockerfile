@@ -102,7 +102,28 @@ RUN pip install --upgrade modern_robotics
 RUN pip install -r ./src/gello_software/requirements.txt
 RUN pip install -e ./src/gello_software/. --use-pep517
 RUN pip install -e ./src/gello_software/third_party/DynamixelSDK/python/.
+RUN pip install pylsl
 
+# --- build liblsl from source (for pylsl) ---
+RUN apt-get update && apt-get install -y \
+      git cmake g++ libpugixml-dev && \
+    rm -rf /var/lib/apt/lists/*
+
+# cmake in Ubuntu 20.04 is too old for liblsl, so grab a newer one
+RUN cd /tmp && \
+    wget https://github.com/Kitware/CMake/releases/download/v3.29.6/cmake-3.29.6-linux-x86_64.tar.gz && \
+    tar -xzf cmake-3.29.6-linux-x86_64.tar.gz && \
+    mv cmake-3.29.6-linux-x86_64 /opt/cmake-3.29
+
+# clone and build liblsl
+RUN cd /root && \
+    git clone https://github.com/sccn/liblsl.git && \
+    cd liblsl && \
+    mkdir build && cd build && \
+    /opt/cmake-3.29/bin/cmake .. && \
+    make -j"$(nproc)" && \
+    make install && \
+    ldconfig
 # Install Trossen robot arm software (For AMD64 architectures, not Raspberry Pi) (This step may take up to 15 minutes)
 #RUN sudo apt install curl
 #RUN curl 'https://raw.githubusercontent.com/Interbotix/interbotix_ros_manipulators/main/interbotix_ros_xsarms/install/amd64/xsarm_amd64_install.sh' > xsarm_amd64_install.sh

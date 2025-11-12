@@ -42,9 +42,36 @@ class ArmRobot(object):
 
     ### @brief Helper function that calculates the pose of the end-effector w.r.t. T_y
     def update_T_yb(self):
+        # T_sb = self.armbot.arm.get_ee_pose_command()
+        # rospy.loginfo("T_sb:\n%s", T_sb)
+        # rpy = ang.rotationMatrixToEulerAngles(T_sb[:3, :3])
+        # rospy.loginfo("rpy:\n%s", rpy)
+        # self.T_sy[:2,:2] = ang.yawToRotationMatrix(rpy[2])
+        # rospy.loginfo("T_sy:\n%s", self.T_sy)
+        # self.T_yb = np.dot(ang.transInv(self.T_sy), T_sb)
+        # get current commanded EE pose in base frame
         T_sb = self.armbot.arm.get_ee_pose_command()
-        rpy = ang.rotationMatrixToEulerAngles(T_sb[:3, :3])
-        self.T_sy[:2,:2] = ang.yawToRotationMatrix(rpy[2])
+
+        # 1) get yaw from XY position, not from Euler angles
+        x = T_sb[0, 3]
+        y = T_sb[1, 3]
+
+        # if the arm is right above the base (x≈0,y≈0), fall back to 0 yaw
+        if abs(x) < 1e-4 and abs(y) < 1e-4:
+            yaw = 0.0
+        else:
+            yaw = np.arctan2(y, x)
+
+        # 2) build the virtual frame T_sy that has only this yaw
+        self.T_sy = np.identity(4)
+        cy = np.cos(yaw)
+        sy = np.sin(yaw)
+        self.T_sy[0, 0] = cy
+        self.T_sy[0, 1] = -sy
+        self.T_sy[1, 0] = sy
+        self.T_sy[1, 1] = cy
+
+        # 3) express EE in that yaw-aligned frame
         self.T_yb = np.dot(ang.transInv(self.T_sy), T_sb)
 
     ### @brief Helper function that updates the gripper pressure
@@ -136,6 +163,7 @@ class ArmRobot(object):
         if (position_changed + orientation_changed == 0): return
 
         # Copy the most recent T_yb transform into a temporary variable
+        self.update_T_yb()   # read actual commanded pose from arm
         T_yb = np.array(self.T_yb)
 
         if (position_changed):
@@ -144,7 +172,6 @@ class ArmRobot(object):
                 T_yb[0, 3] += self.translate_step
             elif (msg.ee_x_cmd == ArmJoy.EE_X_DEC):
                 T_yb[0, 3] -= self.translate_step
-
             # check ee_y_cmd
             if (msg.ee_y_cmd == ArmJoy.EE_Y_INC and self.num_joints >= 6 and T_yb[0,3] > 0.3):
                 T_yb[1, 3] += self.translate_step
@@ -172,7 +199,6 @@ class ArmRobot(object):
                 rpy[1] += self.rotate_step
             elif (msg.ee_pitch_cmd == ArmJoy.EE_PITCH_UP):
                 rpy[1] -= self.rotate_step
-
             T_yb[:3,:3] = ang.eulerAnglesToRotationMatrix(rpy)
 
         # Get desired transformation matrix of the end-effector w.r.t. the base frame

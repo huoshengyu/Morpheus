@@ -4,18 +4,6 @@
   
   <node ns="UCDsession" name="data_server" pkg="morpheus_data" type="UCDsession.py" output="screen"/>
   
-  <node pkg="morpheus_data" type="trossen_csv" name="trossen_csv" output = "screen"> 
-    <param name="log_rate_hz" value="10.0"/>          <!-- 10 Hz -->
-    <param name="basename_topic" value="/UCDsession/csv_basename"/>
-    <param name="joy_topic"    value="/vx300s/joy"/>
-    <param name="armjoy_topic" value="/vx300s/commands/joy_processed"/>
-    <param name="base_dir" value="/root/catkin_ws/src/morpheus_data/data/"/>   
-    <param name="base_frame" value="vx300s/base_link"/>
-    <param name="ee_frame" value="vx300s/gripper_link"/>
-    <param name="append"           value="false"/>
-    <param name="flush_each_row"   value="true"/>
-    <param name="controller" value="$(arg controller)"/>
-  </node>
   <node pkg="morpheus_data" type="trossen_tf_csv" name="trossen_tf_csv" output="screen">
     <param name="base_dir" value="/root/catkin_ws/src/morpheus_data/data/"/>   
     <param name="basename_topic" value="/UCDsession/csv_basename"/>
@@ -24,4 +12,12 @@
     <param name="append" value="false"/>
     <param name="flush_each_row" value="false"/>
   </node>
+
+  <node pkg="morpheus_data" type="Backup_Bag" name="Backup_Bag" output="screen">
+    <param name="base_dir" value="/root/catkin_ws/src/morpheus_data/data/"/>
+    <param name="basename_topic" value="/UCDsession/csv_basename"/>
+    <param name="append" value="false"/>
+    <param name="flush_each_row" value="false"/>
+  </node>
+  
 </launch>

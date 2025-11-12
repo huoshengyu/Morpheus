@@ -239,7 +239,7 @@ public:
                     // std::string full_msg = make_serial_message(send_char,distancey,distancez);
                 }
                 // Region 2: up (+67.5…112.5)
-                else if (ang >= 67.5f && ang < 112.5f) {
+                else if (ang >= 67.5f && ang < 0.5f) {
                     distancey = 1.0f;
                     ROS_INFO_STREAM("What is the x distance::" << distancex);
                     ROS_INFO_STREAM("What is the z distance:" << distancez);

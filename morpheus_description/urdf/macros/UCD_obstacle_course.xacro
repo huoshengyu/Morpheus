@@ -133,7 +133,7 @@
             parent="${prefix}hera_obstacle_course_base_link"
             radius="${0.0254 * 1.0}"
             length="${0.0254 * 0.5}">
-            <origin xyz="${-0.3240 + 0.3210 * 0.5} ${-0.2255 + 0.015 * 0.5 + (-0.1630)} ${0.015 * 1.5}" rpy="0 0 0" />
+            <origin xyz="${-0.3240 + 0.3210 * 0.5} ${-0.2255 + 0.015 * 0.5 + (-0.1630)} ${0.015 }" rpy="0 0 0" />
         </xacro:hera_pick_goal>
 
         <xacro:hera_place_goal
