@@ -307,7 +307,7 @@ In VSCode, on the left sidebar:
 1. Select the Docker extension tab
 2. Right click on the Morpheus Docker container and select "Attach Visual Studio Code"
 
-## 4. Launch Morpheus:
+## 6. Launch Morpheus:
 ```
 roslaunch morpheus_hera cpne.launch
 ```
