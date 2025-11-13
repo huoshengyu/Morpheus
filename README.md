@@ -258,92 +258,60 @@ sudo udevadm control --reload-rules
 sudo udevadm trigger
 ```
 
-# UC Davis experiment
+# UC Davis experimental settings
 
-## 1. Power on the computer
+## 1. Ubuntu: Open the terminal
+Open terminal first with a short key: "CTRL+ALT+T"
 
-<div class="alert alert-block alert-info">
-<b>NOTE:</b> Turn on the computer first so that indicator lights on any connected devices will also power on. The computer should boot into Ubuntu. If it is a dual boot and boots into the wrong OS, hold F12 on startup to access the boot menu.
-</div>
+## 2. On the Ubutu terminal, check the connectivity of eye-tracking:
+Open Pupil Neon Companion App: Click the "Top-Right corner icon" on the main page.
+You can find the IP-Address. Then,
+```
+ping <IP-Address>
+```
+Then, you can see similar output (e.g., "64 bytes from 192.168.0.102: icmp_seq=1 ttl=64 time=369 ms")
+```
+sudo tcpdump -i wlo1 udp port 16571
+```
+Test whether the Pupil headset (Neon or eye-tracking) is sending broadcast / discovery packets on the network.
 
-## 2. Power on the controller  
-
-IRSS (miniature robot) controller:  
-1. Plug power cable into a power outlet and the power supply board (larger board)
-2. Plug USB cable into the computer's USB port and the U2D2 board (smaller plastic-cased board)
-3. Flip the power supply board's power switch ON (dot side pressed down)
-4. Verify that the red light on the power supply board is on.
-
-Playstation 4 controller:  
-1. Plug into computer's USB port.  
-2. Verify that the blue light on the front of the controller is on.
-
-## 3. Power on the robot   
-
-UR robot:  
-1. Press the power button on the Universal Robots Teach Pendant (the small monitor attached to the UR's control box). Wait for the teach pendant to start up.   
-2. Open the boot menu (red dot in the bottom left corner) and start the robot itself.
-
-Trossen robot:  
-1. Plug power cable into a power outlet and the power supply board (larger board)
-2. Plug USB cable into the computer's USB port and the U2D2 board (smaller plastic-cased board)
-3. Press the power button on the side of the robot
-4. Verify that the red light on the power supply board is on.
-
-## 4. Power on the gripper 
-
-OnRobot RG2-FT gripper:  
-1. Plug power cable into power outlet
-2. Plug green control cable into OnRobot gripper
-3. Plug ethernet cable into ethernet adapter (which is also plugged in to the computer and robot control box)
-4. Verify that light on side of gripper turns on.
-
-Robotiq 2f-85 gripper:
-1. Powered automatically by the robot.
-2. Verify that light on side of gripper turns on.
-
-<div class="alert alert-block alert-info">
-<b>NOTE:</b> You may need to run ```gello_software/tool_communication.py``` to use the Robotiq gripper with the IRSS (but this should be run automatically by the launch files).
-</div>
-
-## 5. UR5e: Set the robot control mode
-
-If using IRSS controller:  
-1. Set the robot to remote control using the Teach Pendant. The button is near the top right of the Teach Pendant's screen.
-
-If using Xbox/Playstation controller:  
-1. Set the robot to local control using the Teach Pendant. The button is near the top right of the Teach Pendant's screen.
-2. On the Programs tab, load and start ros_control. You may need to perform this step after the Morpheus bringup launch file is running.
-
-# Morpheus Software Launch Instructions
-
-## 1. Windows: Launch Docker
-
-Open Docker Desktop and allow ~1 minute to start up.
-
-This step is not necessary on Linux.
-
-## 2. Open VSCode
-
-Open a new terminal and enter `code`.
-
-## 3. Start the Docker container
-
+## 3. Allow connection to the display
+    1. Outside the Docker container, allow connection to the display:  
+    ```
+    xhost +
+    ```
+    2. You may need to manually set the `DISPLAY` environment variable to one of the active displays if it did not set correctly.
+        1. Outside the Docker container, list active displays:  
+            ```
+            w
+            ```
+    
+        2. Inside the Docker container, check what `DISPLAY` is set to:  
+            ```
+            echo $DISPLAY
+            ```
+        3. Set `DISPLAY` to match a result from `w`. For example, if `w` shows that display `:1` exists:  
+            ```
+            export DISPLAY=:1
+            ```
+## 4. Open VS code on the Ubuntu terminal
+```
+code
+```
+## 5. Start the Docker container
+Before, check the path directory: "bear@BEAR:~/morpheus_git/Morpheus"
+If yes, 
+```
+docker compose up
+```
 In VSCode, on the left sidebar:
 1. Select the Docker extension tab
 2. Right click on the Morpheus Docker container and select "Attach Visual Studio Code"
 
 ## 4. Launch Morpheus:
-
-### All at once:
-
-Inside the Docker container:  
 ```
-roslaunch morpheus_main a_bot_main.launch
+roslaunch morpheus_hera cpne.launch
 ```
-<div class="alert alert-block alert-info">
-<b>NOTE:</b> As of 2/2025, the ...main.launch files do not launch the spawner node (to avoid race condition with the collision node) or the data collection node (to avoid unwanted file creation).
-</div>
 
 ### Part by part:
 
