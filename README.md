@@ -276,24 +276,23 @@ sudo tcpdump -i wlo1 udp port 16571
 Test whether the Pupil headset (Neon or eye-tracking) is sending broadcast / discovery packets on the network.
 
 ## 3. Allow connection to the display
-    1. Outside the Docker container, allow connection to the display:  
-    ```
-    xhost +
-    ```
-    2. You may need to manually set the `DISPLAY` environment variable to one of the active displays if it did not set correctly.
-        1. Outside the Docker container, list active displays:  
-            ```
-            w
-            ```
-    
-        2. Inside the Docker container, check what `DISPLAY` is set to:  
-            ```
-            echo $DISPLAY
-            ```
-        3. Set `DISPLAY` to match a result from `w`. For example, if `w` shows that display `:1` exists:  
-            ```
-            export DISPLAY=:1
-            ```
+1. Outside the Docker container, allow connection to the display:  
+```
+xhost +
+```
+2. You may need to manually set the `DISPLAY` environment variable to one of the active displays if it did not set correctly.
+    1. Outside the Docker container, list active displays:  
+        ```
+        w
+        ```
+    2. Inside the Docker container, check what `DISPLAY` is set to:  
+        ```
+        echo $DISPLAY
+        ```
+    3. Set `DISPLAY` to match a result from `w`. For example, if `w` shows that display `:1` exists:  
+        ```
+        export DISPLAY=:1
+        ```
 ## 4. Open VS code on the Ubuntu terminal
 ```
 code
@@ -311,32 +310,6 @@ In VSCode, on the left sidebar:
 ## 4. Launch Morpheus:
 ```
 roslaunch morpheus_hera cpne.launch
-```
-
-### Part by part:
-
-Inside the Docker container:  
-1. Open a_bot in simulation with keyboard controls:
-
-
-    ```
-    roslaunch morpheus_teleop a_bot_fake_keyboard_control.launch
-    ```
-    <div class="alert alert-block alert-info">
-    <b>NOTE:</b> To cancel/end the above command, you must first press esc, then ctrl+c. Keyboard controls use the following keys: qweasd, uiojkl.
-    </div>
-
-3. Open a new terminal. Start the collision tracking node (and display nearest collisions in Rviz):
-```
-roslaunch morpheus_collision collision.launch
-```
-3. Open a new terminal. Start the data recording node:
-```
-roslaunch morpheus_data data.launch
-```
-4. Open a new terminal. Start the goal haptics node:
-```
-roslaunch morpheus_teleop goal_haptics.launch
 ```
 
 ## 5. Launch the IRSS
