@@ -312,17 +312,6 @@ In VSCode, on the left sidebar:
 roslaunch morpheus_hera cpne.launch
 ```
 
-## 5. Launch the IRSS
-
-Inside the Docker container:  
-1. Check that the robot is near the home position and not near any possibe collisions. Launching the IRSS will cause the robot to move to the home position.
-2. Open a new terminal. Start the IRSS node:
-```
-./gello_software/run_gello_onrobot.sh
-```
-3. Check the joint angles. The IRSS will not start unless the joint angles of the controller also match the home position.
-4. Repeat steps 2-3 until the IRSS is correctly launched.
-
 
 # Additional Installation Notes
 
