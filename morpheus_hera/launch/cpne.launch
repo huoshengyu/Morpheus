@@ -7,7 +7,7 @@
     <arg name="controller"                          default="ps4"/>
     <arg name="use_keyboard"                        default="false"/>
     <arg name="collision"                           default="true"/>
-    <arg name="collision_haptics"                   default="false"/>
+    <arg name="collision_haptics"                   default="true"/>
     <arg name="spawner"                             default="false"/>
     <arg name="trajectory"                          default="false"/>
     <arg name="task"                                default="medium"/>

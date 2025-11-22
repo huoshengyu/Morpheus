@@ -161,19 +161,20 @@ public:
         static const std::set<std::string> ignored_links = {
             "hera_obstacle_course_easy_pick_goal",
             "hera_obstacle_course_hard_pick_goal",
-            "hera_obstacle_course_place_goal"
+            "hera_obstacle_course_place_goal",
+            "hera_table"
         };
     if (ignored_links.count(msg.contact_body_1) ||
         ignored_links.count(msg.contact_body_2))
     {
-        ROS_INFO_STREAM("Ignoring collision with goal link "
-                         << msg.contact_body_1 << " / "
-                         << msg.contact_body_2);
+        // ROS_INFO_STREAM("Ignoring collision with goal link "
+        //                  << msg.contact_body_1 << " / "
+        //                  << msg.contact_body_2);
         return;                         // ← nothing is sent to the Arduino
     }
 
         if (isInSleepState()) {
-            ROS_INFO_STREAM("Robot is in Sleep state. Skipping haptic feedback.");
+            // ROS_INFO_STREAM("Robot is in Sleep state. Skipping haptic feedback.");
             return;
         }
         std::string link1 = msg.contact_body_1;
@@ -194,6 +195,10 @@ public:
             last_contact_link = link1 + "_" + link2;
             if (end_effector_links.count(link1) || end_effector_links.count(link2)) {
                 ROS_INFO_STREAM("Collision with end effector. Sending '1'");
+                ROS_INFO_STREAM("which link could be collided" 
+                                    << link1 << "/"
+                                    << link2);
+
                 send_char = '1';
                 // write(serial_port, &send_char, 1);
                 // write(serial_port, full_message.c_str(), full_message.length());
@@ -201,6 +206,10 @@ public:
             else if (lower_arm_links.count(link1) || lower_arm_links.count(link2) || link1 == "vx300s/upper_forearm_link" || link2 == "vx300s/upper_forearm_link") {
                 ROS_INFO_STREAM("Collision with lower arm. Sending '2'");
                 send_char = '2';
+                ROS_INFO_STREAM("which link could be collided" 
+                    << link1 << "/"
+                    << link2);
+
                 // write(serial_port, &send_char, 1);
                 // write(serial_port, full_message.c_str(), full_message.length());
             }
@@ -214,6 +223,10 @@ public:
             else if (link1 == "vx300s/upper_arm_link" || link2 == "vx300s/upper_arm_link") {
                 ROS_INFO_STREAM("Collision with upper arm. Sending '4'");
                 send_char = '3';
+                ROS_INFO_STREAM("which link could be collided" 
+                    << link1 << "/"
+                    << link2);
+
                 // write(serial_port, &send_char,s 1);
                 // write(serial_port, full_message.c_str(), full_message.length());
             }   
@@ -224,40 +237,30 @@ public:
             // float angle = std::atan2(distancez,distancey) * 180.0f / M_PI; 
             // ROS_INFO_STREAM("What is the angle:" << msg.depth);
 
-            if (msg.depth < 1.0f){
+            if (msg.depth < 0.07f){
                 float angle = std::atan2(distancez, distancey) * 180.0f / M_PI;  
                 float angle_x= std::atan2(distancex, distancez) * 180.0f / M_PI;  
                 // 2) normalize to [0,360)
                 float ang = std::fmod(angle + 360.0f, 360.0f);
-                ROS_INFO_STREAM("What is the angle:" << ang);
-                ROS_INFO_STREAM("What is the angleX:" << angle_x);
 
                 // Region 1: right (–22.5°…+22.5° ⇒ 337.5…360 or 0…22.5)
-                if (ang < 22.5f || ang >= 337.5f) {
+                if (ang < 45.0f || ang >= 315.0f) {
                     distancez = 1.0f;
-                    ROS_INFO_STREAM("What is the x distance::" << distancex);
-                    ROS_INFO_STREAM("What is the y distance::" << distancey);
                     // std::string full_msg = make_serial_message(send_char,distancey,distancez);
                 }
                 // Region 2: up (+67.5…112.5)
-                else if (ang >= 67.5f && ang < 0.5f) {
+                else if (ang >= 45.0f && ang < 135.0f) {
                     distancey = 1.0f;
-                    ROS_INFO_STREAM("What is the x distance::" << distancex);
-                    ROS_INFO_STREAM("What is the z distance:" << distancez);
                     // std::string full_msg = make_serial_message(send_char, distancey,distancez);
                 }
                 // Region 3: left (+157.5…202.5)
-                else if (ang >= 157.5f && ang < 202.5f) {
+                else if (ang >= 135.0f && ang < 225.0f) {
                     distancez = 1.0f;
-                    ROS_INFO_STREAM("What is the x distance::" << distancex);
-                    ROS_INFO_STREAM("What is the y distance::" << distancey);
                     // std::string full_msg = make_serial_message(send_char, distancey,distancez);
                 }
                 // Region 4: down (+247.5…292.5)
-                else if (ang >= 247.5f && ang < 292.5f) {
+                else if (ang >= 225.0f && ang < 315.0f) {
                     distancey = 1.0f;
-                    ROS_INFO_STREAM("What is the x distance::" << distancex);
-                    ROS_INFO_STREAM("What is the z distance:" << distancez);
                     // std::string full_msg = make_serial_message(send_char, distancey,distancez);
                 }
                 std::string full_msg = make_serial_message(send_char,distancey,distancez);

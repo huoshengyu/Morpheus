@@ -54,7 +54,7 @@ except Exception:
 
 
 # ==========================================================
-# Session: UI + joystick→event LSL
+# Session: UI + joystick→event LSL + events CSV (one per session)
 # ==========================================================
 class Session(object):
     def __init__(self, id_="", rate=60):
@@ -78,7 +78,7 @@ class Session(object):
         self._csv_basename_pub = rospy.Publisher("csv_basename", String, queue_size=1, latch=True)
         self._csv_trial_comment_pub = rospy.Publisher("csv_trial_comment", String, queue_size=1, latch=True)
 
-        # ===== LSL event outlet (only button presses) =====
+        # ===== LSL event outlet (only button presses; single channel) =====
         evt_info = StreamInfo(
             name='Controller_Events',
             type='event',
@@ -93,9 +93,16 @@ class Session(object):
         # define which buttons = which event
         # TODO: set these to your actual indices from your Joy message
         self.SHARE_BTN = 8   # example index
-        self.OPEN_BTN  = 1   # example index
-        self.CLOSE_BTN = 3   # example index
-        self.HOME_BTN  = 9
+        self.OPEN_BTN  = 1   # example index (square)
+        self.CLOSE_BTN = 3   # example index (circle)
+        self.HOME_BTN  = 9   # home / PS
+
+        # ===== ONE events CSV per session =====
+        self._current_trial = 0
+        self._events_file = None
+        self._events_writer = None
+        self._events_path = None
+        self._session_events_opened = False
 
     # ---------- helpers ----------
     def make_basename(self, id_, task, trial):
@@ -136,9 +143,22 @@ class Session(object):
             return None
 
     def handle_key_events(self, input_buf="", event=None):
+        """
+        Extend the original handler with 'q' / 'Q' for quit.
+        Returns input_buf and event, where event can be:
+          - key.ENTER
+          - key.ESC
+          - 'QUIT'
+          - None
+        """
         k = self.get_key()
         if k is None:
             return input_buf, event
+
+        # global quit
+        if k in ("q", "Q"):
+            return input_buf, "QUIT"
+
         if isinstance(k, str) and k not in (key.ENTER, key.ESC):
             input_buf += k
         elif k in (key.BACKSPACE, key.DELETE):
@@ -150,7 +170,47 @@ class Session(object):
             event = key.ESC
         return input_buf, event
 
-    # ---------- ROS Joy → LSL events ----------
+    # ---------- events CSV helpers (one per session) ----------
+    def _open_session_events_file(self, id_, task):
+        """
+        Open a single events CSV for the whole session:
+        <ID>_<task>_events.csv
+        """
+        if self._session_events_opened:
+            return
+
+        sid = sanitize_filename(str(id_)) or "anon"
+        stask = sanitize_filename(str(task)) or "task"
+        base = f"{sid}_{stask}"
+        self._events_path = os.path.join(self._base_dir, f"{base}_events.csv")
+
+        new_file = not os.path.exists(self._events_path)
+        self._events_file = open(self._events_path, "a", newline="")
+        self._events_writer = csv.writer(self._events_file)
+
+        if new_file:
+            self._events_writer.writerow(["ros_time", "event", "trial", "button_index"])
+
+        self._session_events_opened = True
+        print("[Session] Events file:", self._events_path)
+
+    def _log_event(self, event_name, button_index=None):
+        """
+        Write one event row: time, event label, current trial, optional button index.
+        """
+        if not self._session_events_opened or self._events_writer is None:
+            return
+        t = rospy.get_time()
+        self._events_writer.writerow([
+            t,
+            event_name,
+            self._current_trial,
+            button_index if button_index is not None else ""
+        ])
+        # flush so it's safe if things crash
+        self._events_file.flush()
+
+    # ---------- ROS Joy → LSL events + CSV ----------
     def joy_cb(self, msg: Joy):
         # if we don't have a previous state yet, assume all buttons were 0
         if self._prev_buttons is None:
@@ -164,30 +224,60 @@ class Session(object):
                 and self._prev_buttons[idx] == 0
             )
 
-        # choose event codes
+        ts = rospy.get_time()
+
+        # SHARE
         if pressed(self.SHARE_BTN):
-            ts = rospy.get_time()
-            self._lsl_event_outlet.push_sample([1.0], ts)
+            self._lsl_event_outlet.push_sample([8.0], ts)
+            if self._is_recording:
+                self._log_event("share_button", self.SHARE_BTN)
+
+        # SQUARE
         if pressed(self.OPEN_BTN):
-            ts = rospy.get_time()
-            self._lsl_event_outlet.push_sample([2.0], ts)
+            self._lsl_event_outlet.push_sample([1.0], ts)
+            if self._is_recording:
+                self._log_event("square_button", self.OPEN_BTN)
+
+        # CIRCLE
         if pressed(self.CLOSE_BTN):
-            ts = rospy.get_time()
             self._lsl_event_outlet.push_sample([3.0], ts)
+            if self._is_recording:
+                self._log_event("circle_button", self.CLOSE_BTN)
+
+        # HOME (optional)
         if pressed(self.HOME_BTN):
-            ts = rospy.get_time()
-            self._lsl_event_outlet.push_sample([4.0], ts)
+            self._lsl_event_outlet.push_sample([9.0], ts)
+            if self._is_recording:
+                self._log_event("home_button", self.HOME_BTN)
 
         # update previous
         self._prev_buttons = list(msg.buttons)
 
     # ---------- announce-only start/stop ----------
     def _start_recording(self, id_, task, trial):
+        # open the single session events file (once)
+        self._open_session_events_file(id_, task)
+
+        # store current trial as integer
+        try:
+            self._current_trial = int(trial)
+        except Exception:
+            self._current_trial = 0
+
         base = self.make_basename(id_, task, trial)
+
+        # log start event
+        self._log_event("start_recording")
+
+        # publish basename for other recorders
         self._csv_basename_pub.publish(String(data=base))
         self._is_recording = True
 
     def _stop_recording(self):
+        if self._is_recording:
+            # log stop event
+            self._log_event("stop_recording")
+
         self._csv_basename_pub.publish(String(data=""))
         self._is_recording = False
 
@@ -196,20 +286,24 @@ class Session(object):
         if state == "":
             state = "intro"
         input_buf = ""
+
         while not rospy.is_shutdown():
-            self._queue = self.enqueue_header(self._queue, id_, task, trial)
+            self._queue = self.enqueue_header(deque(), id_, task, trial)
 
             if self._awaiting_comment:
                 self._queue.append("Enter trial comment (e.g. 'good' or 'bad'):")
                 self._queue.append(self._comment_buf)
+                self._queue.append("(Press q to quit without saving a comment.)")
             elif state == "recording":
                 keyname = "recording_on_description" if self._is_recording else "recording_off_description"
                 self._queue = self.enqueue_string(self._queue, keyname)
                 status = "[REC]" if self._is_recording else "[IDLE]"
                 next_base = self.make_basename(id_, task, trial)
                 self._queue.append(f"Status: {status} | CSV base: {next_base}")
+                self._queue.append("Press ENTER to toggle recording, ESC to exit recording, q to quit program.")
             else:
                 self._queue = self.enqueue_string(self._queue, state + "_description")
+                self._queue.append("(Press q to quit program at any time.)")
 
             self._queue.append(input_buf)
             self._queue = self.dequeue(self._queue)
@@ -217,7 +311,15 @@ class Session(object):
             event = None
 
             if self._awaiting_comment:
+                # comment input
                 self._comment_buf, event = self.handle_key_events(self._comment_buf, None)
+
+                if event == "QUIT":
+                    if self._is_recording:
+                        self._stop_recording()
+                    rospy.signal_shutdown("User requested quit (q)")
+                    break
+
                 if event == key.ENTER:
                     msg = f"{self._pending_trial_base}::{self._comment_buf}"
                     self._csv_trial_comment_pub.publish(String(data=msg))
@@ -238,7 +340,15 @@ class Session(object):
                     self._pending_trial_base = ""
                     self._comment_buf = ""
             else:
+                # normal input
                 input_buf, event = self.handle_key_events(input_buf, None)
+
+                if event == "QUIT":
+                    if self._is_recording:
+                        self._stop_recording()
+                    rospy.signal_shutdown("User requested quit (q)")
+                    break
+
                 if state == "recording":
                     if event == key.ENTER:
                         if self._is_recording:
@@ -523,6 +633,8 @@ class MultiLSLRecorder(object):
                 rate.sleep()
         except Exception:
             rospy.logerr("[MultiLSL] run crashed:\n%s", traceback.format_exc())
+
+
 # main
 # ==========================================================
 def main():
@@ -531,14 +643,20 @@ def main():
     session = Session()
     rospy.Subscriber("/vx300s/joy", Joy, session.joy_cb)
 
-    recorder = MultiLSLRecorder(save_dir=session._base_dir,write_mode="both")
+    recorder = MultiLSLRecorder(save_dir=session._base_dir, write_mode="both")
     rec_thread = threading.Thread(target=recorder.run)
     rec_thread.daemon = True
     rec_thread.start()
 
     rospy.on_shutdown(lambda: session._csv_basename_pub.publish(String(data="")))
 
-    session.prompt()
+    try:
+        session.prompt()
+    except KeyboardInterrupt:
+        # ensure we stop cleanly on Ctrl+C
+        if session._is_recording:
+            session._stop_recording()
+        rospy.signal_shutdown("KeyboardInterrupt")
 
 
 if __name__ == "__main__":
