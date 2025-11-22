@@ -258,6 +258,60 @@ sudo udevadm control --reload-rules
 sudo udevadm trigger
 ```
 
+# UC Davis experimental settings
+
+## 1. Ubuntu: Open the terminal
+Open terminal first with a short key: "CTRL+ALT+T"
+
+## 2. On the Ubutu terminal, check the connectivity of eye-tracking:
+Open Pupil Neon Companion App: Click the "Top-Right corner icon" on the main page.
+You can find the IP-Address. Then,
+```
+ping <IP-Address>
+```
+Then, you can see similar output (e.g., "64 bytes from 192.168.0.102: icmp_seq=1 ttl=64 time=369 ms")
+```
+sudo tcpdump -i wlo1 udp port 16571
+```
+Test whether the Pupil headset (Neon or eye-tracking) is sending broadcast / discovery packets on the network.
+
+## 3. Allow connection to the display
+1. Outside the Docker container, allow connection to the display:  
+```
+xhost +
+```
+2. You may need to manually set the `DISPLAY` environment variable to one of the active displays if it did not set correctly.
+    1. Outside the Docker container, list active displays:  
+        ```
+        w
+        ```
+    2. Inside the Docker container, check what `DISPLAY` is set to:  
+        ```
+        echo $DISPLAY
+        ```
+    3. Set `DISPLAY` to match a result from `w`. For example, if `w` shows that display `:1` exists:  
+        ```
+        export DISPLAY=:1
+        ```
+## 4. Open VS code on the Ubuntu terminal
+```
+code
+```
+## 5. Start the Docker container
+Before, check the path directory: "bear@BEAR:~/morpheus_git/Morpheus"
+If yes, 
+```
+docker compose up
+```
+In VSCode, on the left sidebar:
+1. Select the Docker extension tab
+2. Right click on the Morpheus Docker container and select "Attach Visual Studio Code"
+
+## 6. Launch Morpheus:
+```
+roslaunch morpheus_hera cpne.launch
+```
+
 
 # Additional Installation Notes
 
