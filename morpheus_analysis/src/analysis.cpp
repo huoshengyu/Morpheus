@@ -70,7 +70,7 @@ namespace analysis
 };
 
 // Get directory of data folder. Note: cwd is /root/.ros/ by default
-static const std::string data_dir = "/root/catkin_ws/src/morpheus/morpheus_data/analysis/";
+static const std::string data_dir = "/root/catkin_ws/src/morpheus_data/data/";
 
 class AnalysisNode
 {
