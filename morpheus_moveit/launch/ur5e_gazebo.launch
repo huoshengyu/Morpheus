@@ -19,15 +19,15 @@
   </include>
 
   <!-- Set the robot urdf on the parameter server -->
-  <param if="$(arg load_robot_description)" name="/$(arg robot_name)/robot_description" command="xacro '$(arg urdf_path)'"/>
+  <param if="$(arg load_robot_description)" name="$(arg robot_name)/robot_description" command="xacro '$(arg urdf_path)'"/>
 
   <!-- Unpause the simulation after loading the robot model -->
   <arg name="unpause" value="$(eval '' if arg('paused') else '-unpause')" />
 
   <!-- Spawn the robot in Gazebo -->
   <node name="spawn_gazebo_model" pkg="gazebo_ros" type="spawn_model" 
-    args="-urdf -param /$(arg robot_name)/robot_description -model robot 
-        -gazebo_namespace /$(arg robot_name)/gazebo -robot_namespace /$(arg robot_name) 
+    args="-urdf -param robot_description -model robot 
+        -gazebo_namespace gazebo -robot_namespace '' 
         $(arg unpause) $(arg world_pose) $(arg initial_joint_positions)"
     respawn="false" output="screen" />
 

@@ -9,7 +9,7 @@
     <arg name="moveit_controller_config_file" default="$(find homestri_gazebo)/config/b_bot_moveit_controllers.yaml" />
     <arg name="use_rviz" default="true" />
 
-    <arg name="xacro_path" default="$(find morpheus_description)/urdf/scenes/a_bot_node2_scene.xacro"/>
+    <arg name="xacro_path" default="$(find morpheus_description)/urdf/scenes/a_bot_scene.xacro"/>
     <arg name="srdf_path" default="$(find morpheus_description)/srdf/scenes/a_bot_scene.srdf"/>
 
     <group ns="$(arg robot_name)">
@@ -24,7 +24,6 @@
             <arg name="use_rviz"                        value="$(arg use_rviz)"/>
             <arg name="xacro_path"                      value="$(arg xacro_path)"/>
             <arg name="srdf_path"                       value="$(arg srdf_path)"/>
-            <arg name="robot_name"                      value="$(arg robot_name)"/>
         </include>
 
         <!-- Launch collision node -->
